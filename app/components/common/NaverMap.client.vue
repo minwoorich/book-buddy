@@ -1,0 +1,153 @@
+<script setup lang="ts">
+import type { Place } from '#shared/types'
+
+// 네이버 지도 JS는 전역 스크립트로 로드되는 SDK라 별도 타입 패키지 없이 window.naver를
+// any로 다룬다(브리프 허용 범위). 이 컴포넌트는 파일명 컨벤션(`.client.vue`)으로 서버에서는
+// 아예 렌더되지 않으므로, SSR에서 naver가 없다는 걱정은 하지 않아도 된다.
+
+const props = defineProps<{
+  places: (Place & { reason?: string })[]
+  clientId: string
+}>()
+
+/** 목업(places.html)의 4개 고정 핀 좌표. 폴백 렌더링에서 최대 4곳까지만 그대로 사용한다. */
+const FALLBACK_PIN_POSITIONS = [
+  { left: '58%', top: '22%' },
+  { left: '25%', top: '33%' },
+  { left: '13%', top: '66%' },
+  { left: '66%', top: '58%' },
+] as const
+
+const mapEl = ref<HTMLElement | null>(null)
+const showFallback = ref(false)
+
+const fallbackPlaces = computed(() => props.places.slice(0, 4))
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).naver?.maps) {
+      resolve()
+      return
+    }
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`)
+    if (existing) {
+      existing.addEventListener('load', () => resolve())
+      existing.addEventListener('error', () => reject(new Error('네이버 지도 스크립트 로드 실패')))
+      return
+    }
+    const script = document.createElement('script')
+    script.src = src
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('네이버 지도 스크립트 로드 실패'))
+    document.head.appendChild(script)
+  })
+}
+
+function centerOf(places: Place[]): { lat: number; lng: number } {
+  // 용인 수지 근방 기본 좌표(장소가 하나도 없을 때).
+  if (places.length === 0) return { lat: 37.3225, lng: 127.0983 }
+  const sum = places.reduce(
+    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    { lat: 0, lng: 0 }
+  )
+  return { lat: sum.lat / places.length, lng: sum.lng / places.length }
+}
+
+function pinIconHtml(no: number): string {
+  return (
+    '<div style="width:26px;height:26px;background:#E60012;border-radius:50% 50% 50% 0;' +
+    'transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;' +
+    'box-shadow:0 3px 8px rgba(181,0,14,.4);">' +
+    `<span style="transform:rotate(45deg);color:#fff;font-size:12px;font-weight:800;">${no}</span>` +
+    '</div>'
+  )
+}
+
+function renderMap() {
+  const naver = (window as any).naver
+  if (!mapEl.value || !naver?.maps) {
+    showFallback.value = true
+    return
+  }
+
+  const c = centerOf(props.places)
+  const map = new naver.maps.Map(mapEl.value, {
+    center: new naver.maps.LatLng(c.lat, c.lng),
+    zoom: 14,
+  })
+
+  props.places.forEach((place, i) => {
+    new naver.maps.Marker({
+      position: new naver.maps.LatLng(place.lat, place.lng),
+      map,
+      title: place.name,
+      icon: {
+        content: pinIconHtml(i + 1),
+        anchor: new naver.maps.Point(13, 13),
+      },
+    })
+  })
+}
+
+onMounted(async () => {
+  if (!props.clientId) {
+    showFallback.value = true
+    return
+  }
+  try {
+    await loadScript(`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${props.clientId}`)
+    renderMap()
+  } catch {
+    showFallback.value = true
+  }
+})
+</script>
+
+<template>
+  <div class="map">
+    <div v-if="!showFallback" ref="mapEl" class="map-canvas" />
+
+    <template v-else>
+      <div class="roads" />
+      <div class="park" />
+      <div class="hq" style="left: 44%; top: 42%;">
+        <div class="dot" />
+        <div class="lbl">바텍 본사</div>
+      </div>
+      <div
+        v-for="(place, i) in fallbackPlaces"
+        :key="place.name"
+        class="pin"
+        :style="{ left: FALLBACK_PIN_POSITIONS[i]?.left, top: FALLBACK_PIN_POSITIONS[i]?.top }"
+      >
+        <div class="head"><span>{{ i + 1 }}</span></div>
+        <div class="lbl">{{ place.name }}</div>
+      </div>
+      <div class="note">네이버 지도 키가 없어 예시 지도를 표시 중</div>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.map { flex: 1; min-height: 620px; background: #EFE9DC; border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }
+.map-canvas { position: absolute; inset: 0; }
+.roads {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent 118px, #E3DCCB 118px, #E3DCCB 126px, transparent 126px),
+    linear-gradient(0deg, transparent 210px, #E3DCCB 210px, #E3DCCB 220px, transparent 220px),
+    linear-gradient(90deg, transparent 388px, #E6DFCE 388px, #E6DFCE 394px, transparent 394px),
+    linear-gradient(0deg, transparent 430px, #E6DFCE 430px, #E6DFCE 436px, transparent 436px),
+    linear-gradient(35deg, transparent 49.6%, #E3DCCB 49.6%, #E3DCCB 50.4%, transparent 50.4%);
+}
+.park { position: absolute; left: 8%; bottom: 12%; width: 150px; height: 110px; background: #DFE5CE; border-radius: 50% 40% 55% 45%; }
+.note { position: absolute; right: 14px; bottom: 12px; font-size: 11.5px; color: var(--sub); background: rgba(255,253,249,.9); border: 1px solid var(--line); border-radius: 3px; padding: 4px 10px; }
+.hq { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.hq .dot { width: 14px; height: 14px; background: var(--ink); border-radius: 3px; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.hq .lbl { font-size: 11px; font-weight: 700; background: var(--ink); color: #fff; border-radius: 3px; padding: 2px 8px; }
+.pin { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.pin .head { width: 26px; height: 26px; background: var(--red); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(181,0,14,.4); }
+.pin .head span { transform: rotate(45deg); color: #fff; font-size: 12px; font-weight: 800; }
+.pin .lbl { margin-top: 5px; font-size: 11.5px; font-weight: 700; background: rgba(255,253,249,.95); border: 1px solid var(--line); border-radius: 3px; padding: 2px 8px; white-space: nowrap; }
+</style>

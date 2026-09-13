@@ -5,6 +5,7 @@
 // process.env / useRuntimeConfig 어느 한쪽에 결합시키지 않는다.
 
 import type { ExternalBookItem } from '../../shared/types'
+import { stripHtml as cleanText } from '../utils/text'
 
 const BASE_URL = 'https://openapi.naver.com/v1/search/book.json'
 
@@ -24,21 +25,6 @@ interface NaverBookResponse {
   errorCode?: string
   errorMessage?: string
   items?: NaverBookRawItem[]
-}
-
-const HTML_ENTITIES: Record<string, string> = {
-  '&amp;': '&',
-  '&lt;': '<',
-  '&gt;': '>',
-  '&quot;': '"',
-  '&#39;': "'",
-}
-
-/** `<b>`/`</b>` 등 HTML 태그를 제거하고 HTML 엔티티를 디코드한다. */
-function cleanText(raw: string | undefined): string {
-  if (!raw) return ''
-  const withoutTags = raw.replace(/<\/?[^>]+>/g, '')
-  return withoutTags.replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, (entity) => HTML_ENTITIES[entity] ?? entity)
 }
 
 /** `저자1|저자2` 형태를 `저자1, 저자2`로 합친다. */

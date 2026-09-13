@@ -5,7 +5,7 @@ import type { AiAnswer, ChatAction } from '../../shared/types'
  * 첫 JSON 블록을 추출한다. 코드펜스(```json ... ```)로 감싸져 있어도 펜스 문자는 `{`가
  * 아니므로 그대로 통과한다. 균형이 맞는 블록을 찾지 못하면 null.
  */
-function extractJsonBlock(text: string): string | null {
+export function extractJsonBlock(text: string): string | null {
   const start = text.indexOf('{')
   if (start === -1) return null
 
@@ -90,5 +90,39 @@ export function parseAiAnswer(text: string): AiAnswer {
     }
   } catch {
     return fallback
+  }
+}
+
+interface RankedNameReason {
+  name: string
+  reason: string
+}
+
+function toRankedList(value: unknown): RankedNameReason[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((v): v is Record<string, unknown> => typeof v === 'object' && v !== null)
+    .map((v) => ({
+      name: typeof v.name === 'string' ? v.name : '',
+      reason: typeof v.reason === 'string' ? v.reason : '',
+    }))
+    .filter((v) => v.name.length > 0)
+}
+
+/**
+ * Task 19 장소 큐레이션 응답(`{"ranked":[{"name":"...","reason":"..."}]}`)에서 이름/이유
+ * 목록을 파싱한다. extractJsonBlock으로 균형 JSON 블록을 찾는 것은 parseAiAnswer와 동일한
+ * 패턴을 재사용하되, message/bookIds/actions가 아닌 ranked 배열만 뽑아내는 전용 파서다.
+ * 블록을 못 찾거나 파싱에 실패하거나 ranked가 없으면 빈 배열(호출부가 원 순서로 폴백).
+ */
+export function parsePlaceRanking(text: string): RankedNameReason[] {
+  const block = extractJsonBlock(text)
+  if (!block) return []
+
+  try {
+    const parsed = JSON.parse(block) as Record<string, unknown>
+    return toRankedList(parsed.ranked)
+  } catch {
+    return []
   }
 }

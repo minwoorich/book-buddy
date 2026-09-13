@@ -143,3 +143,14 @@ export interface StatRow {
   headCount: number
   perHead: number
 }
+
+/** 네이버 지역 검색 결과 1건(책 읽기 좋은 장소). mapx/mapy는 WGS84 * 1e7 원본값, lat/lng는 변환값. */
+export interface Place {
+  name: string
+  category: string
+  address: string
+  mapx: number
+  mapy: number
+  lat: number
+  lng: number
+}
