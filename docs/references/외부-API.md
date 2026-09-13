@@ -6,7 +6,15 @@
 - 작업 파일: `design/*.dc.html` + `design/canvas.json` (수정 시 여기를 고치고 다시 시드/발행)
 - 현재 상태: 방향 시안 3종 (A 따뜻한 서점 / B 생산성 툴 / C AI 퍼스트) — 방향 선택 대기
 
-## 알라딘 Open API
+## 네이버 책 검색 API (알라딘 대체 — 2026-09-13 교체, [[../decisions/2026-09-13-알라딘-네이버-교체|결정]])
+
+- 엔드포인트: `GET https://openapi.naver.com/v1/search/book.json?query=&display=`
+- 헤더: `X-Naver-Client-Id`, `X-Naver-Client-Secret` (개발자센터 앱에서 "검색" API 사용 설정 — 지역검색과 같은 키)
+- 응답 items: `title`(&lt;b&gt; 태그 포함 → 제거 필요), `author`(| 구분), `publisher`, `pubdate`(YYYYMMDD), `isbn`(13자리), `description`, `image`(표지 — `?type=` 쿼리 제거 시 고해상도)
+- 페이지 수 미제공 → books.page_count는 null 허용
+- 베스트셀러 목록 없음 → 시드는 카테고리별 키워드 검색으로 수집
+
+## ~~알라딘 Open API~~ (서비스 종료로 미사용)
 
 - 키: TTB 키 필요 (`.env`의 `ALADIN_TTB_KEY`), 발급: https://www.aladin.co.kr/ttb/wblog_manage.aspx
 - 용도 1 — 시드 수집: `ItemList.aspx` (QueryType=Bestseller, CategoryId로 분야 지정, output=js&Version=20131101)

@@ -38,13 +38,13 @@
 | DB | SQLite (better-sqlite3), 파일 1개 |
 | AI | Claude API — LangChain.js (`@langchain/anthropic`, `@langchain/core`, `@langchain/langgraph`의 `createReactAgent`) |
 | 모델 | `claude-sonnet-5` |
-| 외부 데이터 | 알라딘 Open API (TTB 키, `.env`) — 시드 수집 + 희망도서 검색 |
+| 외부 데이터 | 네이버 책 검색 API (개발자센터 키, 장소 검색과 동일 키) — 시드 수집 + 희망도서 검색. ~~알라딘~~은 서비스 종료로 교체(2026-09-13) |
 | 테스트 | Vitest — 대출/예약 비즈니스 규칙 단위 테스트만 (데모 수준) |
 
-환경변수(`.env`): `ANTHROPIC_API_KEY`, `ALADIN_TTB_KEY`,
-`NAVER_MAP_CLIENT_ID`(네이버클라우드 Maps), `NAVER_SEARCH_CLIENT_ID`/`NAVER_SEARCH_CLIENT_SECRET`(네이버 개발자센터 지역검색)
+환경변수(`.env`): `ANTHROPIC_API_KEY`,
+`NAVER_MAP_CLIENT_ID`(네이버클라우드 Maps), `NAVER_SEARCH_CLIENT_ID`/`NAVER_SEARCH_CLIENT_SECRET`(네이버 개발자센터 — 책 검색 + 지역검색 공용)
 
-> 주의: 네이버 **지도(NCP Maps)**와 **지역검색(개발자센터)**은 발급처가 다른 별개 키다.
+> 주의: 네이버 **지도(NCP Maps)**와 **검색(개발자센터)**은 발급처가 다른 별개 키다.
 
 ## 3. 프로젝트 구조 (레이어 분리)
 
@@ -156,7 +156,7 @@ tests/             # Vitest — loanService 등 핵심 규칙
 | `GET /api/posts/:id/comments` / `POST /api/posts/:id/comments` | 댓글 목록 / 작성 |
 | `GET /api/places?query=` | 네이버 지역검색 프록시 (주변 카페·도서관·공원) |
 | `POST /api/ai/places` | 장소 목록을 Claude가 "책 읽기 좋은 순"으로 큐레이션 (추천 이유 포함) |
-| `GET /api/aladin/search?query=` | 알라딘 도서 검색 프록시 (희망도서·책 등록용) |
+| `GET /api/book-search?query=` | 네이버 책 검색 프록시 (희망도서·책 등록용) |
 | `POST /api/reports` | 신고 접수 `{targetType, targetId, reason}` |
 
 **관리자 전용** (role=admin 헤더 검사, 데모 수준):
@@ -181,7 +181,7 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 
 도구 (1도구 1파일, service/repository 재사용):
 
-- 조회: `search_books`, `get_book_detail`, `get_my_loans`, `get_reviews`, `search_aladin`, `get_my_reading_stats`(대출-반납 기반 완독 통계), `get_rankings`
+- 조회: `search_books`, `get_book_detail`, `get_my_loans`, `get_reviews`, `search_external_books`(네이버 책 검색), `get_my_reading_stats`(대출-반납 기반 완독 통계), `get_rankings`
 - 행동: `borrow_book`, `return_book`, `reserve_book`, `request_purchase`, `add_wishlist`
 
 응답 형식: 에이전트 최종 응답은 아래 JSON으로 강제(시스템 프롬프트 + 서버 파싱, 파싱 실패
