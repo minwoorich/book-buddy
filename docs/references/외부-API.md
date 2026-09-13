@@ -14,6 +14,14 @@
 - 주요 응답 필드: `title`, `author`, `publisher`, `categoryName`, `description`, `cover`, `isbn13`, `pubDate`
 - 주의: 하루 5,000회 호출 제한. description이 비어 있는 책도 있음 → 시드 시 필터링 고려
 - 구현 전에 실제 호출로 응답 형식 확인할 것 (버전 파라미터에 따라 형식 다름)
+- 표지 이미지: 검색 결과의 cover URL에서 `/cover200/` → `/cover500/`으로 바꾸면 고해상도. 목업에서 검증된 실표지 6종:
+  - 팀장의 탄생 `https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg`
+  - 실리콘밸리의 팀장들 `https://image.aladin.co.kr/product/19389/8/cover500/8935212822_1.jpg`
+  - 함께 자라기 `https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg`
+  - 클린 코드 2판 `https://image.aladin.co.kr/product/40175/21/cover500/8966265529_1.jpg`
+  - 인스파이어드 `https://image.aladin.co.kr/product/17665/92/cover500/k122534513_2.jpg`
+  - 하드씽 `https://image.aladin.co.kr/product/26666/69/cover500/8947547034_1.jpg`
+- 참고: Google Books API 무료(키 없는) 호출은 쿼터 0이라 사용 불가 (2026-09-13 확인)
 
 ## Claude API + LangChain.js
 
