@@ -1,1 +1,101 @@
-<template><div>Book Buddy</div></template>
+<script setup lang="ts">
+import type { Book } from '#shared/types'
+
+type BookWithMeta = Book & {
+  status: 'available' | 'loaned'
+  waitingCount: number
+  avgRating: number | null
+  reviewCount: number
+}
+
+const route = useRoute()
+const router = useRouter()
+const api = useApi()
+
+function queryParam(): string {
+  const q = route.query.q
+  return typeof q === 'string' ? q : ''
+}
+
+const searchInput = ref(queryParam())
+const selectedCategory = ref('전체')
+const activeQuery = computed(() => queryParam())
+
+watch(activeQuery, (q) => {
+  searchInput.value = q
+})
+
+function submitSearch() {
+  const q = searchInput.value.trim()
+  router.push({ query: q ? { q } : {} })
+}
+
+const { data: shelfBooks, pending: shelfPending } = await useAsyncData<BookWithMeta[]>(
+  'home-shelf',
+  () =>
+    activeQuery.value
+      ? Promise.resolve([])
+      : api<BookWithMeta[]>('/api/books', {
+          query: { category: selectedCategory.value === '전체' ? undefined : selectedCategory.value },
+        }),
+  { watch: [selectedCategory, activeQuery] }
+)
+
+const { data: searchResults, pending: searchPending } = await useAsyncData<BookWithMeta[]>(
+  'home-search',
+  () =>
+    activeQuery.value
+      ? api<BookWithMeta[]>('/api/books', { query: { query: activeQuery.value } })
+      : Promise.resolve([]),
+  { watch: [activeQuery] }
+)
+</script>
+
+<template>
+  <div>
+    <CommonAppHeader active="home" />
+    <div class="wrap">
+      <template v-if="!activeQuery">
+        <div class="hero">
+          <div class="eyebrow">VATECH PEOPLE&rsquo;S BOOKSHELF</div>
+          <h1>오늘은 어떤 책을 읽어볼까요?</h1>
+          <CommonSearchBar v-model="searchInput" @submit="submitSearch" />
+          <CommonCategoryChips v-model="selectedCategory" />
+        </div>
+
+        <div class="sec-head">
+          <h2>이달의 서가</h2>
+          <div class="rule" />
+          <span class="count">전체 {{ shelfBooks?.length ?? 0 }}권</span>
+        </div>
+        <p v-if="shelfPending" class="hint">불러오는 중…</p>
+        <BookShelfRow v-else-if="shelfBooks && shelfBooks.length" :books="shelfBooks" :columns="6" />
+        <p v-else class="hint">등록된 책이 없어요.</p>
+      </template>
+
+      <template v-else>
+        <AiSearchPanel :query="activeQuery" />
+
+        <div class="sec-head">
+          <h2>"{{ activeQuery }}" 검색 결과</h2>
+          <div class="rule" />
+        </div>
+        <p v-if="searchPending" class="hint">불러오는 중…</p>
+        <div v-else-if="searchResults && searchResults.length" class="results-grid">
+          <BookCard v-for="book in searchResults" :key="book.id" :book="book" />
+        </div>
+        <p v-else class="hint">검색 결과가 없어요.</p>
+      </template>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.hero { text-align: center; margin-bottom: 34px; }
+.hero h1 { font-family: "Noto Serif KR", serif; font-size: 31px; font-weight: 600; letter-spacing: -0.4px; margin: 10px 0 22px; }
+
+.count { font-size: 13px; color: var(--sub); white-space: nowrap; }
+.hint { color: var(--sub); font-size: 14px; padding: 20px 0; }
+
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 26px 22px; }
+</style>
