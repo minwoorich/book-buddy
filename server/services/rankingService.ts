@@ -23,17 +23,21 @@ interface GroupRankRow {
   cnt: number
 }
 
-const GROUP_CONFIG: Record<'team' | 'department' | 'company', { column: string; select: string }> = {
+/**
+ * team/department는 회사·부서가 다르면 이름이 같아도 별개 그룹이어야 하므로
+ * 상위 소속 컬럼까지 포함해 GROUP BY한다(예: 레이언스/연구소 vs 바텍/연구소).
+ */
+const GROUP_CONFIG: Record<'team' | 'department' | 'company', { groupBy: string; select: string }> = {
   team: {
-    column: 'u.team',
-    select: 'u.team as label, MIN(u.company) as company, MIN(u.department) as department',
+    groupBy: 'u.company, u.department, u.team',
+    select: 'u.team as label, u.company as company, u.department as department',
   },
   department: {
-    column: 'u.department',
-    select: 'u.department as label, MIN(u.company) as company',
+    groupBy: 'u.company, u.department',
+    select: 'u.department as label, u.company as company',
   },
   company: {
-    column: 'u.company',
+    groupBy: 'u.company',
     select: 'u.company as label',
   },
 }
@@ -70,22 +74,35 @@ export const rankingService = {
       }))
     }
 
-    const { column, select } = GROUP_CONFIG[by]
+    const { groupBy, select } = GROUP_CONFIG[by]
     const rows = db
       .prepare(
         `SELECT ${select}, COUNT(l.id) as cnt
          FROM loans l JOIN users u ON u.id = l.user_id
          WHERE ${where}
-         GROUP BY ${column}
+         GROUP BY ${groupBy}
          ORDER BY cnt DESC`
       )
       .all() as GroupRankRow[]
 
-    return rows.map((r) => ({
-      key: r.label,
-      label: r.label,
-      sub: by === 'team' ? `${r.company} · ${r.department}` : by === 'department' ? r.company : undefined,
-      count: r.cnt,
-    }))
+    return rows.map((r) => {
+      if (by === 'team') {
+        return {
+          key: `${r.company}/${r.department}/${r.label}`,
+          label: r.label,
+          sub: `${r.company} · ${r.department}`,
+          count: r.cnt,
+        }
+      }
+      if (by === 'department') {
+        return {
+          key: `${r.company}/${r.label}`,
+          label: r.label,
+          sub: r.company,
+          count: r.cnt,
+        }
+      }
+      return { key: r.label, label: r.label, count: r.cnt }
+    })
   },
 }
