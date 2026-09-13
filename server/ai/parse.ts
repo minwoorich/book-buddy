@@ -49,6 +49,13 @@ function toBookIds(value: unknown): number[] {
   return value.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
 }
 
+/** 액션이 이동할 수 있는 경로 화이트리스트. LLM이 임의 경로(외부 URL 등)를 만들어내는 걸 막는다. */
+const ALLOWED_ACTION_PATHS = [/^\/(my|calendar|rankings|feed|places)$/, /^\/books\/\d+(\?review=1)?$/]
+
+function isAllowedActionPath(to: string): boolean {
+  return ALLOWED_ACTION_PATHS.some((re) => re.test(to))
+}
+
 function isChatAction(value: unknown): value is ChatAction {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
@@ -57,7 +64,8 @@ function isChatAction(value: unknown): value is ChatAction {
     typeof v.label === 'string' &&
     v.label.length > 0 &&
     typeof v.to === 'string' &&
-    v.to.length > 0
+    v.to.length > 0 &&
+    isAllowedActionPath(v.to)
   )
 }
 

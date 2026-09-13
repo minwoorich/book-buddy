@@ -64,4 +64,23 @@ describe('parseAiAnswer', () => {
       actions: [{ type: 'navigate', label: '이동', to: '/rankings' }],
     })
   })
+
+  it('8. 허용된 경로는 통과하고, 화이트리스트에 없는 경로(외부 URL 등)는 드랍한다', () => {
+    const text =
+      '{"message":"확인해보세요.","bookIds":[],"actions":[' +
+      '{"type":"navigate","label":"책 상세","to":"/books/12?review=1"},' +
+      '{"type":"navigate","label":"악성 링크","to":"https://evil.example.com"},' +
+      '{"type":"navigate","label":"관리자","to":"/admin"},' +
+      '{"type":"navigate","label":"내 서재","to":"/my"}' +
+      ']}'
+    const result = parseAiAnswer(text)
+    expect(result).toEqual({
+      message: '확인해보세요.',
+      bookIds: [],
+      actions: [
+        { type: 'navigate', label: '책 상세', to: '/books/12?review=1' },
+        { type: 'navigate', label: '내 서재', to: '/my' },
+      ],
+    })
+  })
 })
