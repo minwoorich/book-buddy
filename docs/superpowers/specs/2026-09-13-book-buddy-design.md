@@ -49,23 +49,42 @@
 
 한 파일에 몰아넣지 않는다. 각 레이어는 단방향으로만 의존한다:
 `api → service → repository → db`, `ai tools → service/repository`.
+전부 TypeScript. 도메인 타입은 `shared/`에 두고 서버·프론트가 공유한다.
 
 ```
+shared/
+  types/           # 도메인 타입 (Book, Loan, User, Post, ...) — 서버·프론트 공용
 server/
-  db/            # 커넥션, 스키마 생성(migrate), 시드 유틸
-  repositories/  # 테이블별 CRUD (books, users, loans, reservations, purchaseRequests, reviews)
-  services/      # 비즈니스 규칙 (loanService: 대출/반납/예약 규칙, aladinService: 외부 API)
+  db/              # 커넥션 싱글턴, 스키마 생성(migrate.ts)
+  repositories/    # 테이블별 CRUD — 1테이블 1파일
+                   # (books, users, loans, reservations, purchaseRequests,
+                   #  reviews, reviewVotes, wishlists, readingProgress,
+                   #  posts, postLikes, postComments, reports)
+  services/        # 비즈니스 규칙 — loanService(대출/반납/예약 규칙),
+                   # rankingService, statsService, uploadService,
+                   # aladinService, naverPlaceService
   ai/
-    agent.ts     # LangGraph ReAct 에이전트 구성
-    tools/       # LangChain tool 정의 (도구 1개 = 파일 1개)
-    prompts.ts   # 시스템 프롬프트
-  api/           # RESTful 라우트 (아래 5절)
+    agent.ts       # LangGraph ReAct 에이전트 구성
+    tools/         # LangChain tool 정의 (도구 1개 = 파일 1개)
+    prompts.ts     # 시스템 프롬프트
+  api/             # RESTful 라우트 — Nitro 파일 라우팅으로 자원/메서드별 1파일
+                   # (예: books/index.get.ts, books/[id].get.ts, loans/index.post.ts)
+  utils/           # requireUser(x-user-id 해석), requireAdmin, ApiError
 app/ (Nuxt)
-  pages/         # login, index(메인 검색), books/[id], my
-  components/    # BookCard, SearchBar, AiSearchPanel, ChatWidget, ReviewForm, ReviewList …
-  composables/   # useCurrentUser(localStorage 기반), useChat
+  pages/           # login, index, books/[id], my, calendar, rankings,
+                   # feed, places, admin/index, admin/stats
+  components/      # 도메인별 폴더로 분리
+    book/          # BookCard, BookShelf(선반), CoverImage, StatusBadge
+    ai/            # AiSearchPanel, ChatWidget, ChatMessage, ActionButtons
+    review/        # ReviewList, ReviewForm, StarRating
+    reading/       # BookStack(책쌓기), ProgressForm, ReadingCalendar
+    feed/          # PostCard, PostComposer, CommentList
+    admin/         # StatCards, LoanTable, RequestTable, ReportTable, StatsChart
+    common/        # AppHeader, SearchBar, CategoryChips, Toast
+  composables/     # useCurrentUser(localStorage), useApi($fetch 래퍼, x-user-id 자동 첨부), useChat
 scripts/
-  seed.ts        # 알라딘 API → 책 40권 내외 + 직원 8명 + 데모용 대출/리뷰 삽입
+  seed.ts          # 알라딘 API → 책 + 직원 + 데모 활동 데이터 삽입
+tests/             # Vitest — loanService 등 핵심 규칙
 ```
 
 ## 4. 데이터 모델
@@ -226,7 +245,28 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 - Vitest 단위 테스트: `loanService`의 대출/반납/예약 규칙 (재고 1권, 예약자 우선, 중복 방지)
 - AI·화면은 수동 확인 (하루 일정)
 
-## 10. 시드 데이터
+## 10. 디자인 방향 (확정)
+
+`design/mockups/ver1a-editorial.html`이 스타일 가이드다 — **에디토리얼 서재**:
+
+- 크림톤 배경(#F8F4ED) + 세리프 헤드라인(Noto Serif KR) + 본문 Pretendard
+- VATECH red #E60012는 포인트 전용 (버튼, 액티브, 로고, AI 라벨). 넓은 면적 금지
+- 책 표지는 실제 이미지(알라딘 cover500), 책등 하이라이트 + 그림자로 실물감
+- 서가/책장 화면은 나무 선반 위에 표지가 서 있는 연출 (마이페이지 책장, 이달의 서가)
+
+## 11. 배포 전략
+
+1일 데모 기준으로 단순하게 간다:
+
+- **1차(데모 당일)**: 로컬 실행 — `npm run dev` 또는 `npm run build && node .output/server/index.mjs`.
+  시연자는 본인 노트북에서 실행하고 화면 공유/빔프로젝터로 시연
+- **2차(원하면)**: **Dockerfile 제공** — Nitro node-server 프리셋 빌드 산출물(`.output`) +
+  SQLite 파일과 업로드 폴더(`.data/`)를 볼륨 마운트. 사내 VM 어디서든 `docker run`
+- **서버리스(Vercel 등) 배포는 안 함** — SQLite 파일 DB와 로컬 사진 업로드가
+  서버리스 파일시스템과 맞지 않음. 단일 Node 서버 전제
+- `.env`(API 키들)는 이미지에 굽지 않고 런타임에 주입. 시드는 배포 후 `npm run seed` 1회
+
+## 12. 시드 데이터
 
 `scripts/seed.ts` (`npm run seed`):
 
