@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — AI 사서 챗봇</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* 뒷배경(메인 화면 축약) — 흐리게 */
+  .backdrop { filter: blur(1.5px); opacity: .45; pointer-events: none; user-select: none; }
+
+  /* 챗 패널 */
+  .chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
+  .chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .chat-head .logo-mark { width: 30px; height: 30px; }
+  .chat-head b { font-family: "Noto Serif KR", serif; font-size: 15.5px; display: block; }
+  .chat-head span { font-size: 11.5px; color: var(--ok); }
+  .chat-head .x { margin-left: auto; font-size: 20px; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 4px; }
+  .chat-body { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg-user { align-self: flex-end; max-width: 82%; background: var(--ink); color: #F6F1E7; border-radius: 14px 14px 3px 14px; padding: 9px 14px; font-size: 14px; line-height: 1.55; }
+  .msg-ai { align-self: stretch; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px 14px 14px 3px; padding: 12px 14px; font-size: 14px; line-height: 1.65; color: #3E382D; }
+  .msg-ai .tag { font-size: 10.5px; letter-spacing: 2px; color: var(--red); font-weight: 700; display: block; margin-bottom: 6px; }
+  .mini-books { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+  .mini-book { display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+  .mini-book:hover { border-color: #C9BCA2; }
+  .mini-book .cv { width: 34px; height: 48px; }
+  .mini-book .t { font-size: 13px; font-weight: 700; }
+  .mini-book .a { font-size: 11.5px; color: var(--sub); }
+  .mini-book .st { margin-left: auto; }
+  .chat-acts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .chat-act { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--red); background: transparent; border: 1px solid var(--red); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+  .chat-act:hover { background: var(--red-tint); }
+  .chat-act.done { color: var(--ok); border-color: var(--ok); cursor: default; }
+  .chat-foot { border-top: 1px solid var(--line); padding: 12px 14px; display: flex; align-items: center; gap: 10px; background: var(--bg); }
+  .chat-foot input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 14px; background: transparent; color: var(--ink); }
+  .chat-foot .send { width: 36px; height: 36px; border-radius: 50%; background: var(--red); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .chat-foot .send:hover { background: var(--red-dark); }
+
+  /* 뒷배경 메인 요약 */
+  .bg-hero { text-align: center; margin: 40px 0 30px; }
+  .bg-hero h1 { font-family: "Noto Serif KR", serif; font-size: 31px; margin: 10px 0 20px; }
+  .bg-search { max-width: 660px; margin: 0 auto; background: var(--card); border: 1px solid var(--line-strong); border-radius: 999px; padding: 14px 22px; color: #A79C88; text-align: left; }
+  .bg-covers { display: grid; grid-template-columns: repeat(6, 1fr); gap: 22px; margin-top: 40px; }
+  .bg-covers .cv { aspect-ratio: 500/726; }
+</style>
+</head>
+<body>
+
+<div class="backdrop">
+  <nav class="nav">
+    <div class="nav-in">
+      <div class="logo">
+        <div class="logo-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+        </div>
+        <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+      </div>
+      <div class="nav-links"><span class="on">홈</span><span>내 서재</span><span>도서 달력</span><span>랭킹</span><span>피드</span><span>장소</span></div>
+      <div class="me"><div class="avatar">민</div> 김민우 님</div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div class="bg-hero">
+      <div class="eyebrow">VATECH PEOPLE&rsquo;S BOOKSHELF</div>
+      <h1>오늘은 어떤 책을 읽어볼까요?</h1>
+      <div class="bg-search">예: 프로젝트 관리 입문서 있어?</div>
+    </div>
+    <div class="bg-covers">
+      <div class="cv"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt=""></div>
+      <div class="cv"><img src="https://image.aladin.co.kr/product/19389/8/cover500/8935212822_1.jpg" alt=""></div>
+      <div class="cv"><img src="https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg" alt=""></div>
+      <div class="cv"><img src="https://image.aladin.co.kr/product/40175/21/cover500/8966265529_1.jpg" alt=""></div>
+      <div class="cv"><img src="https://image.aladin.co.kr/product/17665/92/cover500/k122534513_2.jpg" alt=""></div>
+      <div class="cv"><img src="https://image.aladin.co.kr/product/26666/69/cover500/8947547034_1.jpg" alt=""></div>
+    </div>
+  </div>
+</div>
+
+<div class="chat">
+  <div class="chat-head">
+    <div class="logo-mark">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+    </div>
+    <div><b>AI 사서</b><span>● 대출·예약·신청까지 대신해드려요</span></div>
+    <a class="x" href="main.html" title="닫기">×</a>
+  </div>
+
+  <div class="chat-body">
+    <div class="msg-user">요즘 팀장이 됐는데 읽을 만한 책 추천해줘</div>
+
+    <div class="msg-ai">
+      <span class="tag">AI LIBRARIAN</span>
+      축하드려요! 첫 팀장에게 맞는 세 권을 서가에서 골랐어요. 「팀장의 탄생」이 지금 상황에 가장 가깝습니다.
+      <div class="mini-books">
+        <a class="mini-book" href="book-detail.html" style="color:inherit;">
+          <span class="cv"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt=""></span>
+          <span><span class="t">팀장의 탄생</span><br><span class="a">줄리 주오</span></span>
+          <span class="st ok">대출가능</span>
+        </a>
+        <div class="mini-book">
+          <span class="cv"><img src="https://image.aladin.co.kr/product/19389/8/cover500/8935212822_1.jpg" alt=""></span>
+          <span><span class="t">실리콘밸리의 팀장들</span><br><span class="a">킴 스콧</span></span>
+          <span class="st no">대출중</span>
+        </div>
+        <div class="mini-book">
+          <span class="cv"><img src="https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg" alt=""></span>
+          <span><span class="t">함께 자라기</span><br><span class="a">김창준</span></span>
+          <span class="st ok">대출가능</span>
+        </div>
+      </div>
+      <div class="chat-acts">
+        <button class="chat-act">「팀장의 탄생」 대출하기</button>
+        <button class="chat-act">「실리콘밸리의 팀장들」 예약하기</button>
+        <button class="chat-act">세 권 비교해줘</button>
+      </div>
+    </div>
+
+    <div class="msg-user">팀장의 탄생 대출해줘</div>
+
+    <div class="msg-ai">
+      <span class="tag">AI LIBRARIAN</span>
+      대출 완료! 「팀장의 탄생」 반납 예정일은 <b>9월 27일 (일)</b>이에요. 지난번 「하드씽」 재밌게 읽으셨다면, 다 읽고 리뷰도 남겨보시겠어요?
+      <div class="chat-acts">
+        <button class="chat-act done">✓ 대출 완료</button>
+        <button class="chat-act">내 서재 보기</button>
+        <button class="chat-act">「하드씽」 리뷰 쓰러가기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-foot">
+    <input placeholder="AI 사서에게 무엇이든 물어보세요">
+    <button class="send">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3 11l18-7-7 18-2.5-7L3 11z"></path></svg>
+    </button>
+  </div>
+</div>
+
+</body>
+</html>

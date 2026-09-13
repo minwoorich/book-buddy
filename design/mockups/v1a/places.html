@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 책 읽기 좋은 장소</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .pl-layout { display: flex; gap: 26px; align-items: stretch; }
+  .map { flex: 1; min-height: 620px; background: #EFE9DC; border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }
+  .map .roads { position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, transparent 118px, #E3DccB 118px, #E3DCCB 126px, transparent 126px),
+      linear-gradient(0deg, transparent 210px, #E3DCCB 210px, #E3DCCB 220px, transparent 220px),
+      linear-gradient(90deg, transparent 388px, #E6DFCE 388px, #E6DFCE 394px, transparent 394px),
+      linear-gradient(0deg, transparent 430px, #E6DFCE 430px, #E6DFCE 436px, transparent 436px),
+      linear-gradient(35deg, transparent 49.6%, #E3DCCB 49.6%, #E3DCCB 50.4%, transparent 50.4%);
+  }
+  .map .park { position: absolute; left: 8%; bottom: 12%; width: 150px; height: 110px; background: #DFE5CE; border-radius: 50% 40% 55% 45%; }
+  .map .note { position: absolute; right: 14px; bottom: 12px; font-size: 11.5px; color: var(--sub); background: rgba(255,253,249,.9); border: 1px solid var(--line); border-radius: 3px; padding: 4px 10px; }
+  .hq { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .hq .dot { width: 14px; height: 14px; background: var(--ink); border-radius: 3px; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+  .hq .lbl { font-size: 11px; font-weight: 700; background: var(--ink); color: #fff; border-radius: 3px; padding: 2px 8px; }
+  .pin { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+  .pin .head { width: 26px; height: 26px; background: var(--red); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(181,0,14,.4); }
+  .pin .head span { transform: rotate(45deg); color: #fff; font-size: 12px; font-weight: 800; }
+  .pin .lbl { margin-top: 5px; font-size: 11.5px; font-weight: 700; background: rgba(255,253,249,.95); border: 1px solid var(--line); border-radius: 3px; padding: 2px 8px; white-space: nowrap; }
+
+  .plist { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+  .place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+  .place .top { display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; }
+  .place .no { font-family: "Noto Serif KR", serif; color: var(--red); font-weight: 700; font-size: 16px; }
+  .place b { font-size: 15.5px; }
+  .place .cat { font-size: 12px; color: var(--sub); }
+  .place .meta { font-size: 12.5px; color: var(--sub); margin-bottom: 10px; }
+  .place .why { background: var(--red-tint); border-radius: 3px; padding: 9px 12px; font-size: 13px; line-height: 1.6; color: #6E3A34; display: flex; gap: 8px; }
+  .place .why svg { flex-shrink: 0; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="main.html" style="color:inherit;">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+    </a>
+    <div class="nav-links">
+      <a href="main.html">홈</a>
+      <a href="my.html">내 서재</a>
+      <a href="calendar.html">도서 달력</a>
+      <a href="rankings.html">랭킹</a>
+      <a href="feed.html">피드</a>
+      <a class="on" href="places.html">장소</a>
+    </div>
+    <div class="me"><div class="avatar">민</div> 김민우 님</div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-head" style="display:flex; align-items:flex-end; gap: 20px;">
+    <div>
+      <span class="eyebrow">READING SPOTS</span>
+      <h1>책 읽기 좋은 장소</h1>
+      <p>회사 주변 카페·도서관·공원을 AI가 책 읽기 좋은 순으로 골라드려요</p>
+    </div>
+    <button class="btn primary" style="margin-left:auto;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px;"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+      AI 추천받기
+    </button>
+  </div>
+
+  <div class="pl-layout">
+    <div class="map">
+      <div class="roads"></div>
+      <div class="park"></div>
+      <div class="hq" style="left: 44%; top: 42%;">
+        <div class="dot"></div>
+        <div class="lbl">바텍 본사</div>
+      </div>
+      <div class="pin" style="left: 58%; top: 22%;"><div class="head"><span>1</span></div><div class="lbl">카페 온점</div></div>
+      <div class="pin" style="left: 25%; top: 33%;"><div class="head"><span>2</span></div><div class="lbl">수지도서관</div></div>
+      <div class="pin" style="left: 13%; top: 66%;"><div class="head"><span>3</span></div><div class="lbl">동천 공원</div></div>
+      <div class="pin" style="left: 66%; top: 58%;"><div class="head"><span>4</span></div><div class="lbl">북카페 서재</div></div>
+      <div class="note">네이버 지도 연동 영역 (목업)</div>
+    </div>
+
+    <div class="plist">
+      <div class="place">
+        <div class="top"><span class="no">1</span><b>카페 온점</b><span class="cat">카페 · 도보 4분</span></div>
+        <div class="meta">평일 9:00–21:00 · 콘센트 좌석 많음</div>
+        <div class="why">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5000E" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+          창가 1인석이 많고 음악이 잔잔해서 점심시간 독서에 가장 좋아요.
+        </div>
+      </div>
+      <div class="place">
+        <div class="top"><span class="no">2</span><b>수지도서관</b><span class="cat">도서관 · 차 7분</span></div>
+        <div class="meta">화–일 9:00–22:00 · 열람실 예약 가능</div>
+        <div class="why">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5000E" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+          집중해서 완독하고 싶은 날, 퇴근 후 2시간 몰입 코스로 추천해요.
+        </div>
+      </div>
+      <div class="place">
+        <div class="top"><span class="no">3</span><b>동천 공원</b><span class="cat">공원 · 도보 9분</span></div>
+        <div class="meta">벤치 다수 · 그늘 많음</div>
+        <div class="why">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5000E" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+          요즘 날씨에 가볍게 읽기 좋아요. 에세이·인문 책과 잘 어울립니다.
+        </div>
+      </div>
+      <div class="place">
+        <div class="top"><span class="no">4</span><b>북카페 서재</b><span class="cat">북카페 · 차 5분</span></div>
+        <div class="meta">평일 11:00–23:00 · 조용한 룸 2개</div>
+        <div class="why">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5000E" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+          팀 북클럽 모임 장소로 좋아요. 룸 예약이 가능해서 토론하기 편합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a class="fab" href="chatbot.html" title="AI 사서">
+  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+</a>
+
+</body>
+</html>

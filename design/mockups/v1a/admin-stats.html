@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 통계</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .filters { display: flex; gap: 10px; margin-bottom: 26px; align-items: center; }
+  .filters select { font: inherit; font-size: 13.5px; color: var(--ink); background: var(--card); border: 1px solid var(--line-strong); border-radius: 3px; padding: 8px 12px; outline: 0; }
+
+  /* 가로 막대 차트 — 단일 색조, 얇은 마크, 데이터 끝만 4px 라운드 */
+  .hbar-chart { display: grid; grid-template-columns: 90px 1fr 110px; row-gap: 13px; align-items: center; }
+  .hbar-chart .cat { font-size: 13px; color: var(--sub); text-align: right; padding-right: 14px; }
+  .hbar-chart .track { position: relative; height: 18px; }
+  .hbar-chart .grid-line { position: absolute; top: -6px; bottom: -6px; width: 1px; background: var(--line); }
+  .hbar-chart .bar { position: absolute; top: 0; bottom: 0; left: 0; background: var(--red); border-radius: 0 4px 4px 0; }
+  .hbar-chart .track:hover .bar { background: var(--red-dark); }
+  .hbar-chart .val { font-size: 13px; color: var(--ink); padding-left: 12px; }
+  .hbar-chart .val span { color: var(--sub); font-size: 12px; }
+  .axis-note { font-size: 11.5px; color: var(--sub); margin-top: 14px; }
+
+  /* 세로 컬럼 차트 */
+  .vcol-chart { display: flex; align-items: flex-end; gap: 26px; height: 170px; padding: 0 10px; border-bottom: 1px solid var(--line-strong); }
+  .vcol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .vcol .num { font-size: 12.5px; color: var(--ink); }
+  .vcol .col { width: 26px; background: var(--red); border-radius: 4px 4px 0 0; }
+  .vcol:hover .col { background: var(--red-dark); }
+  .vcol-cats { display: flex; gap: 26px; padding: 8px 10px 0; }
+  .vcol-cats span { flex: 1; text-align: center; font-size: 12.5px; color: var(--sub); }
+
+  .cols2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: start; }
+  .tbl-link { font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="admin.html" style="color:inherit;">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>ADMIN CONSOLE</span></div>
+    </a>
+    <div class="nav-links">
+      <a href="admin.html">대시보드</a>
+      <a class="on" href="admin-stats.html">통계</a>
+    </div>
+    <div class="me">
+      <span class="badge red">관리자</span>
+      <div class="avatar">관</div> 도서관리자
+      <a href="main.html" style="font-size:12.5px; margin-left:10px;">사용자 화면 →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-head">
+    <span class="eyebrow">READING ANALYTICS</span>
+    <h1>독서 통계</h1>
+  </div>
+
+  <div class="filters">
+    <select>
+      <option>그룹: 부서별</option>
+      <option>그룹: 성별</option>
+      <option>그룹: 나이대별</option>
+      <option>그룹: 직급별</option>
+      <option>그룹: 계열사별</option>
+      <option>그룹: 팀별</option>
+    </select>
+    <span class="chip on">이달</span>
+    <span class="chip">분기</span>
+    <span class="chip">전체</span>
+  </div>
+
+  <div class="cols2">
+    <div class="panel">
+      <div class="sec-head" style="margin-top:0; margin-bottom: 22px;">
+        <h2>부서별 완독 권수 <span style="font-family:Pretendard,sans-serif; font-size:12.5px; color:var(--sub); font-weight:500;">2026년 9월</span></h2>
+        <div class="rule"></div>
+        <a class="tbl-link" href="#">표로 보기</a>
+      </div>
+      <div class="hbar-chart">
+        <span class="cat">SW개발팀</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:100%;"></div>
+        </div>
+        <span class="val">12권 <span>· 인당 1.7</span></span>
+
+        <span class="cat">연구소</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:75%;"></div>
+        </div>
+        <span class="val">9권 <span>· 인당 1.5</span></span>
+
+        <span class="cat">마케팅팀</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:58%;"></div>
+        </div>
+        <span class="val">7권 <span>· 인당 1.4</span></span>
+
+        <span class="cat">인사팀</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:42%;"></div>
+        </div>
+        <span class="val">5권 <span>· 인당 1.3</span></span>
+
+        <span class="cat">영업팀</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:33%;"></div>
+        </div>
+        <span class="val">4권 <span>· 인당 1.0</span></span>
+
+        <span class="cat">품질팀</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:25%;"></div>
+        </div>
+        <span class="val">3권 <span>· 인당 0.8</span></span>
+
+        <span class="cat">재무팀</span>
+        <div class="track">
+          <span class="grid-line" style="left:25%;"></span><span class="grid-line" style="left:50%;"></span><span class="grid-line" style="left:75%;"></span><span class="grid-line" style="left:100%;"></span>
+          <div class="bar" style="width:17%;"></div>
+        </div>
+        <span class="val">2권 <span>· 인당 0.7</span></span>
+      </div>
+      <div class="axis-note">눈금 간격 3권 · 완독 = 반납 완료 기준</div>
+    </div>
+
+    <div>
+      <div class="panel" style="margin-bottom: 24px;">
+        <div class="sec-head" style="margin-top:0; margin-bottom: 20px;">
+          <h2>나이대별</h2>
+          <div class="rule"></div>
+        </div>
+        <div class="vcol-chart">
+          <div class="vcol"><span class="num">8</span><div class="col" style="height:38%;"></div></div>
+          <div class="vcol"><span class="num">19</span><div class="col" style="height:90%;"></div></div>
+          <div class="vcol"><span class="num">12</span><div class="col" style="height:57%;"></div></div>
+          <div class="vcol"><span class="num">5</span><div class="col" style="height:24%;"></div></div>
+        </div>
+        <div class="vcol-cats"><span>20대</span><span>30대</span><span>40대</span><span>50대+</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head" style="margin-top:0; margin-bottom: 16px;">
+          <h2>요약</h2>
+          <div class="rule"></div>
+        </div>
+        <table class="table">
+          <tr><td style="color:var(--sub);">이달 전체 완독</td><td style="text-align:right;"><b>44권</b></td></tr>
+          <tr><td style="color:var(--sub);">참여 직원</td><td style="text-align:right;"><b>28명</b> <span style="font-size:12px; color:var(--sub);">/ 34명</span></td></tr>
+          <tr><td style="color:var(--sub);">인당 평균</td><td style="text-align:right;"><b>1.3권</b></td></tr>
+          <tr><td style="color:var(--sub);">가장 많이 읽힌 책</td><td style="text-align:right;"><b>함께 자라기</b></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

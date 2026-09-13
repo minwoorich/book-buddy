@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 피드</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .head-row { display: flex; align-items: flex-end; margin-bottom: 26px; }
+  .feed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-items: start; }
+  .post { background: var(--card); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+  .post .photo { aspect-ratio: 4/3; background: #EDE7DA; position: relative; overflow: hidden; }
+  .post .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .post .body { padding: 14px 16px 16px; }
+  .post .who { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .post .who b { font-size: 13.5px; display: block; }
+  .post .who span { font-size: 11.5px; color: var(--sub); }
+  .post .cap { font-size: 14px; line-height: 1.65; color: #3E382D; margin-bottom: 12px; }
+  .booktag { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card-2); border-radius: 999px; padding: 4px 12px 4px 4px; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 12px; }
+  .booktag .cv { width: 20px; height: 28px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px rgba(60,48,28,.25); }
+  .acts { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--sub); border-top: 1px solid var(--line); padding-top: 12px; }
+  .acts .like { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .acts .like.on { color: var(--red); font-weight: 700; }
+  .comments { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .cmt { font-size: 13px; line-height: 1.5; }
+  .cmt b { margin-right: 6px; }
+  .cmt-form { display: flex; gap: 8px; margin-top: 4px; }
+  .cmt-form .input { padding: 7px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="main.html" style="color:inherit;">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+    </a>
+    <div class="nav-links">
+      <a href="main.html">홈</a>
+      <a href="my.html">내 서재</a>
+      <a href="calendar.html">도서 달력</a>
+      <a href="rankings.html">랭킹</a>
+      <a class="on" href="feed.html">피드</a>
+      <a href="places.html">장소</a>
+    </div>
+    <div class="me"><div class="avatar">민</div> 김민우 님</div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="head-row">
+    <div class="page-head" style="margin-bottom:0;">
+      <span class="eyebrow">READING MOMENTS</span>
+      <h1>피드</h1>
+      <p>동료들의 독서 순간을 구경하세요</p>
+    </div>
+    <button class="btn primary" style="margin-left:auto;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px; margin-right:5px;"><line x1="12" y1="4" x2="12" y2="20"></line><line x1="4" y1="12" x2="20" y2="12"></line></svg>
+      글쓰기
+    </button>
+  </div>
+
+  <div class="feed-grid">
+    <div class="post">
+      <div class="photo"><img src="https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg" alt="함께 자라기 인증샷"></div>
+      <div class="body">
+        <div class="who">
+          <span class="avatar">서</span>
+          <div><b>이서연</b><span>마케팅팀 · 2시간 전</span></div>
+        </div>
+        <div class="cap">점심시간 옥상 독서 15분. 짧아도 매일 하는 게 중요하다길래 시작했어요 🌿</div>
+        <span class="booktag"><span class="cv"><img src="https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg" alt=""></span>함께 자라기</span>
+        <div class="acts">
+          <span class="like on">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 21C7 16.5 3 13.3 3 9.2 3 6.4 5.2 4 8 4c1.6 0 3.1.8 4 2 0.9-1.2 2.4-2 4-2 2.8 0 5 2.4 5 5.2 0 4.1-4 7.3-9 11.8z"></path></svg>
+            9
+          </span>
+          <span>댓글 2</span>
+        </div>
+        <div class="comments">
+          <div class="cmt"><b>한상우</b>저도 옥상팀 합류할게요</div>
+          <div class="cmt"><b>정다은</b>내일 같이 읽어요!</div>
+          <div class="cmt-form">
+            <input class="input" placeholder="댓글 달기...">
+            <button class="btn sm">등록</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="post">
+      <div class="photo"><img src="https://image.aladin.co.kr/product/26666/69/cover500/8947547034_1.jpg" alt="하드씽 완독"></div>
+      <div class="body">
+        <div class="who">
+          <span class="avatar">민</span>
+          <div><b>김민우</b><span>SW개발팀 · 어제</span></div>
+        </div>
+        <div class="cap">하드씽 완독! "쉬운 선택을 하지 마라"는 문장이 오래 남네요. 다음은 클린 코드 2판.</div>
+        <span class="booktag"><span class="cv"><img src="https://image.aladin.co.kr/product/26666/69/cover500/8947547034_1.jpg" alt=""></span>하드씽</span>
+        <div class="acts">
+          <span class="like">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 16.5 3 13.3 3 9.2 3 6.4 5.2 4 8 4c1.6 0 3.1.8 4 2 0.9-1.2 2.4-2 4-2 2.8 0 5 2.4 5 5.2 0 4.1-4 7.3-9 11.8z"></path></svg>
+            6
+          </span>
+          <span>댓글 1</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="post">
+      <div class="photo"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt="팀장의 탄생 북클럽"></div>
+      <div class="body">
+        <div class="who">
+          <span class="avatar">상</span>
+          <div><b>한상우</b><span>SW개발팀 · 3일 전</span></div>
+        </div>
+        <div class="cap">개발팀 북클럽 첫 모임. 다음 달 주제 도서는 「팀장의 탄생」입니다. 참여하실 분 댓글로!</div>
+        <span class="booktag"><span class="cv"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt=""></span>팀장의 탄생</span>
+        <div class="acts">
+          <span class="like">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 16.5 3 13.3 3 9.2 3 6.4 5.2 4 8 4c1.6 0 3.1.8 4 2 0.9-1.2 2.4-2 4-2 2.8 0 5 2.4 5 5.2 0 4.1-4 7.3-9 11.8z"></path></svg>
+            14
+          </span>
+          <span>댓글 5</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a class="fab" href="chatbot.html" title="AI 사서">
+  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+</a>
+
+</body>
+</html>

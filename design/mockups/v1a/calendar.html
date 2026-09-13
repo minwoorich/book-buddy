@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 도서 달력</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .cal-layout { display: flex; gap: 30px; align-items: flex-start; }
+  .cal { flex: 1; }
+  .cal-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .cal-head h1 { font-family: "Noto Serif KR", serif; font-size: 25px; font-weight: 600; margin: 0; }
+  .cal-nav { display: flex; gap: 6px; }
+  .cal-nav button { font: inherit; width: 32px; height: 32px; border-radius: 3px; border: 1px solid var(--line-strong); background: transparent; cursor: pointer; color: var(--sub); font-size: 14px; }
+  .cal-nav button:hover { background: #F1EADD; }
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; letter-spacing: 1px; color: var(--sub); padding-bottom: 8px; border-bottom: 1px solid var(--line-strong); }
+  .dow .sun { color: var(--red); }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .day { min-height: 100px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 8px; position: relative; background: var(--card); }
+  .day:nth-child(7n) { border-right: 0; }
+  .day .n { font-size: 12.5px; color: var(--sub); }
+  .day.dim { background: transparent; }
+  .day.dim .n { color: #C4BAA6; }
+  .day.sun .n { color: #C97B72; }
+  .day.today { outline: 2px solid var(--red); outline-offset: -2px; }
+  .day.today .n { color: var(--red); font-weight: 800; }
+  .day .cv { width: 42px; height: 60px; margin: 6px auto 0; display: block; }
+  .day .done { position: absolute; top: 7px; right: 7px; font-size: 10px; color: var(--ok); font-weight: 700; }
+  .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12.5px; color: var(--sub); align-items: center; }
+  .legend .k { display: inline-block; width: 12px; height: 17px; border-radius: 1px 3px 3px 1px; background: #33465C; box-shadow: 1px 2px 4px rgba(60,48,28,.3); margin-right: 6px; vertical-align: -3px; }
+
+  .aside { width: 280px; flex-shrink: 0; }
+  .done-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .done-row:last-child { border-bottom: 0; }
+  .done-row .cv { width: 38px; height: 54px; }
+  .done-row .t { font-size: 13.5px; font-weight: 700; margin-bottom: 2px; }
+  .done-row .d { font-size: 12px; color: var(--sub); }
+  .month-sum { text-align: center; padding: 18px 0 6px; }
+  .month-sum b { font-family: "Noto Serif KR", serif; font-size: 30px; }
+  .month-sum b i { font-style: normal; color: var(--red); }
+  .month-sum span { display: block; font-size: 12.5px; color: var(--sub); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="main.html" style="color:inherit;">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+    </a>
+    <div class="nav-links">
+      <a href="main.html">홈</a>
+      <a href="my.html">내 서재</a>
+      <a class="on" href="calendar.html">도서 달력</a>
+      <a href="rankings.html">랭킹</a>
+      <a href="feed.html">피드</a>
+      <a href="places.html">장소</a>
+    </div>
+    <div class="me"><div class="avatar">민</div> 김민우 님</div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-head">
+    <span class="eyebrow">READING CALENDAR</span>
+    <h1>도서 달력</h1>
+    <p>완독(반납)한 날, 그 책의 표지가 달력에 꽂힙니다</p>
+  </div>
+
+  <div class="cal-layout">
+    <div class="cal panel" style="padding: 20px 22px;">
+      <div class="cal-head">
+        <h1>2026년 9월</h1>
+        <div class="cal-nav">
+          <button>&#8249;</button>
+          <button>&#8250;</button>
+        </div>
+        <span class="chip on" style="margin-left:auto; cursor:default;">이달</span>
+      </div>
+      <div class="dow"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="days">
+        <div class="day dim sun"><span class="n">30</span></div>
+        <div class="day dim"><span class="n">31</span></div>
+        <div class="day"><span class="n">1</span></div>
+        <div class="day"><span class="n">2</span><span class="done">완독</span>
+          <a class="cv hover" href="book-detail.html"><img src="https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg" alt="함께 자라기"></a>
+        </div>
+        <div class="day"><span class="n">3</span></div>
+        <div class="day"><span class="n">4</span></div>
+        <div class="day"><span class="n">5</span></div>
+
+        <div class="day sun"><span class="n">6</span><span class="done">완독</span>
+          <a class="cv hover" href="book-detail.html"><img src="https://image.aladin.co.kr/product/26666/69/cover500/8947547034_1.jpg" alt="하드씽"></a>
+        </div>
+        <div class="day"><span class="n">7</span></div>
+        <div class="day"><span class="n">8</span></div>
+        <div class="day"><span class="n">9</span></div>
+        <div class="day"><span class="n">10</span></div>
+        <div class="day"><span class="n">11</span><span class="done">완독</span>
+          <a class="cv hover" href="book-detail.html"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt="팀장의 탄생"></a>
+        </div>
+        <div class="day"><span class="n">12</span></div>
+
+        <div class="day sun today"><span class="n">13</span></div>
+        <div class="day"><span class="n">14</span></div>
+        <div class="day"><span class="n">15</span></div>
+        <div class="day"><span class="n">16</span></div>
+        <div class="day"><span class="n">17</span></div>
+        <div class="day"><span class="n">18</span></div>
+        <div class="day"><span class="n">19</span></div>
+
+        <div class="day sun"><span class="n">20</span></div>
+        <div class="day"><span class="n">21</span></div>
+        <div class="day"><span class="n">22</span></div>
+        <div class="day"><span class="n">23</span></div>
+        <div class="day"><span class="n">24</span></div>
+        <div class="day"><span class="n">25</span></div>
+        <div class="day"><span class="n">26</span></div>
+
+        <div class="day sun"><span class="n">27</span></div>
+        <div class="day"><span class="n">28</span></div>
+        <div class="day"><span class="n">29</span></div>
+        <div class="day"><span class="n">30</span></div>
+        <div class="day dim"><span class="n">1</span></div>
+        <div class="day dim"><span class="n">2</span></div>
+        <div class="day dim"><span class="n">3</span></div>
+      </div>
+      <div class="legend"><span><span class="k"></span>완독한 책 (반납일 기준)</span><span>표지를 클릭하면 책 상세로 이동</span></div>
+    </div>
+
+    <div class="aside">
+      <div class="panel accent">
+        <div class="month-sum">
+          <span class="eyebrow">SEPTEMBER</span>
+          <b>이달 <i>3권</i></b>
+          <span>896쪽 · 지난달보다 1권 더</span>
+        </div>
+      </div>
+      <div class="sec-head">
+        <h2>이달의 완독</h2>
+        <div class="rule"></div>
+      </div>
+      <div class="panel" style="padding: 4px 18px;">
+        <div class="done-row">
+          <div class="cv"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt="팀장의 탄생"></div>
+          <div><div class="t">팀장의 탄생</div><div class="d">9. 11. 완독 · 344쪽</div></div>
+        </div>
+        <div class="done-row">
+          <div class="cv"><img src="https://image.aladin.co.kr/product/26666/69/cover500/8947547034_1.jpg" alt="하드씽"></div>
+          <div><div class="t">하드씽</div><div class="d">9. 6. 완독 · 300쪽</div></div>
+        </div>
+        <div class="done-row">
+          <div class="cv"><img src="https://image.aladin.co.kr/product/17597/74/cover500/8966262333_1.jpg" alt="함께 자라기"></div>
+          <div><div class="t">함께 자라기</div><div class="d">9. 2. 완독 · 252쪽</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a class="fab" href="chatbot.html" title="AI 사서">
+  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+</a>
+
+</body>
+</html>

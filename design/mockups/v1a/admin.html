@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 관리자</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 34px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+  .tile .lbl { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .tile b { font-family: "Noto Serif KR", serif; font-size: 30px; font-weight: 600; }
+  .tile .sub { font-size: 12px; color: var(--sub); margin-top: 4px; }
+  .tile.alert { border-top: 2px solid var(--warn); }
+  .tile.alert b { color: var(--warn); }
+
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: start; }
+  .row-actions { display: flex; gap: 6px; }
+  .reg-result { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; margin-top: 12px; }
+  .reg-result .cv { width: 38px; height: 54px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="admin.html" style="color:inherit;">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>ADMIN CONSOLE</span></div>
+    </a>
+    <div class="nav-links">
+      <a class="on" href="admin.html">대시보드</a>
+      <a href="admin-stats.html">통계</a>
+    </div>
+    <div class="me">
+      <span class="badge red">관리자</span>
+      <div class="avatar">관</div> 도서관리자
+      <a href="main.html" style="font-size:12.5px; margin-left:10px;">사용자 화면 →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-head">
+    <span class="eyebrow">LIBRARY ADMIN</span>
+    <h1>관리자 대시보드</h1>
+  </div>
+
+  <div class="stat-tiles">
+    <div class="tile">
+      <div class="lbl">대출 중</div>
+      <b>18</b><span style="font-size:14px; color:var(--sub);"> 권</span>
+      <div class="sub">전체 장서 42권</div>
+    </div>
+    <div class="tile alert">
+      <div class="lbl">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A05A00" stroke-width="2" stroke-linejoin="round"><path d="M12 3L2 21h20L12 3z"></path><line x1="12" y1="10" x2="12" y2="15"></line><circle cx="12" cy="18" r="0.5"></circle></svg>
+        연체
+      </div>
+      <b>3</b><span style="font-size:14px; color:var(--sub);"> 건</span>
+      <div class="sub">최장 연체 6일</div>
+    </div>
+    <div class="tile">
+      <div class="lbl">희망도서 신청 대기</div>
+      <b>2</b><span style="font-size:14px; color:var(--sub);"> 건</span>
+      <div class="sub">이달 승인 4건</div>
+    </div>
+    <div class="tile">
+      <div class="lbl">신고 대기</div>
+      <b>1</b><span style="font-size:14px; color:var(--sub);"> 건</span>
+      <div class="sub">이달 처리 2건</div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="sec-head" style="margin-top:0;">
+        <h2>최근 대출 · 반납</h2>
+        <div class="rule"></div>
+        <a href="#">전체 보기</a>
+      </div>
+      <div class="panel" style="padding: 8px 14px;">
+        <table class="table">
+          <tr><th>도서</th><th>대출자</th><th>대출일</th><th>상태</th><th></th></tr>
+          <tr>
+            <td><b>팀장의 탄생</b></td>
+            <td>김민우 <span style="color:var(--sub); font-size:12px;">SW개발팀</span></td>
+            <td>9. 13.</td>
+            <td><span class="badge no">대출중</span></td>
+            <td class="row-actions"><button class="btn sm">반납 처리</button></td>
+          </tr>
+          <tr>
+            <td><b>인스파이어드</b></td>
+            <td>김민우 <span style="color:var(--sub); font-size:12px;">SW개발팀</span></td>
+            <td>8. 27.</td>
+            <td><span class="badge warn">연체 3일</span></td>
+            <td class="row-actions"><button class="btn sm">반납 처리</button></td>
+          </tr>
+          <tr>
+            <td><b>실리콘밸리의 팀장들</b></td>
+            <td>한상우 <span style="color:var(--sub); font-size:12px;">SW개발팀</span></td>
+            <td>9. 8.</td>
+            <td><span class="badge no">대출중 · 예약 1</span></td>
+            <td class="row-actions"><button class="btn sm">반납 처리</button></td>
+          </tr>
+          <tr>
+            <td><b>하드씽</b></td>
+            <td>김민우 <span style="color:var(--sub); font-size:12px;">SW개발팀</span></td>
+            <td>8. 30.</td>
+            <td><span class="badge ok">9. 6. 반납</span></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><b>함께 자라기</b></td>
+            <td>이서연 <span style="color:var(--sub); font-size:12px;">마케팅팀</span></td>
+            <td>8. 24.</td>
+            <td><span class="badge ok">9. 2. 반납</span></td>
+            <td></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="sec-head">
+        <h2>책 등록</h2>
+        <div class="rule"></div>
+      </div>
+      <div class="panel">
+        <div style="display:flex; gap:10px;">
+          <input class="input" style="flex:1;" value="프로덕트 오너">
+          <button class="btn">알라딘 검색</button>
+        </div>
+        <div class="reg-result">
+          <div class="cv" style="background:#5C4A66; display:flex; align-items:center; justify-content:center; color:#fff; font-size:8px; font-weight:700;">표지</div>
+          <div style="flex:1;">
+            <b style="font-size:14px;">프로덕트 오너</b>
+            <div style="font-size:12.5px; color:var(--sub);">김성한 · 세종서적 · 2020 · 368쪽</div>
+          </div>
+          <button class="btn primary sm">서가에 등록</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-head" style="margin-top:0;">
+        <h2>희망도서 신청</h2>
+        <div class="rule"></div>
+      </div>
+      <div class="panel" style="padding: 8px 14px; margin-bottom: 26px;">
+        <table class="table">
+          <tr>
+            <td>
+              <b>프로덕트 오너</b>
+              <div style="font-size:12px; color:var(--sub);">김민우 · 9. 12. · "PM 공부하고 싶어요"</div>
+            </td>
+            <td class="row-actions" style="text-align:right;">
+              <button class="btn primary sm">승인</button>
+              <button class="btn sm">거절</button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <b>세이노의 가르침</b>
+              <div style="font-size:12px; color:var(--sub);">정다은 · 9. 11. · "베스트셀러라서"</div>
+            </td>
+            <td class="row-actions" style="text-align:right;">
+              <button class="btn primary sm">승인</button>
+              <button class="btn sm">거절</button>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="sec-head">
+        <h2>신고</h2>
+        <div class="rule"></div>
+      </div>
+      <div class="panel" style="padding: 8px 14px;">
+        <table class="table">
+          <tr>
+            <td>
+              <span class="badge warn">도서 파손</span>
+              <b style="margin-left:6px;">하드씽</b>
+              <div style="font-size:12px; color:var(--sub); margin-top:3px;">오유진 · 9. 12. · "215쪽 낙서가 있어요"</div>
+            </td>
+            <td style="text-align:right;"><button class="btn sm">처리</button></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="badge no" style="text-decoration:line-through;">게시물</span>
+              <b style="margin-left:6px; color:var(--sub);">처리 완료</b>
+              <div style="font-size:12px; color:var(--sub); margin-top:3px;">9. 10. · 중복 게시물 삭제</div>
+            </td>
+            <td style="text-align:right;"><span class="st ok">완료</span></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

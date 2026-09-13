@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 팀장의 탄생</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .crumb { font-size: 13px; color: var(--sub); margin-bottom: 24px; }
+  .crumb a { color: var(--sub); }
+  .layout { display: flex; gap: 44px; align-items: flex-start; }
+  .left { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+  .left .cv { width: 250px; aspect-ratio: 500/726; }
+  .left .btn { width: 100%; padding: 12px; font-size: 14.5px; }
+  .aux { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--sub); }
+  .aux a { color: var(--sub); text-decoration: underline; }
+  .right { flex: 1; min-width: 0; }
+  .right h1 { font-family: "Noto Serif KR", serif; font-size: 29px; font-weight: 600; margin: 8px 0 6px; letter-spacing: -0.3px; }
+  .byline { font-size: 15px; color: var(--sub); margin-bottom: 10px; }
+  .metaline { display: flex; gap: 14px; font-size: 13px; color: var(--sub); margin-bottom: 14px; flex-wrap: wrap; }
+  .rating { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .rating b { font-size: 20px; }
+  .rating .stars svg { width: 16px; height: 16px; }
+  .desc { font-size: 15px; line-height: 1.8; color: #464034; margin: 0 0 24px; }
+  .ai-mini { display: flex; align-items: center; gap: 14px; }
+  .ai-mini p { margin: 0; flex: 1; font-size: 14px; line-height: 1.7; color: #464034; }
+  .ai-mini i { font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; display: block; margin-bottom: 5px; }
+
+  .review-form { display: flex; align-items: center; gap: 12px; }
+  .pick-stars { display: flex; gap: 2px; }
+  .pick-stars svg { width: 22px; height: 22px; cursor: pointer; }
+  .review { display: flex; gap: 13px; padding: 15px 2px; border-bottom: 1px solid var(--line); }
+  .review:last-child { border-bottom: 0; }
+  .review .body { flex: 1; }
+  .review .who { font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .review .who b { font-size: 13.5px; }
+  .review .who .stars svg { width: 11px; height: 11px; }
+  .review .txt { font-size: 14.5px; line-height: 1.6; color: #3E382D; }
+  .vote { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid var(--line-strong); border-radius: 3px; padding: 7px 12px; cursor: pointer; background: transparent; font: inherit; color: var(--sub); font-size: 12px; }
+  .vote:hover { background: #F1EADD; }
+  .vote.on { border-color: var(--red); color: var(--red); background: var(--red-tint); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="main.html" style="color:inherit;">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+    </a>
+    <div class="nav-links">
+      <a class="on" href="main.html">홈</a>
+      <a href="my.html">내 서재</a>
+      <a href="calendar.html">도서 달력</a>
+      <a href="rankings.html">랭킹</a>
+      <a href="feed.html">피드</a>
+      <a href="places.html">장소</a>
+    </div>
+    <div class="me"><div class="avatar">민</div> 김민우 님</div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="crumb"><a href="main.html">홈</a> &nbsp;/&nbsp; <a href="#">경제경영</a> &nbsp;/&nbsp; 팀장의 탄생</div>
+
+  <div class="layout">
+    <div class="left">
+      <div class="cv"><img src="https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg" alt="팀장의 탄생"></div>
+      <span class="badge ok" style="align-self:flex-start;">대출가능</span>
+      <button class="btn primary">대출하기</button>
+      <button class="btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M12 21C7 16.5 3 13.3 3 9.2 3 6.4 5.2 4 8 4c1.6 0 3.1.8 4 2 0.9-1.2 2.4-2 4-2 2.8 0 5 2.4 5 5.2 0 4.1-4 7.3-9 11.8z"></path></svg>
+        찜하기 <span style="color:var(--sub); font-weight:500;">· 6</span>
+      </button>
+      <div class="aux">
+        <span>대출 이력 12회</span>
+        <a href="#">분실·파손 신고</a>
+      </div>
+    </div>
+
+    <div class="right">
+      <span class="chip on" style="cursor:default;">경제경영</span>
+      <h1>팀장의 탄생</h1>
+      <div class="byline">줄리 주오 지음 · 김고명 옮김</div>
+      <div class="metaline">
+        <span>더퀘스트</span><span>2020. 05.</span><span>344쪽</span><span>ISBN 9791165210748</span>
+      </div>
+      <div class="rating">
+        <b>4.5</b>
+        <span class="stars">
+          <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#E4D9BE"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+        </span>
+        <span style="font-size:13px; color:var(--sub);">리뷰 24개</span>
+      </div>
+      <p class="desc">페이스북 첫 인턴 디자이너에서 부사장이 되기까지, 줄리 주오가 겪은 "얼떨결에 팀장이 된 사람"의 모든 시행착오를 담았다. 훌륭한 관리자는 타고나는 것이 아니라 만들어진다는 것을 보여주는 실리콘밸리식 팀장 수업. 1:1 미팅, 피드백, 채용, 회의, 자기 관리까지 초보 팀장이 부딪히는 상황을 그대로 다룬다.</p>
+
+      <div class="panel accent ai-mini" style="margin-bottom: 34px;">
+        <div style="flex:1;">
+          <i>AI LIBRARIAN</i>
+          <p>"관리가 처음이라 불안한 분께 가장 먼저 권하는 책이에요. 저자가 25살에 팀장이 되어 겪은 실수담이라 공감하며 읽기 좋습니다."</p>
+        </div>
+        <a class="btn" href="chatbot.html" style="white-space:nowrap;">AI에게 이 책 물어보기</a>
+      </div>
+
+      <div class="sec-head" style="margin-top:0;">
+        <h2>리뷰 <span style="font-family:Pretendard,sans-serif; font-size:14px; color:var(--sub); font-weight:500;">24</span></h2>
+        <div class="rule"></div>
+        <a href="#">추천순 ▾</a>
+      </div>
+
+      <div class="panel" style="padding: 16px 18px; margin-bottom: 18px;">
+        <div class="review-form">
+          <div class="pick-stars">
+            <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#E4D9BE"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>
+          </div>
+          <input class="input" style="flex:1;" placeholder="한줄 리뷰를 남겨주세요">
+          <button class="btn primary">등록</button>
+        </div>
+      </div>
+
+      <div class="review">
+        <span class="avatar">상</span>
+        <div class="body">
+          <div class="who"><b>한상우</b> <span style="color:var(--sub);">SW개발팀 · 팀장</span>
+            <span class="stars"><svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>5.0</span>
+          </div>
+          <div class="txt">팀장 달고 첫 달에 읽었으면 시행착오 절반은 줄였을 책. 1:1 미팅 챕터는 바로 써먹었다.</div>
+        </div>
+        <button class="vote on">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 22V11L12 2c1.5 0 2.5 1 2.5 2.5V9H20c1.3 0 2.2 1.2 2 2.5l-1.3 8A2 2 0 0 1 18.7 21H7z"></path><path d="M7 11H3v11h4"></path></svg>
+          12
+        </button>
+      </div>
+      <div class="review">
+        <span class="avatar">은</span>
+        <div class="body">
+          <div class="who"><b>최은지</b> <span style="color:var(--sub);">인사팀 · 과장</span>
+            <span class="stars"><svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.5</span>
+          </div>
+          <div class="txt">관리자가 아니어도 좋은 피드백이 뭔지 배울 수 있어요. 후배 멘토링에 도움 됐습니다.</div>
+        </div>
+        <button class="vote">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 22V11L12 2c1.5 0 2.5 1 2.5 2.5V9H20c1.3 0 2.2 1.2 2 2.5l-1.3 8A2 2 0 0 1 18.7 21H7z"></path><path d="M7 11H3v11h4"></path></svg>
+          7
+        </button>
+      </div>
+      <div class="review">
+        <span class="avatar">지</span>
+        <div class="body">
+          <div class="who"><b>박지훈</b> <span style="color:var(--sub);">연구소 · 책임</span>
+            <span class="stars"><svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.0</span>
+          </div>
+          <div class="txt">사례가 실리콘밸리 중심이라 다 맞진 않지만 원칙은 어디든 통한다.</div>
+        </div>
+        <button class="vote">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 22V11L12 2c1.5 0 2.5 1 2.5 2.5V9H20c1.3 0 2.2 1.2 2 2.5l-1.3 8A2 2 0 0 1 18.7 21H7z"></path><path d="M7 11H3v11h4"></path></svg>
+          3
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a class="fab" href="chatbot.html" title="AI 사서">
+  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+</a>
+
+</body>
+</html>

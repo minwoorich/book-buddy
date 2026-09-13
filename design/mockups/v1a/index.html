@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy — 목업 인덱스</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .hub { max-width: 900px; margin: 0 auto; padding: 60px 24px 90px; }
+  .hub h1 { font-family: "Noto Serif KR", serif; font-size: 28px; margin: 8px 0 6px; }
+  .hub .sub { color: var(--sub); font-size: 14px; margin-bottom: 36px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 20px; color: inherit; display: block; transition: border-color .12s, transform .12s; }
+  .card:hover { border-color: var(--red); transform: translateY(-3px); color: inherit; }
+  .card .no { font-family: "Noto Serif KR", serif; font-size: 13px; color: var(--red); font-weight: 700; }
+  .card b { display: block; font-size: 16px; margin: 6px 0 6px; }
+  .card span { font-size: 13px; color: var(--sub); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="hub">
+  <span class="eyebrow">VER 1A — EDITORIAL LIBRARY</span>
+  <h1>Book Buddy 화면 목업</h1>
+  <div class="sub">전 화면이 서로 링크로 연결되어 있어요. 로그인부터 흐름대로 눌러보세요. (우하단 빨간 버튼 = 챗봇)</div>
+  <div class="cards">
+    <a class="card" href="login.html"><span class="no">01</span><b>로그인</b><span>이름 선택 로그인 · 챗봇 버튼 없음</span></a>
+    <a class="card" href="main.html"><span class="no">02</span><b>메인 (홈)</b><span>검색 + AI 검색 영역 + 이달의 서가</span></a>
+    <a class="card" href="book-detail.html"><span class="no">03</span><b>책 상세</b><span>대출/찜/신고 · 리뷰 + 리뷰 추천 · AI 요약</span></a>
+    <a class="card" href="my.html"><span class="no">04</span><b>내 서재</b><span>책쌓기 · 진행률 · 책장(읽은/읽는/찜) · 예약/신청</span></a>
+    <a class="card" href="calendar.html"><span class="no">05</span><b>도서 달력</b><span>완독일에 표지가 꽂히는 월간 달력</span></a>
+    <a class="card" href="rankings.html"><span class="no">06</span><b>독서 랭킹</b><span>개인/팀/부서/계열사 · 포디움 + 순위</span></a>
+    <a class="card" href="feed.html"><span class="no">07</span><b>피드</b><span>사진 + 책 태그 + 좋아요/댓글</span></a>
+    <a class="card" href="places.html"><span class="no">08</span><b>장소</b><span>지도 + AI 큐레이션 독서 스팟</span></a>
+    <a class="card" href="chatbot.html"><span class="no">09</span><b>AI 챗봇</b><span>대화로 대출 실행 + 액션 버튼 네비게이션</span></a>
+    <a class="card" href="admin.html"><span class="no">10</span><b>관리자</b><span>현황 타일 · 대출/신청/신고 처리 · 책 등록</span></a>
+    <a class="card" href="admin-stats.html"><span class="no">11</span><b>통계</b><span>부서/나이대별 차트 + 요약</span></a>
+  </div>
+</div>
+</body>
+</html>
