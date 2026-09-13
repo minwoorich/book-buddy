@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection'
-import type { Loan } from '../../shared/types'
+import type { Book, Loan } from '../../shared/types'
 
 interface LoanRow {
   id: number
@@ -10,6 +10,25 @@ interface LoanRow {
   returned_at: string | null
 }
 
+interface LoanWithBookRow extends LoanRow {
+  bk_id: number
+  bk_isbn13: string | null
+  bk_title: string
+  bk_author: string
+  bk_publisher: string | null
+  bk_category: string
+  bk_description: string | null
+  bk_cover_url: string | null
+  bk_pub_date: string | null
+  bk_page_count: number | null
+}
+
+const BOOK_JOIN_COLUMNS = `
+  b.id as bk_id, b.isbn13 as bk_isbn13, b.title as bk_title, b.author as bk_author,
+  b.publisher as bk_publisher, b.category as bk_category, b.description as bk_description,
+  b.cover_url as bk_cover_url, b.pub_date as bk_pub_date, b.page_count as bk_page_count
+`
+
 function toLoan(row: LoanRow): Loan {
   return {
     id: row.id,
@@ -18,6 +37,24 @@ function toLoan(row: LoanRow): Loan {
     loanedAt: row.loaned_at,
     dueAt: row.due_at,
     returnedAt: row.returned_at,
+  }
+}
+
+function toLoanWithBook(row: LoanWithBookRow): Loan & { book: Book } {
+  return {
+    ...toLoan(row),
+    book: {
+      id: row.bk_id,
+      isbn13: row.bk_isbn13,
+      title: row.bk_title,
+      author: row.bk_author,
+      publisher: row.bk_publisher,
+      category: row.bk_category,
+      description: row.bk_description,
+      coverUrl: row.bk_cover_url,
+      pubDate: row.bk_pub_date,
+      pageCount: row.bk_page_count,
+    },
   }
 }
 
@@ -73,5 +110,47 @@ export const loanRepo = {
       .prepare('SELECT * FROM loans ORDER BY loaned_at DESC LIMIT ?')
       .all(limit) as LoanRow[]
     return rows.map(toLoan)
+  },
+
+  /**
+   * book JOIN 포함 대출 목록. userId 생략 시 전체(관리자 대시보드용).
+   * active: returned_at IS NULL, returned: returned_at IS NOT NULL,
+   * returnedFrom/returnedTo: returned_at 범위(ISO 문자열 프리픽스 비교).
+   */
+  findWithBook(opts?: {
+    userId?: number
+    active?: boolean
+    returned?: boolean
+    returnedFrom?: string
+    returnedTo?: string
+  }): (Loan & { book: Book })[] {
+    const clauses: string[] = []
+    const params: unknown[] = []
+    if (opts?.userId !== undefined) {
+      clauses.push('l.user_id = ?')
+      params.push(opts.userId)
+    }
+    if (opts?.active) {
+      clauses.push('l.returned_at IS NULL')
+    }
+    if (opts?.returned) {
+      clauses.push('l.returned_at IS NOT NULL')
+    }
+    if (opts?.returnedFrom) {
+      clauses.push('l.returned_at >= ?')
+      params.push(opts.returnedFrom)
+    }
+    if (opts?.returnedTo) {
+      clauses.push('l.returned_at <= ?')
+      params.push(opts.returnedTo)
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const rows = getDb()
+      .prepare(
+        `SELECT l.*, ${BOOK_JOIN_COLUMNS} FROM loans l JOIN books b ON b.id = l.book_id
+         ${where} ORDER BY l.loaned_at DESC`
+      )
+      .all(...params) as LoanWithBookRow[]
+    return rows.map(toLoanWithBook)
   },
 }
