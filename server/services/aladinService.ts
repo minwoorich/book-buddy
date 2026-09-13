@@ -76,11 +76,18 @@ async function callAladin(
     throw new Error(`알라딘 API 호출에 실패했어요 (${path}, HTTP ${res.status})`)
   }
   const text = await res.text()
+  let data: AladinListResponse
   try {
-    return JSON.parse(text) as AladinListResponse
+    data = JSON.parse(text) as AladinListResponse
   } catch {
     throw new Error(`알라딘 API 응답을 해석할 수 없어요 (${path}): ${text.slice(0, 200)}`)
   }
+  // 알라딘은 잘못된/만료된 ttbkey 등의 오류도 HTTP 200 + { errorCode, errorMessage }로
+  // 돌려준다. 여기서 걸러내지 않으면 빈 결과로 조용히 퇴화해 원인을 알 수 없게 된다.
+  if (data.errorCode) {
+    throw new Error(`알라딘 API 오류 ${data.errorCode}: ${data.errorMessage}`)
+  }
+  return data
 }
 
 /** ItemLookUp으로 페이지 수를 조회한다. 실패하거나 isbn13이 없으면 null. */
