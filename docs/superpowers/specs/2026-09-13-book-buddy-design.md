@@ -17,6 +17,10 @@
 - 리뷰: 별점(1~5) + 한줄 리뷰 + 리뷰 추천(👍 사용자당 리뷰별 1회, 추천 수 표시)
 - 플로팅 AI 챗봇: 추천·검색·요약·Q&A + 도구 실행(대출/예약/신청) + 네비게이션 버튼 제안
 - 이름 선택 로그인 (비밀번호 없음)
+- **도서 달력**: 반납(완독)한 날에 그 책의 표지가 달력에 등록되는 월간 뷰
+- **독서 진행률 + 책쌓기**: 읽은 페이지를 기록하면 누적 독서량이 책 무더기처럼 쌓이는 시각화 (북적북적 스타일)
+- **마이페이지 책장**: 읽은 책 / 읽고 있는 책 / 찜한 책을 실제 책장 선반에 꽂힌 느낌으로 표시
+- **사내 독서 랭킹 보드**: 개인별 · 팀별 · 부서별 · 계열사별 랭킹 (완독 권수/페이지 기준)
 
 비범위(명시적 제외): 실제 인증/보안, 다중 재고 수량 관리, 연체 제재, 알림, 관리자 화면.
 
@@ -61,13 +65,22 @@ scripts/
 
 | 테이블 | 주요 컬럼 |
 |---|---|
-| `users` | id, name, department |
-| `books` | id, isbn13, title, author, publisher, category, description, cover_url, pub_date |
+| `users` | id, name, company(계열사), department(부서), team(팀) |
+| `books` | id, isbn13, title, author, publisher, category, description, cover_url, pub_date, page_count |
 | `loans` | id, book_id, user_id, loaned_at, due_at(14일), returned_at(null=대출중) |
 | `reservations` | id, book_id, user_id, created_at, status(waiting/canceled/fulfilled) |
 | `purchase_requests` | id, user_id, title, author, isbn13, cover_url, reason, created_at, status(requested) |
 | `reviews` | id, book_id, user_id, rating(1~5), content(한줄), created_at |
 | `review_votes` | id, review_id, user_id, created_at — (review_id, user_id) 유니크로 중복 추천 방지 |
+| `wishlists` | id, user_id, book_id, created_at — (user_id, book_id) 유니크. "찜" |
+| `reading_progress` | id, user_id, book_id, current_page, updated_at — (user_id, book_id) 유니크. 총 페이지는 books.page_count |
+
+파생 규칙 (별도 테이블 없음):
+
+- **읽은 책** = 반납 완료된 대출(returned_at not null). 반납 = 완독으로 간주 (느슨)
+- **읽고 있는 책** = 현재 대출 중인 책 (returned_at null)
+- **도서 달력** = 반납일(returned_at) 기준으로 loans를 월별 조회해 표지 표시
+- **랭킹** = 기간 내 반납 완료 권수(1순위)와 기록된 페이지 수(2순위) 합산. 팀/부서/계열사 랭킹은 users의 소속 필드로 그룹핑
 
 규칙(느슨):
 
@@ -99,6 +112,13 @@ scripts/
 | `DELETE /api/reservations/:id` | 예약 취소 |
 | `GET /api/purchase-requests?userId=` | 내 구매 신청 목록 |
 | `POST /api/purchase-requests` | 구매 신청 (알라딘 검색 결과 기반) |
+| `GET /api/wishlists?userId=` | 내 찜 목록 |
+| `POST /api/wishlists` | 찜하기 `{bookId}` (중복 시 409) |
+| `DELETE /api/wishlists/:id` | 찜 해제 |
+| `PUT /api/books/:id/progress` | 독서 진행률 기록 `{currentPage}` (x-user-id 기준 upsert) |
+| `GET /api/reading-progress?userId=` | 내 진행률 목록 (책쌓기용) |
+| `GET /api/loans?userId=&returned=true&from=&to=` | 도서 달력용 — 기간 내 반납 완료 대출 (기존 loans 엔드포인트 재사용) |
+| `GET /api/rankings?by=user\|team\|department\|company&period=month\|all` | 사내 독서 랭킹 |
 | `GET /api/aladin/search?query=` | 알라딘 도서 검색 프록시 (희망도서용) |
 | `POST /api/ai/search` | 메인 페이지 AI 검색 (단발 질의) |
 | `POST /api/ai/chat` | 챗봇 대화 (메시지 히스토리 포함, 스테이트리스) |
@@ -112,8 +132,8 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 
 도구 (1도구 1파일, service/repository 재사용):
 
-- 조회: `search_books`, `get_book_detail`, `get_my_loans`, `get_reviews`, `search_aladin`
-- 행동: `borrow_book`, `return_book`, `reserve_book`, `request_purchase`
+- 조회: `search_books`, `get_book_detail`, `get_my_loans`, `get_reviews`, `search_aladin`, `get_my_reading_stats`(진행률·완독 통계), `get_rankings`
+- 행동: `borrow_book`, `return_book`, `reserve_book`, `request_purchase`, `add_wishlist`, `record_progress`(읽은 페이지 기록)
 
 응답 형식: 에이전트 최종 응답은 아래 JSON으로 강제(시스템 프롬프트 + 서버 파싱, 파싱 실패
 시 텍스트만 사용하는 폴백):
@@ -145,8 +165,15 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 3. `/books/:id` — 표지·저자·소개·대출 상태, [대출]/[반납]/[예약] 버튼(상태에 따라 노출),
    리뷰 목록(추천 수 순 정렬, 👍 추천 버튼 — 내가 누른 리뷰는 활성 표시) + 작성 폼
    (`?review=1`이면 폼 자동 포커스), "AI에게 이 책 물어보기" 버튼
-4. `/my` (내 서재) — 대출 중/이력, 예약, 구매 신청 목록, 반납 버튼
-5. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
+4. `/my` (내 서재 = 마이페이지) — **책장 메타포**: 읽은 책 / 읽고 있는 책 / 찜한 책이
+   각각 책장 선반에 꽂힌 형태로 표시 (표지가 선반 위에 서 있음). 상단에 **책쌓기 위젯**
+   (누적 완독 권수·페이지가 책 더미로 쌓이는 시각화 + 진행률 기록 UI).
+   예약·구매 신청 목록과 반납 버튼도 여기에
+5. `/calendar` (도서 달력) — 월간 달력 그리드. 반납(완독)한 날짜 칸에 그 책의 표지
+   썸네일이 붙음. 월 이동 가능, 표지 클릭 시 책 상세로
+6. `/rankings` (독서 랭킹) — 탭: 개인 / 팀 / 부서 / 계열사. 기간 필터(이달/전체).
+   완독 권수 기준 순위 + 페이지 수 보조 표기, 상위 3위 강조
+7. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
 
 ## 8. 에러 처리 (데모 수준)
 
@@ -163,6 +190,6 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 
 `scripts/seed.ts` (`npm run seed`):
 
-1. 알라딘 ItemList API로 카테고리 4~5개(경제경영, IT, 자기계발, 인문 등) 베스트셀러 수집 → 책 40권 내외
-2. 가짜 직원 8명 (이름 + 부서)
-3. 데모 리얼리티용: 대출 몇 건(일부 연체 포함), 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
+1. 알라딘 ItemList API로 카테고리 4~5개(경제경영, IT, 자기계발, 인문 등) 베스트셀러 수집 → 책 40권 내외 (page_count는 ItemLookUp subinfo에서)
+2. 가짜 직원 12명 내외 — **계열사 2~3개 × 부서 × 팀** 구성으로 배치 (랭킹 보드가 그럴듯해야 함)
+3. 데모 리얼리티용: **반납 완료 대출 여러 건(달력·랭킹·읽은 책이 채워지도록 날짜 분산)**, 진행 중 대출 몇 건 + 진행률 기록, 찜 몇 건, 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
