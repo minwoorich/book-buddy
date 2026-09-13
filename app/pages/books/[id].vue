@@ -140,8 +140,10 @@ async function reportIssue() {
   }
 }
 
+const { openWith } = useChat()
+
 function askAi() {
-  // Task 14: chatOpenWith(bookId)로 연결 예정
+  openWith(bookId.value)
 }
 </script>
 

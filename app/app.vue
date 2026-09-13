@@ -1,1 +1,6 @@
-<template><NuxtPage /></template>
+<template>
+  <NuxtPage />
+  <ClientOnly>
+    <AiChatWidget />
+  </ClientOnly>
+</template>
