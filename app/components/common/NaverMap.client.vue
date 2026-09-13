@@ -23,6 +23,16 @@ const showFallback = ref(false)
 
 const fallbackPlaces = computed(() => props.places.slice(0, 4))
 
+/**
+ * 좌표가 없는(또는 (0,0)인) 장소는 실지도에 올리지 않는다. 정적 폴백 장소(places.vue의
+ * 예시 4곳)는 lat/lng을 0으로 채워두므로, 이 필터가 없으면 네이버 지도 키는 있지만 검색
+ * 키가 없는 조합에서 마커/중심이 전부 "Null Island"(0,0)에 찍히는 문제가 생긴다. 이 필터
+ * 덕분에 컴포넌트는 데이터가 실제 검색 결과인지 정적 폴백인지 몰라도 안전하다.
+ */
+const validPlaces = computed(() =>
+  props.places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && (p.lat !== 0 || p.lng !== 0))
+)
+
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if ((window as any).naver?.maps) {
@@ -66,18 +76,18 @@ function pinIconHtml(no: number): string {
 
 function renderMap() {
   const naver = (window as any).naver
-  if (!mapEl.value || !naver?.maps) {
+  if (!mapEl.value || !naver?.maps || validPlaces.value.length === 0) {
     showFallback.value = true
     return
   }
 
-  const c = centerOf(props.places)
+  const c = centerOf(validPlaces.value)
   const map = new naver.maps.Map(mapEl.value, {
     center: new naver.maps.LatLng(c.lat, c.lng),
     zoom: 14,
   })
 
-  props.places.forEach((place, i) => {
+  validPlaces.value.forEach((place, i) => {
     new naver.maps.Marker({
       position: new naver.maps.LatLng(place.lat, place.lng),
       map,

@@ -2,6 +2,7 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { handleApi, requireUser } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 import { parsePlaceRanking } from '../../ai/parse'
+import { mergeRanking } from '../../services/naverPlaceService'
 import type { Place } from '../../../shared/types'
 
 const SYSTEM_PROMPT =
@@ -39,20 +40,6 @@ export default defineEventHandler(
     const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content)
     const ranked = parsePlaceRanking(content)
 
-    const byName = new Map(places.map((p) => [p.name, p]))
-    const used = new Set<string>()
-    const result: (Place & { reason: string })[] = []
-
-    for (const r of ranked) {
-      const place = byName.get(r.name)
-      if (!place || used.has(r.name)) continue
-      used.add(r.name)
-      result.push({ ...place, reason: r.reason })
-    }
-    for (const place of places) {
-      if (!used.has(place.name)) result.push({ ...place, reason: '' })
-    }
-
-    return { ranked: result }
+    return { ranked: mergeRanking(places, ranked) }
   })
 )

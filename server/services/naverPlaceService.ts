@@ -41,6 +41,32 @@ function toPlace(raw: NaverLocalRawItem): Place {
   }
 }
 
+/**
+ * AI가 반환한 (name, reason) 순위 목록을 원본 Place 배열에 병합하는 순수 함수. name 매칭으로
+ * ranked 순서를 따르며, name이 원본에 없거나(매칭 실패) 이미 사용된 name(AI가 중복 반환)은
+ * 건너뛴다. ranked에 없는 장소는 원본 순서 그대로 뒤에 이어붙이고 reason은 빈 문자열로 채운다.
+ */
+export function mergeRanking(
+  places: Place[],
+  ranked: { name: string; reason: string }[]
+): (Place & { reason: string })[] {
+  const byName = new Map(places.map((p) => [p.name, p]))
+  const used = new Set<string>()
+  const result: (Place & { reason: string })[] = []
+
+  for (const r of ranked) {
+    const place = byName.get(r.name)
+    if (!place || used.has(r.name)) continue
+    used.add(r.name)
+    result.push({ ...place, reason: r.reason })
+  }
+  for (const place of places) {
+    if (!used.has(place.name)) result.push({ ...place, reason: '' })
+  }
+
+  return result
+}
+
 export const naverPlaceService = {
   /** 키워드로 장소(카페/도서관/공원 등)를 검색한다. */
   async search(clientId: string, clientSecret: string, query: string, display = 5): Promise<Place[]> {
