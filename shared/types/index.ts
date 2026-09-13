@@ -115,3 +115,19 @@ export interface AiAnswer {
   bookIds: number[]
   actions: ChatAction[]
 }
+
+export interface RankRow {
+  key: string
+  label: string
+  sub?: string
+  count: number
+  userId?: number
+}
+
+export interface StatRow {
+  label: string
+  loanCount: number
+  doneCount: number
+  headCount: number
+  perHead: number
+}
