@@ -14,6 +14,7 @@ type BookDetail = Book & {
 
 const route = useRoute()
 const api = useApi()
+const { user } = useCurrentUser()
 
 const bookId = computed(() => Number(route.params.id))
 const focusReview = computed(() => route.query.review === '1')
@@ -32,6 +33,24 @@ function onReviewCreated() {
 }
 
 const myLoanId = computed(() => book.value?.myState?.myActiveLoanId ?? null)
+
+// 반납됐지만 다른 사람이 먼저 예약해둔 책인지(= 내가 그 예약자가 아닌지). SSR 등 비로그인
+// 상태(user.value===undefined)에서도 안전하게 false/true를 결정할 수 있어야 한다.
+const isReservedForOther = computed(() => {
+  const reservedFor = book.value?.reservedForUserId
+  if (reservedFor == null) return false
+  return reservedFor !== user.value?.id
+})
+
+type LoanAction = 'borrow' | 'reserved-wait' | 'return' | 'reserve'
+
+const loanAction = computed<LoanAction>(() => {
+  if (myLoanId.value !== null) return 'return'
+  if (book.value?.status === 'available') {
+    return isReservedForOther.value ? 'reserved-wait' : 'borrow'
+  }
+  return 'reserve'
+})
 
 const pubDateLabel = computed(() => {
   const raw = book.value?.pubDate
@@ -143,14 +162,18 @@ function askAi() {
           <BookStatusBadge :status="book.status" :waiting-count="book.waitingCount" />
 
           <button
-            v-if="book.status === 'available' && myLoanId === null"
+            v-if="loanAction === 'borrow'"
             type="button"
             class="btn primary"
             :disabled="loanBusy"
             @click="borrow"
           >대출하기</button>
+          <template v-else-if="loanAction === 'reserved-wait'">
+            <button type="button" class="btn" disabled>예약자 대기 중</button>
+            <p class="reserved-hint">반납된 책을 예약자가 먼저 대출할 수 있어요</p>
+          </template>
           <button
-            v-else-if="myLoanId !== null"
+            v-else-if="loanAction === 'return'"
             type="button"
             class="btn"
             :disabled="loanBusy"
@@ -215,6 +238,8 @@ function askAi() {
 .left { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
 .left :deep(.cv) { width: 250px; aspect-ratio: 500/726; }
 .left .btn { width: 100%; padding: 12px; font-size: 14.5px; }
+.left .btn:disabled { cursor: not-allowed; opacity: .65; }
+.reserved-hint { margin: -8px 0 0; font-size: 12px; color: var(--sub); line-height: 1.4; }
 .aux { display: flex; justify-content: flex-end; align-items: center; font-size: 12.5px; color: var(--sub); }
 .aux a { color: var(--sub); text-decoration: underline; }
 .right { flex: 1; min-width: 0; }
