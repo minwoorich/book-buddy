@@ -21,6 +21,8 @@
 - **독서 진행률 + 책쌓기**: 읽은 페이지를 기록하면 누적 독서량이 책 무더기처럼 쌓이는 시각화 (북적북적 스타일)
 - **마이페이지 책장**: 읽은 책 / 읽고 있는 책 / 찜한 책을 실제 책장 선반에 꽂힌 느낌으로 표시
 - **사내 독서 랭킹 보드**: 개인별 · 팀별 · 부서별 · 계열사별 랭킹 (완독 권수/페이지 기준)
+- **커뮤니티 피드**: 인스타그램식 사진 업로드 + 좋아요 + 댓글 (책 태그 가능)
+- **책 읽기 좋은 장소**: 네이버 지도 연동 + AI 추천 (주변 카페·도서관·공원을 AI가 큐레이션)
 
 비범위(명시적 제외): 실제 인증/보안, 다중 재고 수량 관리, 연체 제재, 알림, 관리자 화면.
 
@@ -36,7 +38,10 @@
 | 외부 데이터 | 알라딘 Open API (TTB 키, `.env`) — 시드 수집 + 희망도서 검색 |
 | 테스트 | Vitest — 대출/예약 비즈니스 규칙 단위 테스트만 (데모 수준) |
 
-환경변수(`.env`): `ANTHROPIC_API_KEY`, `ALADIN_TTB_KEY`
+환경변수(`.env`): `ANTHROPIC_API_KEY`, `ALADIN_TTB_KEY`,
+`NAVER_MAP_CLIENT_ID`(네이버클라우드 Maps), `NAVER_SEARCH_CLIENT_ID`/`NAVER_SEARCH_CLIENT_SECRET`(네이버 개발자센터 지역검색)
+
+> 주의: 네이버 **지도(NCP Maps)**와 **지역검색(개발자센터)**은 발급처가 다른 별개 키다.
 
 ## 3. 프로젝트 구조 (레이어 분리)
 
@@ -74,6 +79,11 @@ scripts/
 | `review_votes` | id, review_id, user_id, created_at — (review_id, user_id) 유니크로 중복 추천 방지 |
 | `wishlists` | id, user_id, book_id, created_at — (user_id, book_id) 유니크. "찜" |
 | `reading_progress` | id, user_id, book_id, current_page, updated_at — (user_id, book_id) 유니크. 총 페이지는 books.page_count |
+| `posts` | id, user_id, book_id(선택, 책 태그), image_path, caption, created_at — 커뮤니티 피드 |
+| `post_likes` | id, post_id, user_id, created_at — (post_id, user_id) 유니크 |
+| `post_comments` | id, post_id, user_id, content, created_at |
+
+사진 업로드는 로컬 디스크(`.data/uploads/`)에 저장하고 Nitro 라우트로 서빙 (데모 수준, 외부 스토리지 없음).
 
 파생 규칙 (별도 테이블 없음):
 
@@ -119,6 +129,11 @@ scripts/
 | `GET /api/reading-progress?userId=` | 내 진행률 목록 (책쌓기용) |
 | `GET /api/loans?userId=&returned=true&from=&to=` | 도서 달력용 — 기간 내 반납 완료 대출 (기존 loans 엔드포인트 재사용) |
 | `GET /api/rankings?by=user\|team\|department\|company&period=month\|all` | 사내 독서 랭킹 |
+| `GET /api/posts` / `POST /api/posts` | 피드 목록 / 게시물 작성 (multipart: 사진 + 캡션 + 책 태그) |
+| `POST /api/posts/:id/likes` / `DELETE /api/posts/:id/likes` | 좋아요 / 취소 (사용자당 1회) |
+| `GET /api/posts/:id/comments` / `POST /api/posts/:id/comments` | 댓글 목록 / 작성 |
+| `GET /api/places?query=` | 네이버 지역검색 프록시 (주변 카페·도서관·공원) |
+| `POST /api/ai/places` | 장소 목록을 Claude가 "책 읽기 좋은 순"으로 큐레이션 (추천 이유 포함) |
 | `GET /api/aladin/search?query=` | 알라딘 도서 검색 프록시 (희망도서용) |
 | `POST /api/ai/search` | 메인 페이지 AI 검색 (단발 질의) |
 | `POST /api/ai/chat` | 챗봇 대화 (메시지 히스토리 포함, 스테이트리스) |
@@ -173,7 +188,12 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
    썸네일이 붙음. 월 이동 가능, 표지 클릭 시 책 상세로
 6. `/rankings` (독서 랭킹) — 탭: 개인 / 팀 / 부서 / 계열사. 기간 필터(이달/전체).
    완독 권수 기준 순위 + 페이지 수 보조 표기, 상위 3위 강조
-7. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
+7. `/feed` (커뮤니티) — 인스타그램식 카드 피드: 사진 + 캡션 + 책 태그(표지 칩),
+   좋아요(❤ 토글)와 댓글. 업로드 모달(사진 선택 + 캡션 + 읽던 책 태그)
+8. `/places` (책 읽기 좋은 장소) — 네이버 지도(마커) + 사이드 장소 리스트.
+   "AI 추천받기" 버튼 → 검색된 장소들을 Claude가 책 읽기 좋은 순으로 정렬 + 한줄 추천 이유.
+   지도 키가 없으면 리스트만 표시 (지도 영역에 안내)
+9. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
 
 ## 8. 에러 처리 (데모 수준)
 
@@ -193,3 +213,4 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 1. 알라딘 ItemList API로 카테고리 4~5개(경제경영, IT, 자기계발, 인문 등) 베스트셀러 수집 → 책 40권 내외 (page_count는 ItemLookUp subinfo에서)
 2. 가짜 직원 12명 내외 — **계열사 2~3개 × 부서 × 팀** 구성으로 배치 (랭킹 보드가 그럴듯해야 함)
 3. 데모 리얼리티용: **반납 완료 대출 여러 건(달력·랭킹·읽은 책이 채워지도록 날짜 분산)**, 진행 중 대출 몇 건 + 진행률 기록, 찜 몇 건, 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
+4. 커뮤니티 피드 게시물 4~5건 (사진은 책 표지 이미지로 대체) + 좋아요·댓글 몇 건
