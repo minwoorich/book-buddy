@@ -23,8 +23,10 @@
 - **사내 독서 랭킹 보드**: 개인별 · 팀별 · 부서별 · 계열사별 랭킹 (완독 권수/페이지 기준)
 - **커뮤니티 피드**: 인스타그램식 사진 업로드 + 좋아요 + 댓글 (책 태그 가능)
 - **책 읽기 좋은 장소**: 네이버 지도 연동 + AI 추천 (주변 카페·도서관·공원을 AI가 큐레이션)
+- **관리자 대시보드**: 대출/반납 현황·연체 관리, 희망도서 신청 처리, 신고 처리, 책 등록/삭제
+- **통계**: 부서별 · 성별 · 나이대별 · 직급별 · 계열사별 · 팀별 독서 활동 차트
 
-비범위(명시적 제외): 실제 인증/보안, 다중 재고 수량 관리, 연체 제재, 알림, 관리자 화면.
+비범위(명시적 제외): 실제 인증/보안, 다중 재고 수량 관리, 연체 제재, 알림.
 
 ## 2. 기술 스택
 
@@ -70,7 +72,7 @@ scripts/
 
 | 테이블 | 주요 컬럼 |
 |---|---|
-| `users` | id, name, company(계열사), department(부서), team(팀) |
+| `users` | id, name, company(계열사), department(부서), team(팀), position(직급), gender, birth_year, role(admin/member) |
 | `books` | id, isbn13, title, author, publisher, category, description, cover_url, pub_date, page_count |
 | `loans` | id, book_id, user_id, loaned_at, due_at(14일), returned_at(null=대출중) |
 | `reservations` | id, book_id, user_id, created_at, status(waiting/canceled/fulfilled) |
@@ -82,6 +84,7 @@ scripts/
 | `posts` | id, user_id, book_id(선택, 책 태그), image_path, caption, created_at — 커뮤니티 피드 |
 | `post_likes` | id, post_id, user_id, created_at — (post_id, user_id) 유니크 |
 | `post_comments` | id, post_id, user_id, content, created_at |
+| `reports` | id, reporter_id, target_type(book/post/review), target_id, reason, status(pending/resolved), created_at — 분실·파손·부적절 게시물 신고 |
 
 사진 업로드는 로컬 디스크(`.data/uploads/`)에 저장하고 Nitro 라우트로 서빙 (데모 수준, 외부 스토리지 없음).
 
@@ -134,7 +137,19 @@ scripts/
 | `GET /api/posts/:id/comments` / `POST /api/posts/:id/comments` | 댓글 목록 / 작성 |
 | `GET /api/places?query=` | 네이버 지역검색 프록시 (주변 카페·도서관·공원) |
 | `POST /api/ai/places` | 장소 목록을 Claude가 "책 읽기 좋은 순"으로 큐레이션 (추천 이유 포함) |
-| `GET /api/aladin/search?query=` | 알라딘 도서 검색 프록시 (희망도서용) |
+| `GET /api/aladin/search?query=` | 알라딘 도서 검색 프록시 (희망도서·책 등록용) |
+| `POST /api/reports` | 신고 접수 `{targetType, targetId, reason}` |
+
+**관리자 전용** (role=admin 헤더 검사, 데모 수준):
+
+| 메서드/경로 | 설명 |
+|---|---|
+| `POST /api/books` | 책 등록 (알라딘 검색 결과 기반) |
+| `DELETE /api/books/:id` | 책 삭제 |
+| `GET /api/loans?active=true&overdue=true` | 전체 대출/연체 현황 (기존 엔드포인트 + 관리자면 전체 조회) |
+| `PATCH /api/purchase-requests/:id` | 희망도서 신청 처리 `{status: approved\|rejected}` (승인 시 책 등록 연계) |
+| `GET /api/reports?status=` / `PATCH /api/reports/:id` | 신고 목록 / 처리 |
+| `GET /api/stats?by=department\|gender\|age\|position\|company\|team&period=` | 그룹별 독서 통계 (대출·완독·인당 평균) |
 | `POST /api/ai/search` | 메인 페이지 AI 검색 (단발 질의) |
 | `POST /api/ai/chat` | 챗봇 대화 (메시지 히스토리 포함, 스테이트리스) |
 
@@ -193,7 +208,12 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 8. `/places` (책 읽기 좋은 장소) — 네이버 지도(마커) + 사이드 장소 리스트.
    "AI 추천받기" 버튼 → 검색된 장소들을 Claude가 책 읽기 좋은 순으로 정렬 + 한줄 추천 이유.
    지도 키가 없으면 리스트만 표시 (지도 영역에 안내)
-9. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
+9. `/admin` (관리자 대시보드, role=admin만) — 상단 요약 카드(대출 중/연체/신청 대기/신고 대기),
+   최근 대출·반납 테이블(강제 반납 처리 버튼), 희망도서 신청 승인/거절,
+   신고 처리 목록, 책 등록(알라딘 검색 → 추가)/삭제
+10. `/admin/stats` (통계) — 그룹 기준 선택(부서/성별/나이대/직급/계열사/팀) + 기간 필터.
+    그룹별 대출·완독량 막대 차트, 인당 평균 표기 (차트는 라이브러리 없이 CSS/SVG 막대)
+11. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
 
 ## 8. 에러 처리 (데모 수준)
 
@@ -211,6 +231,7 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 `scripts/seed.ts` (`npm run seed`):
 
 1. 알라딘 ItemList API로 카테고리 4~5개(경제경영, IT, 자기계발, 인문 등) 베스트셀러 수집 → 책 40권 내외 (page_count는 ItemLookUp subinfo에서)
-2. 가짜 직원 12명 내외 — **계열사 2~3개 × 부서 × 팀** 구성으로 배치 (랭킹 보드가 그럴듯해야 함)
+2. 가짜 직원 12명 내외 — **계열사 2~3개 × 부서 × 팀** 구성, 성별·출생연도·직급 분산 배치
+   (랭킹 보드·통계가 그럴듯해야 함). 그중 1명은 role=admin (도서관리자)
 3. 데모 리얼리티용: **반납 완료 대출 여러 건(달력·랭킹·읽은 책이 채워지도록 날짜 분산)**, 진행 중 대출 몇 건 + 진행률 기록, 찜 몇 건, 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
 4. 커뮤니티 피드 게시물 4~5건 (사진은 책 표지 이미지로 대체) + 좋아요·댓글 몇 건
