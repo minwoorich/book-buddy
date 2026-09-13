@@ -1,4 +1,5 @@
 import { getDb } from '../db/connection'
+import { ApiError } from '../utils/errors'
 import type { Book, NewBook } from '../../shared/types'
 
 interface BookRow {
@@ -51,18 +52,34 @@ export const bookRepo = {
     return row ? toBook(row) : undefined
   },
 
+  /** 책 등록. isbn13이 이미 등록돼 있으면(UNIQUE 위반) 409. */
   insert(b: NewBook): number {
-    const result = getDb()
-      .prepare(
-        `INSERT INTO books (isbn13, title, author, publisher, category, description, cover_url, pub_date, page_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(b.isbn13, b.title, b.author, b.publisher, b.category, b.description, b.coverUrl, b.pubDate, b.pageCount)
-    return Number(result.lastInsertRowid)
+    try {
+      const result = getDb()
+        .prepare(
+          `INSERT INTO books (isbn13, title, author, publisher, category, description, cover_url, pub_date, page_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(b.isbn13, b.title, b.author, b.publisher, b.category, b.description, b.coverUrl, b.pubDate, b.pageCount)
+      return Number(result.lastInsertRowid)
+    } catch (err) {
+      if (err instanceof Error && /UNIQUE constraint failed/.test(err.message)) {
+        throw new ApiError(409, '이미 등록된 책이에요')
+      }
+      throw err
+    }
   },
 
+  /** 책 삭제. 대출/찜/리뷰 등 이력이 남아있어 FK 제약에 걸리면 409. */
   remove(id: number): void {
-    getDb().prepare('DELETE FROM books WHERE id = ?').run(id)
+    try {
+      getDb().prepare('DELETE FROM books WHERE id = ?').run(id)
+    } catch (err) {
+      if (err instanceof Error && /FOREIGN KEY constraint failed/.test(err.message)) {
+        throw new ApiError(409, '대출 이력이 있는 책은 삭제할 수 없어요')
+      }
+      throw err
+    }
   },
 
   categories(): string[] {

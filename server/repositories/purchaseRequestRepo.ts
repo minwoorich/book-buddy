@@ -36,6 +36,15 @@ export const purchaseRequestRepo = {
     return rows.map(toPurchaseRequest)
   },
 
+  /** 전체 구매 신청 목록(관리자용). status 생략 시 전체. 최신순. */
+  listAll(status?: PurchaseRequest['status']): PurchaseRequest[] {
+    const where = status ? 'WHERE status = ?' : ''
+    const rows = getDb()
+      .prepare(`SELECT * FROM purchase_requests ${where} ORDER BY created_at DESC`)
+      .all(...(status ? [status] : [])) as PurchaseRequestRow[]
+    return rows.map(toPurchaseRequest)
+  },
+
   insert(
     userId: number,
     input: { title: string; author?: string | null; isbn13?: string | null; coverUrl?: string | null; reason?: string | null }

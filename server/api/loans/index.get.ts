@@ -21,7 +21,8 @@ export default defineEventHandler(
     const returned = q.returned === 'true'
     const from = typeof q.from === 'string' ? q.from : undefined
     const to = typeof q.to === 'string' ? q.to : undefined
+    const recent = typeof q.recent === 'string' ? Number(q.recent) : undefined
 
-    return loanRepo.findWithBook({ userId, active, returned, returnedFrom: from, returnedTo: to })
+    return loanRepo.findWithBook({ userId, active, returned, returnedFrom: from, returnedTo: to, limit: recent })
   })
 )

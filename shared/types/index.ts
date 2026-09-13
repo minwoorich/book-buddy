@@ -25,6 +25,9 @@ export interface Book {
 
 export type NewBook = Omit<Book, 'id'>
 
+/** 서가 카테고리 4종. `CommonCategoryChips`의 '전체'는 필터 UI 전용이라 제외. */
+export const BOOK_CATEGORIES = ['경제경영', 'IT · 프로그래밍', '자기계발', '인문'] as const
+
 /** 외부 서점(네이버 책 검색) 검색 결과 1건. */
 export interface ExternalBookItem {
   title: string

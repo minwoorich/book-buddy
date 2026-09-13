@@ -115,7 +115,8 @@ export const loanRepo = {
   /**
    * book JOIN 포함 대출 목록. userId 생략 시 전체(관리자 대시보드용).
    * active: returned_at IS NULL, returned: returned_at IS NOT NULL,
-   * returnedFrom/returnedTo: returned_at 범위(ISO 문자열 프리픽스 비교).
+   * returnedFrom/returnedTo: returned_at 범위(ISO 문자열 프리픽스 비교),
+   * limit: 최근 N건만(관리자 대시보드 "최근 대출·반납" 테이블용).
    */
   findWithBook(opts?: {
     userId?: number
@@ -123,6 +124,7 @@ export const loanRepo = {
     returned?: boolean
     returnedFrom?: string
     returnedTo?: string
+    limit?: number
   }): (Loan & { book: Book })[] {
     const clauses: string[] = []
     const params: unknown[] = []
@@ -145,10 +147,12 @@ export const loanRepo = {
       params.push(opts.returnedTo)
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const limit = opts?.limit ? 'LIMIT ?' : ''
+    if (opts?.limit) params.push(opts.limit)
     const rows = getDb()
       .prepare(
         `SELECT l.*, ${BOOK_JOIN_COLUMNS} FROM loans l JOIN books b ON b.id = l.book_id
-         ${where} ORDER BY l.loaned_at DESC`
+         ${where} ORDER BY l.loaned_at DESC ${limit}`
       )
       .all(...params) as LoanWithBookRow[]
     return rows.map(toLoanWithBook)
