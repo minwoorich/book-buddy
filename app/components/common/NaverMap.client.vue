@@ -19,7 +19,8 @@ const FALLBACK_PIN_POSITIONS = [
 ] as const
 
 const mapEl = ref<HTMLElement | null>(null)
-const showFallback = ref(false)
+/** 스크립트 로드 실패 또는 clientId 없음 — 이 경우에만 영구 폴백(래치)한다. */
+const scriptFailed = ref(false)
 
 const fallbackPlaces = computed(() => props.places.slice(0, 4))
 
@@ -32,6 +33,12 @@ const fallbackPlaces = computed(() => props.places.slice(0, 4))
 const validPlaces = computed(() =>
   props.places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && (p.lat !== 0 || p.lng !== 0))
 )
+
+/**
+ * 폴백 여부는 매번 재평가한다(래치 금지). 스크립트 로드 실패/clientId 없음만 영구 폴백이고,
+ * "지금 유효한 장소가 없다"는 이후 props.places가 바뀌면 다시 실지도로 돌아와야 한다.
+ */
+const showFallback = computed(() => scriptFailed.value || validPlaces.value.length === 0)
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -74,42 +81,82 @@ function pinIconHtml(no: number): string {
   )
 }
 
-function renderMap() {
-  const naver = (window as any).naver
-  if (!mapEl.value || !naver?.maps || validPlaces.value.length === 0) {
-    showFallback.value = true
-    return
+// 지도 인스턴스/마커는 반응형일 필요가 없다(naver SDK 객체) — 일반 변수로 들고 재사용한다.
+let mapInstance: any = null
+let markers: any[] = []
+
+function clearMarkers() {
+  markers.forEach((m) => m.setMap(null))
+  markers = []
+}
+
+/** mapEl에 지도 인스턴스가 없으면 새로 만들고, 있으면 그대로 재사용한다. */
+function ensureMap(naver: any): any {
+  if (!mapEl.value || !naver?.maps) return null
+  if (!mapInstance) {
+    const c = centerOf(validPlaces.value)
+    mapInstance = new naver.maps.Map(mapEl.value, {
+      center: new naver.maps.LatLng(c.lat, c.lng),
+      zoom: 14,
+    })
   }
+  return mapInstance
+}
+
+/** 현재 validPlaces 기준으로 마커를 전부 지우고 다시 배치한다(순번 = 현재 순서). */
+function renderMarkers() {
+  const naver = (window as any).naver
+  const map = ensureMap(naver)
+  if (!map) return
+
+  clearMarkers()
+  if (validPlaces.value.length === 0) return
 
   const c = centerOf(validPlaces.value)
-  const map = new naver.maps.Map(mapEl.value, {
-    center: new naver.maps.LatLng(c.lat, c.lng),
-    zoom: 14,
-  })
+  map.setCenter(new naver.maps.LatLng(c.lat, c.lng))
 
-  validPlaces.value.forEach((place, i) => {
-    new naver.maps.Marker({
-      position: new naver.maps.LatLng(place.lat, place.lng),
-      map,
-      title: place.name,
-      icon: {
-        content: pinIconHtml(i + 1),
-        anchor: new naver.maps.Point(13, 13),
-      },
-    })
-  })
+  markers = validPlaces.value.map(
+    (place, i) =>
+      new naver.maps.Marker({
+        position: new naver.maps.LatLng(place.lat, place.lng),
+        map,
+        title: place.name,
+        icon: {
+          content: pinIconHtml(i + 1),
+          anchor: new naver.maps.Point(13, 13),
+        },
+      })
+  )
 }
 
 onMounted(async () => {
   if (!props.clientId) {
-    showFallback.value = true
+    scriptFailed.value = true
     return
   }
   try {
     await loadScript(`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${props.clientId}`)
-    renderMap()
+    await nextTick() // showFallback=false일 때 mapEl이 DOM에 붙을 때까지 대기
+    renderMarkers()
   } catch {
-    showFallback.value = true
+    scriptFailed.value = true
+  }
+})
+
+// places.vue가 AI 추천 후 displayList(= props.places)를 교체하는 등 목록이 바뀔 때마다
+// 마커를 다시 배치한다(순번이 우측 리스트와 항상 일치하도록). 지도 인스턴스는 재사용한다.
+watch(validPlaces, async () => {
+  if (showFallback.value) return
+  await nextTick()
+  renderMarkers()
+})
+
+// 폴백으로 전환되면(유효한 장소가 0개) mapEl div가 v-if로 언마운트되므로, 다음에 다시
+// 실지도로 돌아올 때 새 DOM 노드에 대해 지도를 새로 만들도록 인스턴스 참조를 정리한다.
+watch(showFallback, (isFallback) => {
+  if (isFallback) {
+    mapInstance = null
+    markers = []
   }
 })
 </script>
