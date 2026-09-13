@@ -56,8 +56,8 @@ function isToday(d: Date): boolean {
         <span class="n">{{ cell.date.getDate() }}</span>
         <template v-if="cell.dayLoans.length">
           <span class="done">완독</span>
-          <NuxtLink class="cv hover" :to="`/books/${cell.dayLoans[0]!.book.id}`">
-            <BookCoverImage :src="cell.dayLoans[0]!.book.coverUrl" :alt="cell.dayLoans[0]!.book.title" />
+          <NuxtLink class="cv-link" :to="`/books/${cell.dayLoans[0]!.book.id}`">
+            <BookCoverImage class="hover" :src="cell.dayLoans[0]!.book.coverUrl" :alt="cell.dayLoans[0]!.book.title" />
           </NuxtLink>
           <span v-if="cell.dayLoans.length > 1" class="more">+{{ cell.dayLoans.length - 1 }}</span>
         </template>
@@ -82,6 +82,7 @@ function isToday(d: Date): boolean {
 .day.sun .n { color: #C97B72; }
 .day.today { outline: 2px solid var(--red); outline-offset: -2px; }
 .day.today .n { color: var(--red); font-weight: 800; }
+.day .cv-link { display: block; }
 .day :deep(.cv) { width: 42px; height: 60px; margin: 6px auto 0; display: block; }
 .day .done { position: absolute; top: 7px; right: 7px; font-size: 10px; color: var(--ok); font-weight: 700; }
 .day .more { position: absolute; bottom: 6px; right: 7px; font-size: 10px; font-weight: 700; color: var(--sub); background: #EDE7DA; border-radius: 8px; padding: 1px 5px; line-height: 1; }
