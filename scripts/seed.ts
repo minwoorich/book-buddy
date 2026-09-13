@@ -29,9 +29,21 @@ function daysAgo(n: number): Date {
   return new Date(Date.now() - n * 86_400_000)
 }
 
+/** 런타임 SQLite `datetime('now')`와 같은 포맷('YYYY-MM-DD HH:MM:SS', UTC)으로 변환한다 —
+ * ISO 문자열('...T...Z') 그대로 넣으면 같은 날 데이터끼리 정렬이 인터리브된다. */
+function dbTimestamp(d: Date): string {
+  return d.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 const isDebug = () => process.env.SEED_DEBUG === '1'
 
-const FALLBACK_COVER = 'https://via.placeholder.com/240x360.png?text=Book+Buddy'
+// via.placeholder.com이 서비스 종료돼(2023년) 외부 요청 없이 항상 뜨는 단색 SVG data URI로 대체.
+const FALLBACK_COVER_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="360">' +
+  '<rect width="240" height="360" fill="#C9BCA2"/>' +
+  '<text x="120" y="180" font-family="sans-serif" font-size="20" fill="#4A4033" text-anchor="middle" dominant-baseline="middle">Book Buddy</text>' +
+  '</svg>'
+const FALLBACK_COVER = `data:image/svg+xml,${encodeURIComponent(FALLBACK_COVER_SVG)}`
 
 // ── 1. 기존 데이터 초기화 (FK 역순) ──────────────────────────────────
 function resetAll(): void {
@@ -152,7 +164,7 @@ function insertLoanRaw(bookId: number, userId: number, loanedAt: Date, dueAt: Da
     .prepare(
       `INSERT INTO loans (book_id, user_id, loaned_at, due_at, returned_at) VALUES (?, ?, ?, ?, ?)`
     )
-    .run(bookId, userId, loanedAt.toISOString(), dueAt.toISOString(), returnedAt ? returnedAt.toISOString() : null)
+    .run(bookId, userId, dbTimestamp(loanedAt), dbTimestamp(dueAt), returnedAt ? dbTimestamp(returnedAt) : null)
   return Number(result.lastInsertRowid)
 }
 
@@ -225,7 +237,7 @@ function seedReviews(userIds: number[], books: Book[]): number[] {
     const createdAt = daysAgo(randomInt(1, 80))
     const result = getDb()
       .prepare(`INSERT INTO reviews (book_id, user_id, rating, content, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(book.id, userId, rating, REVIEW_CONTENTS[i], createdAt.toISOString())
+      .run(book.id, userId, rating, REVIEW_CONTENTS[i], dbTimestamp(createdAt))
     ids.push(Number(result.lastInsertRowid))
   }
   return ids
