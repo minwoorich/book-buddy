@@ -24,7 +24,8 @@
 
 | 영역 | 선택 |
 |---|---|
-| 프레임워크 | Nuxt 3 (TypeScript, 프론트 + Nitro 서버 라우트 단일 앱) |
+| 프레임워크 | Nuxt 3 (프론트 + Nitro 서버 라우트 단일 앱) |
+| 언어 | **전부 TypeScript** — 서버·프론트·스크립트 모두 `.ts` / `<script setup lang="ts">`, 순수 `.js` 파일 금지 |
 | DB | SQLite (better-sqlite3), 파일 1개 |
 | AI | Claude API — LangChain.js (`@langchain/anthropic`, `@langchain/core`, `@langchain/langgraph`의 `createReactAgent`) |
 | 모델 | `claude-sonnet-5` |
