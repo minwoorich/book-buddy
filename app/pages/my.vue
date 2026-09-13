@@ -44,10 +44,19 @@ const { data: userRankings } = await useAsyncData<RankRow[]>(
   { default: () => [] }
 )
 
+// 표준 경쟁 순위(1224식): count가 같으면 같은 순위, 다음 순위는 동률 인원수만큼 건너뛴다.
+// rankings.vue와 동일한 규칙(스펙: '동률은 공동 순위').
+function competitionRankAt(list: RankRow[], idx: number): number {
+  let rank = idx + 1
+  while (rank > 1 && list[rank - 2].count === list[idx].count) rank--
+  return rank
+}
+
 const myRank = computed(() => {
   if (!user.value) return null
-  const idx = (userRankings.value ?? []).findIndex((r) => r.userId === user.value!.id)
-  return idx === -1 ? null : idx + 1
+  const list = userRankings.value ?? []
+  const idx = list.findIndex((r) => r.userId === user.value!.id)
+  return idx === -1 ? null : competitionRankAt(list, idx)
 })
 
 async function refreshAll() {

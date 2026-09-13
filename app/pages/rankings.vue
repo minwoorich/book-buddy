@@ -36,6 +36,18 @@ const rest = computed(() => (rows.value ?? []).slice(3))
 // 4위 이하 막대 폭 기준은 1위 권수(전체 목록의 최댓값) 대비 비율.
 const topCount = computed(() => rows.value?.[0]?.count ?? 0)
 
+// 표준 경쟁 순위(1224식): count가 같으면 같은 순위, 다음 순위는 동률 인원수만큼 건너뛴다.
+// 전체 rows 기준으로 계산해야 top3와 이어지는 순위가 맞는다(포디움 자체는 배치 그대로 — 동률이
+// 3위에 걸쳐도 단순화 허용).
+function competitionRanks(list: RankRow[]): number[] {
+  const ranks: number[] = []
+  for (let i = 0; i < list.length; i++) {
+    ranks.push(i > 0 && list[i].count === list[i - 1].count ? ranks[i - 1] : i + 1)
+  }
+  return ranks
+}
+const restRanks = computed(() => competitionRanks(rows.value ?? []).slice(3))
+
 function barWidth(row: RankRow): number {
   if (!topCount.value) return 0
   return Math.round((row.count / topCount.value) * 100)
@@ -87,7 +99,7 @@ function isMine(row: RankRow): boolean {
             class="rank-row"
             :class="{ mine: isMine(row) }"
           >
-            <span class="no">{{ idx + 4 }}</span>
+            <span class="no">{{ restRanks[idx] }}</span>
             <span class="avatar">{{ row.label.charAt(0) }}</span>
             <div class="who">
               <b>{{ row.label }} <span v-if="isMine(row)" class="badge red" style="margin-left:4px;">나</span></b>
