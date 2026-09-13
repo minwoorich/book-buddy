@@ -20,13 +20,15 @@ const { data: totalBooks, refresh: refreshTotalBooks } = await useAsyncData<Book
 
 const { data: activeLoans, refresh: refreshActiveLoans } = await useAsyncData<LoanWithBook[]>(
   'admin-active-loans',
-  () => (isAdmin.value ? api<LoanWithBook[]>('/api/loans', { query: { active: true } }) : Promise.resolve([])),
+  () =>
+    isAdmin.value ? api<LoanWithBook[]>('/api/loans', { query: { active: true, scope: 'all' } }) : Promise.resolve([]),
   { default: () => [] }
 )
 
 const { data: recentLoans, refresh: refreshRecentLoans } = await useAsyncData<LoanWithBook[]>(
   'admin-recent-loans',
-  () => (isAdmin.value ? api<LoanWithBook[]>('/api/loans', { query: { recent: 8 } }) : Promise.resolve([])),
+  () =>
+    isAdmin.value ? api<LoanWithBook[]>('/api/loans', { query: { recent: 8, scope: 'all' } }) : Promise.resolve([]),
   { default: () => [] }
 )
 
@@ -34,7 +36,7 @@ const { data: requests, refresh: refreshRequests } = await useAsyncData<Purchase
   'admin-requests',
   () =>
     isAdmin.value
-      ? api<PurchaseRequest[]>('/api/purchase-requests', { query: { status: 'requested' } })
+      ? api<PurchaseRequest[]>('/api/purchase-requests', { query: { status: 'requested', scope: 'all' } })
       : Promise.resolve([]),
   { default: () => [] }
 )

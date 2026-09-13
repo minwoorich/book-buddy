@@ -7,21 +7,27 @@ export default defineEventHandler(
     const me = requireUser(event)
     const q = getQuery(event)
 
+    const scopeAll = q.scope === 'all'
+    const recent = typeof q.recent === 'string' ? Number(q.recent) : undefined
+
     const queryUserId = typeof q.userId === 'string' ? Number(q.userId) : undefined
     let userId: number | undefined
     if (queryUserId !== undefined) {
       if (queryUserId !== me.id && me.role !== 'admin') throw new ApiError(403, '권한이 없어요')
       userId = queryUserId
-    } else if (me.role !== 'admin') {
+    } else if (scopeAll || recent !== undefined) {
+      // 전체 조회는 opt-in(?scope=all 또는 관리자 대시보드의 ?recent=N)이고 admin 전용이다.
+      if (me.role !== 'admin') throw new ApiError(403, '권한이 없어요')
+      userId = undefined
+    } else {
+      // userId 생략 + scope=all 아님 → admin이어도 기본은 항상 본인 것만.
       userId = me.id
     }
-    // userId 생략 + admin이면 userId는 undefined로 남아 전체 목록을 조회한다.
 
     const active = q.active === 'true'
     const returned = q.returned === 'true'
     const from = typeof q.from === 'string' ? q.from : undefined
     const to = typeof q.to === 'string' ? q.to : undefined
-    const recent = typeof q.recent === 'string' ? Number(q.recent) : undefined
 
     return loanRepo.findWithBook({ userId, active, returned, returnedFrom: from, returnedTo: to, limit: recent })
   })
