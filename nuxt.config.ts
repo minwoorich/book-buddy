@@ -12,7 +12,7 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
-    anthropicApiKey: '', aladinTtbKey: '',
+    anthropicApiKey: '',
     naverSearchClientId: '', naverSearchClientSecret: '',
     public: { naverMapClientId: '' },
   },

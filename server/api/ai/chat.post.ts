@@ -36,8 +36,13 @@ export default defineEventHandler(
       }
     }
 
-    const { anthropicApiKey, aladinTtbKey } = useRuntimeConfig(event)
-    const answer = await runAgent({ anthropicApiKey, aladinTtbKey }, me.id, recent, systemExtra)
+    const { anthropicApiKey, naverSearchClientId, naverSearchClientSecret } = useRuntimeConfig(event)
+    const answer = await runAgent(
+      { anthropicApiKey, naverSearchClientId, naverSearchClientSecret },
+      me.id,
+      recent,
+      systemExtra
+    )
 
     const books = answer.bookIds
       .map((id) => bookRepo.findById(id))

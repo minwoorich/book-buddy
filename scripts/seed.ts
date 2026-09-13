@@ -1,10 +1,10 @@
 // 데모용 시드 스크립트. 재실행 가능 — 시작 시 전 테이블을 비우고 다시 채운다.
 // 실행: npm run seed  (tsx scripts/seed.ts)
-// 알라딘 API 원본 응답을 확인하려면: SEED_DEBUG=1 npm run seed
+// 네이버 책 검색 API 원본 응답을 확인하려면: SEED_DEBUG=1 npm run seed
 import 'dotenv/config'
 import { initDb, getDb } from '../server/db/connection'
 import { bookRepo } from '../server/repositories/bookRepo'
-import { aladinService } from '../server/services/aladinService'
+import { naverBookService } from '../server/services/naverBookService'
 import type { Book } from '../shared/types'
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
@@ -29,7 +29,9 @@ function daysAgo(n: number): Date {
   return new Date(Date.now() - n * 86_400_000)
 }
 
-const FALLBACK_COVER = 'https://image.aladin.co.kr/product/38579/43/cover500/k582135154_1.jpg'
+const isDebug = () => process.env.SEED_DEBUG === '1'
+
+const FALLBACK_COVER = 'https://via.placeholder.com/240x360.png?text=Book+Buddy'
 
 // ── 1. 기존 데이터 초기화 (FK 역순) ──────────────────────────────────
 function resetAll(): void {
@@ -53,37 +55,51 @@ function resetAll(): void {
   }
 }
 
-// ── 2. 책 (알라딘 베스트셀러) ────────────────────────────────────────
-const CATEGORIES: { cid: number; label: string }[] = [
-  { cid: 170, label: '경제경영' },
-  { cid: 351, label: '컴퓨터/모바일' },
-  { cid: 336, label: '자기계발' },
-  { cid: 656, label: '인문' },
+// ── 2. 책 (네이버 책 검색, 카테고리별 키워드 검색) ───────────────────
+// 네이버 책 검색 API에는 베스트셀러 목록이 없어 카테고리별 대표 키워드로 검색해 수집한다.
+const CATEGORIES: { label: string; keywords: string[] }[] = [
+  { label: '경제경영', keywords: ['리더십', '경영 전략', '마케팅'] },
+  { label: 'IT · 프로그래밍', keywords: ['프로그래밍', '소프트웨어 개발', '클린 코드'] },
+  { label: '자기계발', keywords: ['습관', '자기계발 베스트'] },
+  { label: '인문', keywords: ['철학 입문', '세계사'] },
 ]
+const MAX_PER_CATEGORY = 10
 
-async function seedBooks(ttbKey: string): Promise<Book[]> {
+async function seedBooks(clientId: string, clientSecret: string): Promise<Book[]> {
   const inserted: Book[] = []
   const seenIsbn = new Set<string>()
 
   for (const cat of CATEGORIES) {
-    console.log(`  - [${cat.label}] 베스트셀러 수집 중...`)
-    const items = await aladinService.bestsellers(ttbKey, cat.cid, 10)
-    for (const item of items) {
-      if (!item.isbn13 || seenIsbn.has(item.isbn13)) continue
-      seenIsbn.add(item.isbn13)
-      const id = bookRepo.insert({
-        isbn13: item.isbn13,
-        title: item.title,
-        author: item.author,
-        publisher: item.publisher || null,
-        category: cat.label,
-        description: item.description || null,
-        coverUrl: item.cover || null,
-        pubDate: item.pubDate || null,
-        pageCount: item.pageCount,
-      })
-      const book = bookRepo.findById(id)
-      if (book) inserted.push(book)
+    console.log(`  - [${cat.label}] 키워드 검색 수집 중... (${cat.keywords.join(', ')})`)
+    let categoryCount = 0
+    for (const keyword of cat.keywords) {
+      if (categoryCount >= MAX_PER_CATEGORY) break
+      const display = randomInt(5, 6)
+      const items = await naverBookService.search(clientId, clientSecret, keyword, display)
+      if (isDebug() && items.length > 0) {
+        console.log(`[seed] "${keyword}" raw first item:`, JSON.stringify(items[0], null, 2))
+      }
+      for (const item of items) {
+        if (categoryCount >= MAX_PER_CATEGORY) break
+        if (!item.isbn13 || seenIsbn.has(item.isbn13)) continue
+        seenIsbn.add(item.isbn13)
+        const id = bookRepo.insert({
+          isbn13: item.isbn13,
+          title: item.title,
+          author: item.author,
+          publisher: item.publisher || null,
+          category: cat.label,
+          description: item.description || null,
+          coverUrl: item.cover,
+          pubDate: item.pubDate || null,
+          pageCount: null,
+        })
+        const book = bookRepo.findById(id)
+        if (book) {
+          inserted.push(book)
+          categoryCount++
+        }
+      }
     }
   }
   return inserted
@@ -293,11 +309,12 @@ function seedReport(userIds: number[], books: Book[]): void {
 
 // ── main ─────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  const ttbKey = process.env.NUXT_ALADIN_TTB_KEY
-  if (!ttbKey) {
+  const clientId = process.env.NUXT_NAVER_SEARCH_CLIENT_ID
+  const clientSecret = process.env.NUXT_NAVER_SEARCH_CLIENT_SECRET
+  if (!clientId || !clientSecret) {
     console.error(
-      'ALADIN_TTB_KEY가 없습니다. .env 파일에 NUXT_ALADIN_TTB_KEY=발급받은키 형식으로 설정한 뒤 다시 실행해주세요.\n' +
-        '발급: https://www.aladin.co.kr/ttb/wblog_manage.aspx'
+      'NUXT_NAVER_SEARCH_CLIENT_ID / NUXT_NAVER_SEARCH_CLIENT_SECRET이 없습니다. .env 파일에 값을 설정한 뒤 다시 실행해주세요.\n' +
+        '발급: https://developers.naver.com/apps/#/register'
     )
     process.exitCode = 1
     return
@@ -307,11 +324,11 @@ async function main(): Promise<void> {
   console.log('기존 데이터 초기화 중...')
   resetAll()
 
-  console.log('알라딘 베스트셀러로 책 시딩 중...')
-  const books = await seedBooks(ttbKey)
+  console.log('네이버 책 검색으로 책 시딩 중...')
+  const books = await seedBooks(clientId, clientSecret)
   if (books.length < 3) {
     console.error(
-      `알라딘 API에서 책을 충분히 가져오지 못했어요 (${books.length}권). 키가 유효한지, 카테고리 ID가 맞는지 확인해주세요.`
+      `네이버 책 검색 API에서 책을 충분히 가져오지 못했어요 (${books.length}권). 키가 유효한지 확인해주세요.`
     )
     process.exitCode = 1
     return

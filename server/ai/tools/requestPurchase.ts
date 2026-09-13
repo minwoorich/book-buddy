@@ -17,7 +17,7 @@ export const makeRequestPurchase = (userId: number) =>
     {
       name: 'request_purchase',
       description:
-        '사내 서가에 없는 책의 구매(희망도서)를 신청한다. 가능하면 먼저 search_aladin으로 실제 존재하는 책인지 확인하고, 그 결과의 정보로 채워 넣어라.',
+        '사내 서가에 없는 책의 구매(희망도서)를 신청한다. 가능하면 먼저 search_external_books(외부 서점 검색)로 실제 존재하는 책인지 확인하고, 그 결과의 정보로 채워 넣어라.',
       schema: z.object({
         title: z.string().describe('책 제목'),
         author: z.string().optional().describe('저자'),

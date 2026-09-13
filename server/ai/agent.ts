@@ -9,7 +9,7 @@ import { makeSearchBooks } from './tools/searchBooks'
 import { makeGetBookDetail } from './tools/getBookDetail'
 import { makeGetMyLoans } from './tools/getMyLoans'
 import { makeGetReviews } from './tools/getReviews'
-import { makeSearchAladin } from './tools/searchAladin'
+import { makeSearchExternalBooks } from './tools/searchExternalBooks'
 import { makeBorrowBook } from './tools/borrowBook'
 import { makeReturnBook } from './tools/returnBook'
 import { makeReserveBook } from './tools/reserveBook'
@@ -21,14 +21,14 @@ import { makeAddWishlist } from './tools/addWishlist'
  */
 export function createTools(
   userId: number,
-  opts: { aladinTtbKey: string }
+  opts: { naverSearchClientId: string; naverSearchClientSecret: string }
 ): StructuredToolInterface[] {
   return [
     makeSearchBooks(),
     makeGetBookDetail(),
     makeGetMyLoans(userId),
     makeGetReviews(),
-    makeSearchAladin(opts.aladinTtbKey),
+    makeSearchExternalBooks(opts.naverSearchClientId, opts.naverSearchClientSecret),
     makeBorrowBook(userId),
     makeReturnBook(userId),
     makeReserveBook(userId),
@@ -43,7 +43,7 @@ export function createTools(
  * useRuntimeConfig()에서 읽은 키를 deps로 넘긴다.
  */
 export async function runAgent(
-  deps: { anthropicApiKey: string; aladinTtbKey: string },
+  deps: { anthropicApiKey: string; naverSearchClientId: string; naverSearchClientSecret: string },
   userId: number,
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemExtra = ''
@@ -60,7 +60,10 @@ export async function runAgent(
 
   const agent = createReactAgent({
     llm,
-    tools: createTools(userId, { aladinTtbKey: deps.aladinTtbKey }),
+    tools: createTools(userId, {
+      naverSearchClientId: deps.naverSearchClientId,
+      naverSearchClientSecret: deps.naverSearchClientSecret,
+    }),
     prompt: SYSTEM_PROMPT + systemExtra,
   })
 

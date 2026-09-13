@@ -25,6 +25,18 @@ export interface Book {
 
 export type NewBook = Omit<Book, 'id'>
 
+/** 외부 서점(네이버 책 검색) 검색 결과 1건. */
+export interface ExternalBookItem {
+  title: string
+  author: string
+  publisher: string
+  pubDate: string
+  description: string
+  isbn13: string | null
+  cover: string | null
+  pageCount: number | null
+}
+
 export interface Loan {
   id: number
   bookId: number
