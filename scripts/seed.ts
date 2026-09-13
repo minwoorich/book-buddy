@@ -309,8 +309,10 @@ async function main(): Promise<void> {
 
   console.log('알라딘 베스트셀러로 책 시딩 중...')
   const books = await seedBooks(ttbKey)
-  if (books.length === 0) {
-    console.error('알라딘 API에서 책을 하나도 가져오지 못했어요. 키가 유효한지 확인해주세요.')
+  if (books.length < 3) {
+    console.error(
+      `알라딘 API에서 책을 충분히 가져오지 못했어요 (${books.length}권). 키가 유효한지, 카테고리 ID가 맞는지 확인해주세요.`
+    )
     process.exitCode = 1
     return
   }
