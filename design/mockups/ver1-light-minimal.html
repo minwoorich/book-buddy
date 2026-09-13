@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy 목업 ver1 — 라이트 미니멀</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root {
+    --red: #E60012;        /* VATECH red — 포인트 전용 */
+    --red-dark: #C00010;
+    --red-tint: #FEF2F2;
+    --ink: #1B1B1F;
+    --sub: #6B6E76;
+    --line: #E8E8EC;
+    --bg: #FAFAFB;
+    --card: #FFFFFF;
+    --ok: #1A7F4E;
+    --ok-tint: #EAF6EF;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif; }
+  a { color: var(--red); text-decoration: none; } a:hover { color: var(--red-dark); }
+
+  .nav { background: var(--card); border-bottom: 1px solid var(--line); }
+  .nav-in { max-width: 1080px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 28px; }
+  .logo { display: flex; align-items: center; gap: 9px; }
+  .logo-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--red); display: flex; align-items: center; justify-content: center; }
+  .logo b { font-size: 18px; letter-spacing: -0.2px; }
+  .logo span { font-size: 11px; color: var(--sub); display: block; margin-top: 1px; letter-spacing: 1.2px; }
+  .nav-links { display: flex; gap: 22px; font-size: 14.5px; color: var(--sub); font-weight: 500; }
+  .nav-links .on { color: var(--ink); font-weight: 700; }
+  .me { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--red-tint); color: var(--red); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .hero { text-align: center; margin-bottom: 28px; }
+  .hero h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.4px; margin: 0 0 18px; }
+  .search { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 10px; background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 13px 20px; box-shadow: 0 1px 3px rgba(20,20,30,.05); }
+  .search:hover { border-color: #cfcfd6; }
+  .search input { border: 0; outline: 0; flex: 1; font: inherit; font-size: 15.5px; background: transparent; color: var(--ink); }
+  .search input::placeholder { color: #A5A8B0; }
+  .search .go { background: var(--red); color: #fff; border: 0; border-radius: 999px; padding: 7px 18px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .chips { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .chip { font-size: 13.5px; color: var(--sub); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  .chip.on { color: var(--red); border-color: var(--red); background: var(--red-tint); font-weight: 600; }
+
+  .ai { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; margin-bottom: 36px; box-shadow: 0 1px 3px rgba(20,20,30,.05); }
+  .ai-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ai-head b { font-size: 15px; color: var(--red); }
+  .ai-q { font-size: 13px; color: var(--sub); margin-left: auto; }
+  .ai p { margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: #3A3C42; }
+  .ai-books { display: flex; gap: 14px; margin-bottom: 16px; }
+  .ai-book { flex: 1; display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .ai-book:hover { border-color: #cfcfd6; }
+  .ai-book .cv { width: 52px; height: 74px; border-radius: 4px; flex-shrink: 0; display: flex; align-items: flex-end; padding: 5px; color: #fff; font-size: 8.5px; font-weight: 700; line-height: 1.25; }
+  .ai-book .t { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .ai-book .a { font-size: 12.5px; color: var(--sub); margin-bottom: 6px; }
+  .badge { display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 5px; padding: 2px 7px; }
+  .badge.ok { color: var(--ok); background: var(--ok-tint); }
+  .badge.no { color: var(--sub); background: #F0F0F3; }
+  .ai-actions { display: flex; gap: 8px; }
+  .btn { font: inherit; font-size: 13.5px; font-weight: 600; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .btn:hover { background: #F6F6F8; }
+  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn.primary:hover { background: var(--red-dark); }
+
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  .sec-head h2 { font-size: 18px; margin: 0; letter-spacing: -0.3px; }
+  .sec-head a { font-size: 13.5px; }
+  .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
+  .book { cursor: pointer; }
+  .book .cv { aspect-ratio: 2/2.9; border-radius: 6px; margin-bottom: 9px; display: flex; align-items: flex-end; padding: 10px; color: #fff; font-size: 12.5px; font-weight: 700; line-height: 1.3; box-shadow: 0 2px 6px rgba(20,20,30,.12); }
+  .book:hover .cv { box-shadow: 0 4px 12px rgba(20,20,30,.18); }
+  .book .t { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book .a { font-size: 12px; color: var(--sub); margin-bottom: 5px; }
+  .stars { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--sub); }
+  .stars svg { width: 12px; height: 12px; }
+
+  .fab { position: fixed; right: 28px; bottom: 28px; width: 56px; height: 56px; border-radius: 50%; background: var(--red); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(230,0,18,.35); }
+  .fab:hover { background: var(--red-dark); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+    </div>
+    <div class="nav-links">
+      <span class="on">홈</span>
+      <span>전체 도서</span>
+      <span>내 서재</span>
+      <span>희망도서 신청</span>
+    </div>
+    <div class="me"><div class="avatar">민</div> 김민우 님</div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>오늘은 어떤 책을 읽어볼까요?</h1>
+    <div class="search">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#A5A8B0" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+      <input value="팀장이 처음인데 리더십 책 추천해줘">
+      <button class="go">검색</button>
+    </div>
+    <div class="chips">
+      <span class="chip on">전체</span>
+      <span class="chip">경제경영</span>
+      <span class="chip">IT · 프로그래밍</span>
+      <span class="chip">자기계발</span>
+      <span class="chip">인문</span>
+    </div>
+  </div>
+
+  <div class="ai">
+    <div class="ai-head">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"></path></svg>
+      <b>AI 사서의 답변</b>
+      <span class="ai-q">"팀장이 처음인데 리더십 책 추천해줘"에 대한 답변</span>
+    </div>
+    <p>사내 서가에서 처음 팀장이 된 분께 맞는 책 3권을 찾았어요. <a href="#">「팀장의 탄생」</a>은 첫 매니저의 시행착오를 그대로 다뤄 지금 상황에 가장 가깝고, 「실리콘밸리의 팀장들」은 솔직한 피드백 문화를 만드는 법을, 「함께 자라기」는 팀의 학습 문화를 다룹니다. 세 권 모두 동료들의 리뷰 평점이 4점 이상이에요.</p>
+    <div class="ai-books">
+      <div class="ai-book">
+        <div class="cv" style="background:#33465C;">팀장의<br>탄생</div>
+        <div>
+          <div class="t">팀장의 탄생</div>
+          <div class="a">줄리 주오</div>
+          <span class="badge ok">대출가능</span>
+        </div>
+      </div>
+      <div class="ai-book">
+        <div class="cv" style="background:#37655E;">실리콘밸리의<br>팀장들</div>
+        <div>
+          <div class="t">실리콘밸리의 팀장들</div>
+          <div class="a">킴 스콧</div>
+          <span class="badge no">대출중 · 예약 1</span>
+        </div>
+      </div>
+      <div class="ai-book">
+        <div class="cv" style="background:#8A6D3B;">함께<br>자라기</div>
+        <div>
+          <div class="t">함께 자라기</div>
+          <div class="a">김창준</div>
+          <span class="badge ok">대출가능</span>
+        </div>
+      </div>
+    </div>
+    <div class="ai-actions">
+      <button class="btn primary">「팀장의 탄생」 바로 대출</button>
+      <button class="btn">세 권 비교해줘</button>
+      <button class="btn">다른 책 더 추천받기</button>
+    </div>
+  </div>
+
+  <div class="sec-head">
+    <h2>검색 결과 <span style="color:#A5A8B0; font-weight:500; font-size:14px;">12권</span></h2>
+    <a href="#">정확도순 ▾</a>
+  </div>
+  <div class="grid">
+    <div class="book">
+      <div class="cv" style="background:#33465C;">팀장의 탄생</div>
+      <div class="t">팀장의 탄생</div>
+      <div class="a">줄리 주오</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.5 · 리뷰 24</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#37655E;">실리콘밸리의 팀장들</div>
+      <div class="t">실리콘밸리의 팀장들</div>
+      <div class="a">킴 스콧</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.2 · 리뷰 17</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#8A6D3B;">함께 자라기</div>
+      <div class="t">함께 자라기</div>
+      <div class="a">김창준</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.8 · 리뷰 31</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#4A4E58;">클린 코드</div>
+      <div class="t">클린 코드</div>
+      <div class="a">로버트 C. 마틴</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.4 · 리뷰 22</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#5C4A66;">인스파이어드</div>
+      <div class="t">인스파이어드</div>
+      <div class="a">마티 케이건</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.1 · 리뷰 9</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#7A3B47;">하드씽</div>
+      <div class="t">하드씽</div>
+      <div class="a">벤 호로위츠</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.3 · 리뷰 14</span>
+    </div>
+  </div>
+</div>
+
+<button class="fab" title="AI 사서">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+</button>
+
+</body>
+</html>

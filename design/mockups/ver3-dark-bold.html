@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Buddy 목업 ver3 — 다크 볼드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap">
+<style>
+  :root {
+    --red: #FF4438;         /* VATECH red — 다크 배경 대비용으로 살짝 밝게 */
+    --red-deep: #E60012;
+    --red-tint: rgba(255,68,56,.10);
+    --bg: #131316;
+    --panel: #1C1C20;
+    --panel-2: #232329;
+    --ink: #F2F2F4;
+    --sub: #9A9CA6;
+    --line: #2E2E35;
+    --ok: #3DBE7B;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif; }
+  a { color: var(--red); text-decoration: none; } a:hover { color: #FF6A60; }
+
+  .nav { border-bottom: 1px solid var(--line); }
+  .nav-in { max-width: 1060px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; gap: 28px; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--red-deep); display: flex; align-items: center; justify-content: center; }
+  .logo b { font-size: 17px; }
+  .logo span { font-size: 10.5px; letter-spacing: 1.6px; color: var(--sub); display: block; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; color: var(--sub); }
+  .nav-links .on { color: var(--ink); font-weight: 700; }
+  .me { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--sub); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--red-tint); color: var(--red); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 52px 24px 90px; }
+
+  .hero { margin-bottom: 34px; }
+  .hero h1 { font-family: "Noto Serif KR", serif; font-size: 38px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.3; margin: 0 0 8px; }
+  .hero h1 em { font-style: normal; color: var(--red); }
+  .hero p { color: var(--sub); font-size: 15px; margin: 0 0 24px; }
+  .search { max-width: 680px; display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1.5px solid var(--line); border-radius: 14px; padding: 15px 18px; }
+  .search:focus-within { border-color: var(--red); }
+  .search input { border: 0; outline: 0; flex: 1; font: inherit; font-size: 16px; background: transparent; color: var(--ink); }
+  .search input::placeholder { color: #5E616C; }
+  .search .go { background: var(--red-deep); color: #fff; border: 0; border-radius: 9px; padding: 9px 18px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .search .go:hover { background: #C00010; }
+
+  .ai { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; margin-bottom: 40px; position: relative; overflow: hidden; }
+  .ai::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--red-deep); }
+  .ai-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .ai-head b { font-size: 14.5px; color: var(--red); letter-spacing: .2px; }
+  .ai-head span { font-size: 12.5px; color: var(--sub); margin-left: auto; }
+  .ai p { margin: 0 0 18px; font-size: 15px; line-height: 1.7; color: #C9CAD2; max-width: 760px; }
+  .ai-books { display: flex; gap: 14px; margin-bottom: 18px; }
+  .ai-book { flex: 1; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; gap: 13px; cursor: pointer; }
+  .ai-book:hover { border-color: #45454e; }
+  .cv { width: 54px; height: 78px; border-radius: 4px; flex-shrink: 0; display: flex; align-items: flex-end; padding: 5px; color: #fff; font-size: 8.5px; font-weight: 700; line-height: 1.25; }
+  .ai-book .t { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; }
+  .ai-book .a { font-size: 12.5px; color: var(--sub); margin-bottom: 7px; }
+  .badge { display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 5px; padding: 2.5px 8px; }
+  .badge.ok { color: var(--ok); background: rgba(61,190,123,.12); }
+  .badge.no { color: var(--sub); background: rgba(154,156,166,.12); }
+  .ai-actions { display: flex; gap: 9px; }
+  .btn { font: inherit; font-size: 13.5px; font-weight: 600; border-radius: 9px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+  .btn:hover { background: var(--panel-2); }
+  .btn.primary { background: var(--red-deep); border-color: var(--red-deep); color: #fff; }
+  .btn.primary:hover { background: #C00010; }
+
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  .sec-head h2 { font-family: "Noto Serif KR", serif; font-size: 21px; margin: 0; }
+  .sec-head a { font-size: 13.5px; }
+  .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
+  .book { cursor: pointer; }
+  .book .cv { width: 100%; height: auto; aspect-ratio: 2/2.9; border-radius: 6px; margin-bottom: 10px; padding: 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  .book:hover .cv { transform: translateY(-3px); transition: transform .15s; }
+  .book .t { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book .a { font-size: 12px; color: var(--sub); margin-bottom: 5px; }
+  .stars { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--sub); }
+  .stars svg { width: 12px; height: 12px; }
+
+  .fab { position: fixed; right: 28px; bottom: 28px; width: 58px; height: 58px; border-radius: 50%; background: var(--red-deep); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 6px rgba(230,0,18,.15), 0 8px 22px rgba(0,0,0,.5); }
+  .fab:hover { background: #C00010; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      </div>
+      <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
+    </div>
+    <div class="nav-links">
+      <span class="on">홈</span>
+      <span>전체 도서</span>
+      <span>내 서재</span>
+      <span>희망도서 신청</span>
+    </div>
+    <div class="me"><div class="avatar">민</div> 김민우 님</div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>다음에 읽을 책,<br><em>AI 사서</em>에게 물어보세요</h1>
+    <p>검색·추천·대출·희망도서 신청까지, 한 번의 질문으로.</p>
+    <div class="search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E616C" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+      <input value="팀장이 처음인데 리더십 책 추천해줘">
+      <button class="go">물어보기</button>
+    </div>
+  </div>
+
+  <div class="ai">
+    <div class="ai-head">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4438" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"></path></svg>
+      <b>AI 사서의 답변</b>
+      <span>사내 서가 42권 기준</span>
+    </div>
+    <p>처음 팀장이 된 분께 맞는 책 3권을 찾았어요. <a href="#">「팀장의 탄생」</a>은 첫 매니저의 시행착오를 그대로 다뤄 지금 상황에 가장 가깝고, 「실리콘밸리의 팀장들」은 솔직한 피드백 문화를, 「함께 자라기」는 팀의 학습 문화를 다룹니다. 세 권 모두 동료 리뷰 평점 4점 이상이에요.</p>
+    <div class="ai-books">
+      <div class="ai-book">
+        <div class="cv" style="background:#3D5573;">팀장의<br>탄생</div>
+        <div>
+          <div class="t">팀장의 탄생</div>
+          <div class="a">줄리 주오</div>
+          <span class="badge ok">대출가능</span>
+        </div>
+      </div>
+      <div class="ai-book">
+        <div class="cv" style="background:#3E7A70;">실리콘밸리의<br>팀장들</div>
+        <div>
+          <div class="t">실리콘밸리의 팀장들</div>
+          <div class="a">킴 스콧</div>
+          <span class="badge no">대출중 · 예약 1</span>
+        </div>
+      </div>
+      <div class="ai-book">
+        <div class="cv" style="background:#A3823F;">함께<br>자라기</div>
+        <div>
+          <div class="t">함께 자라기</div>
+          <div class="a">김창준</div>
+          <span class="badge ok">대출가능</span>
+        </div>
+      </div>
+    </div>
+    <div class="ai-actions">
+      <button class="btn primary">「팀장의 탄생」 바로 대출</button>
+      <button class="btn">세 권 비교해줘</button>
+      <button class="btn">다른 책 더 추천받기</button>
+    </div>
+  </div>
+
+  <div class="sec-head">
+    <h2>이달의 서가</h2>
+    <a href="#">전체 42권 보기</a>
+  </div>
+  <div class="grid">
+    <div class="book">
+      <div class="cv" style="background:#3D5573;">팀장의 탄생</div>
+      <div class="t">팀장의 탄생</div>
+      <div class="a">줄리 주오</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.5</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#3E7A70;">실리콘밸리의 팀장들</div>
+      <div class="t">실리콘밸리의 팀장들</div>
+      <div class="a">킴 스콧</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.2</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#A3823F;">함께 자라기</div>
+      <div class="t">함께 자라기</div>
+      <div class="a">김창준</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.8</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#565B68;">클린 코드</div>
+      <div class="t">클린 코드</div>
+      <div class="a">로버트 C. 마틴</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.4</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#6B5580;">인스파이어드</div>
+      <div class="t">인스파이어드</div>
+      <div class="a">마티 케이건</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.1</span>
+    </div>
+    <div class="book">
+      <div class="cv" style="background:#8C4450;">하드씽</div>
+      <div class="t">하드씽</div>
+      <div class="a">벤 호로위츠</div>
+      <span class="stars"><svg viewBox="0 0 24 24" fill="#F5A623"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>4.3</span>
+    </div>
+  </div>
+</div>
+
+<button class="fab" title="AI 사서">
+  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+</button>
+
+</body>
+</html>
