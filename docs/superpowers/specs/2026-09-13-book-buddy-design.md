@@ -18,7 +18,8 @@
 - 플로팅 AI 챗봇: 추천·검색·요약·Q&A + 도구 실행(대출/예약/신청) + 네비게이션 버튼 제안
 - 이름 선택 로그인 (비밀번호 없음)
 - **도서 달력**: 반납(완독)한 날에 그 책의 표지가 달력에 등록되는 월간 뷰
-- **독서 진행률 + 책쌓기**: 읽은 페이지를 기록하면 누적 독서량이 책 무더기처럼 쌓이는 시각화 (북적북적 스타일)
+- **책쌓기**: 완독(반납)한 책이 책 무더기처럼 쌓이는 시각화 (북적북적 스타일).
+  페이지 진행률 추적은 하지 않는다 — 구독 서비스가 아니라 몇 쪽 읽었는지 알 수 없음 (민우 결정)
 - **마이페이지 책장**: 읽은 책 / 읽고 있는 책 / 찜한 책을 실제 책장 선반에 꽂힌 느낌으로 표시
 - **사내 독서 랭킹 보드**: 개인별 · 팀별 · 부서별 · 계열사별 랭킹 (완독 권수/페이지 기준)
 - **커뮤니티 피드**: 인스타그램식 사진 업로드 + 좋아요 + 댓글 (책 태그 가능)
@@ -99,7 +100,6 @@ tests/             # Vitest — loanService 등 핵심 규칙
 | `reviews` | id, book_id, user_id, rating(1~5), content(한줄), created_at |
 | `review_votes` | id, review_id, user_id, created_at — (review_id, user_id) 유니크로 중복 추천 방지 |
 | `wishlists` | id, user_id, book_id, created_at — (user_id, book_id) 유니크. "찜" |
-| `reading_progress` | id, user_id, book_id, current_page, updated_at — (user_id, book_id) 유니크. 총 페이지는 books.page_count |
 | `posts` | id, user_id, book_id(선택, 책 태그), image_path, caption, created_at — 커뮤니티 피드 |
 | `post_likes` | id, post_id, user_id, created_at — (post_id, user_id) 유니크 |
 | `post_comments` | id, post_id, user_id, content, created_at |
@@ -112,7 +112,9 @@ tests/             # Vitest — loanService 등 핵심 규칙
 - **읽은 책** = 반납 완료된 대출(returned_at not null). 반납 = 완독으로 간주 (느슨)
 - **읽고 있는 책** = 현재 대출 중인 책 (returned_at null)
 - **도서 달력** = 반납일(returned_at) 기준으로 loans를 월별 조회해 표지 표시
-- **랭킹** = 기간 내 반납 완료 권수(1순위)와 기록된 페이지 수(2순위) 합산. 팀/부서/계열사 랭킹은 users의 소속 필드로 그룹핑
+- **랭킹·책쌓기·통계는 전부 대출-반납 기록만 기준** (민우 결정: "무조건 대출 반납 기록 기준으로 카운팅").
+  기간 내 반납 완료 **권수**로 카운트, 동률은 공동 순위. 페이지 수는 집계·표시하지 않는다.
+  팀/부서/계열사 랭킹은 users의 소속 필드로 그룹핑
 
 규칙(느슨):
 
@@ -147,9 +149,7 @@ tests/             # Vitest — loanService 등 핵심 규칙
 | `GET /api/wishlists?userId=` | 내 찜 목록 |
 | `POST /api/wishlists` | 찜하기 `{bookId}` (중복 시 409) |
 | `DELETE /api/wishlists/:id` | 찜 해제 |
-| `PUT /api/books/:id/progress` | 독서 진행률 기록 `{currentPage}` (x-user-id 기준 upsert) |
-| `GET /api/reading-progress?userId=` | 내 진행률 목록 (책쌓기용) |
-| `GET /api/loans?userId=&returned=true&from=&to=` | 도서 달력용 — 기간 내 반납 완료 대출 (기존 loans 엔드포인트 재사용) |
+| `GET /api/loans?userId=&returned=true&from=&to=` | 도서 달력·책쌓기용 — 기간 내 반납 완료 대출 (기존 loans 엔드포인트 재사용) |
 | `GET /api/rankings?by=user\|team\|department\|company&period=month\|all` | 사내 독서 랭킹 |
 | `GET /api/posts` / `POST /api/posts` | 피드 목록 / 게시물 작성 (multipart: 사진 + 캡션 + 책 태그) |
 | `POST /api/posts/:id/likes` / `DELETE /api/posts/:id/likes` | 좋아요 / 취소 (사용자당 1회) |
@@ -181,8 +181,8 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 
 도구 (1도구 1파일, service/repository 재사용):
 
-- 조회: `search_books`, `get_book_detail`, `get_my_loans`, `get_reviews`, `search_aladin`, `get_my_reading_stats`(진행률·완독 통계), `get_rankings`
-- 행동: `borrow_book`, `return_book`, `reserve_book`, `request_purchase`, `add_wishlist`, `record_progress`(읽은 페이지 기록)
+- 조회: `search_books`, `get_book_detail`, `get_my_loans`, `get_reviews`, `search_aladin`, `get_my_reading_stats`(대출-반납 기반 완독 통계), `get_rankings`
+- 행동: `borrow_book`, `return_book`, `reserve_book`, `request_purchase`, `add_wishlist`
 
 응답 형식: 에이전트 최종 응답은 아래 JSON으로 강제(시스템 프롬프트 + 서버 파싱, 파싱 실패
 시 텍스트만 사용하는 폴백):
@@ -216,12 +216,12 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
    (`?review=1`이면 폼 자동 포커스), "AI에게 이 책 물어보기" 버튼
 4. `/my` (내 서재 = 마이페이지) — **책장 메타포**: 읽은 책 / 읽고 있는 책 / 찜한 책이
    각각 책장 선반에 꽂힌 형태로 표시 (표지가 선반 위에 서 있음). 상단에 **책쌓기 위젯**
-   (누적 완독 권수·페이지가 책 더미로 쌓이는 시각화 + 진행률 기록 UI).
-   예약·구매 신청 목록과 반납 버튼도 여기에
+   (완독한 책이 책 더미로 쌓이는 시각화 — 반납 기록 기준, 페이지 진행률 없음).
+   읽고 있는 책에는 대출일·반납 기한(D-day)만 표시. 예약·구매 신청 목록과 반납 버튼도 여기에
 5. `/calendar` (도서 달력) — 월간 달력 그리드. 반납(완독)한 날짜 칸에 그 책의 표지
    썸네일이 붙음. 월 이동 가능, 표지 클릭 시 책 상세로
 6. `/rankings` (독서 랭킹) — 탭: 개인 / 팀 / 부서 / 계열사. 기간 필터(이달/전체).
-   완독 권수 기준 순위 + 페이지 수 보조 표기, 상위 3위 강조
+   **반납 완료 권수만으로** 순위 산정·표시 (페이지 수 표기 없음), 상위 3위 강조
 7. `/feed` (커뮤니티) — 인스타그램식 카드 피드: 사진 + 캡션 + 책 태그(표지 칩),
    좋아요(❤ 토글)와 댓글. 업로드 모달(사진 선택 + 캡션 + 읽던 책 태그)
 8. `/places` (책 읽기 좋은 장소) — 네이버 지도(마커) + 사이드 장소 리스트.
@@ -273,5 +273,5 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 1. 알라딘 ItemList API로 카테고리 4~5개(경제경영, IT, 자기계발, 인문 등) 베스트셀러 수집 → 책 40권 내외 (page_count는 ItemLookUp subinfo에서)
 2. 가짜 직원 12명 내외 — **계열사 2~3개 × 부서 × 팀** 구성, 성별·출생연도·직급 분산 배치
    (랭킹 보드·통계가 그럴듯해야 함). 그중 1명은 role=admin (도서관리자)
-3. 데모 리얼리티용: **반납 완료 대출 여러 건(달력·랭킹·읽은 책이 채워지도록 날짜 분산)**, 진행 중 대출 몇 건 + 진행률 기록, 찜 몇 건, 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
+3. 데모 리얼리티용: **반납 완료 대출 여러 건(달력·랭킹·읽은 책이 채워지도록 날짜 분산)**, 진행 중 대출 몇 건, 찜 몇 건, 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
 4. 커뮤니티 피드 게시물 4~5건 (사진은 책 표지 이미지로 대체) + 좋아요·댓글 몇 건

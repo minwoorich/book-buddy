@@ -24,11 +24,7 @@
   .reading-row .cv { width: 46px; height: 66px; }
   .reading-row .t { font-weight: 700; font-size: 14.5px; margin-bottom: 2px; }
   .reading-row .a { font-size: 12.5px; color: var(--sub); }
-  .prog { flex: 1; max-width: 300px; }
-  .prog .bar { height: 7px; background: #EDE6D7; border-radius: 999px; overflow: hidden; margin-bottom: 5px; }
-  .prog .fill { height: 100%; background: var(--red); border-radius: 999px; }
-  .prog .lbl { font-size: 12px; color: var(--sub); }
-  .due { font-size: 12.5px; color: var(--sub); white-space: nowrap; }
+  .due { font-size: 12.5px; color: var(--sub); white-space: nowrap; margin-left: auto; }
   .due.over { color: var(--warn); font-weight: 700; }
 
   .shelf8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
@@ -76,7 +72,7 @@
       <div class="stack-nums">
         <span class="eyebrow">2026 READING</span>
         <b>올해 <i>7권</i> 완독</b>
-        <span>2,148쪽 · 이달 3권</span>
+        <span>이달 3권 · 대출-반납 기록 기준</span>
       </div>
       <div class="bookstack">
         <div class="spine" style="width:118px; background:#33465C;">팀장의 탄생</div>
@@ -98,24 +94,14 @@
   <div class="panel" style="padding: 6px 22px;">
     <div class="reading-row">
       <div class="cv"><img src="https://image.aladin.co.kr/product/40175/21/cover500/8966265529_1.jpg" alt="클린 코드 2판"></div>
-      <div style="width:190px;"><div class="t">클린 코드 (2판)</div><div class="a">로버트 C. 마틴</div></div>
-      <div class="prog">
-        <div class="bar"><div class="fill" style="width:34%;"></div></div>
-        <div class="lbl">198 / 584쪽 · 34%</div>
-      </div>
-      <span class="due">반납일 9. 24. (D-11)</span>
-      <button class="btn sm">페이지 기록</button>
+      <div><div class="t">클린 코드 (2판)</div><div class="a">로버트 C. 마틴</div></div>
+      <span class="due">9. 10. 대출 · 반납일 9. 24. <b style="color:var(--ink);">(D-11)</b></span>
       <button class="btn sm">반납</button>
     </div>
     <div class="reading-row">
       <div class="cv"><img src="https://image.aladin.co.kr/product/17665/92/cover500/k122534513_2.jpg" alt="인스파이어드"></div>
-      <div style="width:190px;"><div class="t">인스파이어드</div><div class="a">마티 케이건</div></div>
-      <div class="prog">
-        <div class="bar"><div class="fill" style="width:78%;"></div></div>
-        <div class="lbl">312 / 400쪽 · 78%</div>
-      </div>
-      <span class="due over">반납일 9. 10. (연체 3일)</span>
-      <button class="btn sm">페이지 기록</button>
+      <div><div class="t">인스파이어드</div><div class="a">마티 케이건</div></div>
+      <span class="due over">8. 27. 대출 · 반납일 9. 10. (연체 3일)</span>
       <button class="btn sm">반납</button>
     </div>
   </div>
