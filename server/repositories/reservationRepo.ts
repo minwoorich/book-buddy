@@ -20,6 +20,7 @@ interface ReservationWithBookRow extends ReservationRow {
   bk_cover_url: string | null
   bk_pub_date: string | null
   bk_page_count: number | null
+  queue_rank: number
 }
 
 const BOOK_JOIN_COLUMNS = `
@@ -38,7 +39,7 @@ function toReservation(row: ReservationRow): Reservation {
   }
 }
 
-function toReservationWithBook(row: ReservationWithBookRow): Reservation & { book: Book } {
+function toReservationWithBook(row: ReservationWithBookRow): Reservation & { book: Book; queueRank: number } {
   return {
     ...toReservation(row),
     book: {
@@ -53,6 +54,7 @@ function toReservationWithBook(row: ReservationWithBookRow): Reservation & { boo
       pubDate: row.bk_pub_date,
       pageCount: row.bk_page_count,
     },
+    queueRank: row.queue_rank,
   }
 }
 
@@ -98,11 +100,19 @@ export const reservationRepo = {
     return row.cnt
   },
 
-  /** book JOIN 포함 본인 waiting 예약 목록. */
-  waitingByUserWithBook(userId: number): (Reservation & { book: Book })[] {
+  /**
+   * book JOIN 포함 본인 waiting 예약 목록. queueRank는 같은 책에 대한 실제 대기열
+   * 순번(1부터) — created_at이 더 이르거나(같으면 id가 더 작은) waiting 예약 수 + 1.
+   */
+  waitingByUserWithBook(userId: number): (Reservation & { book: Book; queueRank: number })[] {
     const rows = getDb()
       .prepare(
-        `SELECT r.*, ${BOOK_JOIN_COLUMNS} FROM reservations r JOIN books b ON b.id = r.book_id
+        `SELECT r.*, ${BOOK_JOIN_COLUMNS},
+                (SELECT COUNT(*) FROM reservations r2
+                 WHERE r2.book_id = r.book_id AND r2.status = 'waiting'
+                   AND (r2.created_at < r.created_at OR (r2.created_at = r.created_at AND r2.id <= r.id))
+                ) AS queue_rank
+         FROM reservations r JOIN books b ON b.id = r.book_id
          WHERE r.user_id = ? AND r.status = 'waiting' ORDER BY r.created_at ASC`
       )
       .all(userId) as ReservationWithBookRow[]

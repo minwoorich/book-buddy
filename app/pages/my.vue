@@ -3,7 +3,7 @@ import type { Book, Loan, PurchaseRequest, RankRow, Reservation, Wishlist } from
 
 type LoanWithBook = Loan & { book: Book }
 type WishlistWithBook = Wishlist & { book: Book }
-type ReservationWithBook = Reservation & { book: Book }
+type ReservationWithBook = Reservation & { book: Book; queueRank: number }
 
 const api = useApi()
 const { user } = useCurrentUser()
@@ -61,8 +61,11 @@ async function refreshAll() {
 }
 
 // ── 읽고 있는 책: 대출일·반납일·D-day ─────────────────────────────
-function formatMD(iso: string): string {
-  const d = new Date(iso)
+// loanedAt은 DB 기본값(datetime('now'), UTC 'YYYY-MM-DD HH:MM:SS')이라 parseDbDate가
+// 필요하다. dueAt은 애플리케이션이 채우는 ISO 문자열이라 parseDbDate를 그대로 써도
+// (정규식이 안 맞아 new Date()로 폴백되므로) 동일하게 안전하다 — 두 컬럼 모두 이 헬퍼로 통일.
+function formatMD(dateStr: string): string {
+  const d = parseDbDate(dateStr)
   return `${d.getMonth() + 1}. ${d.getDate()}.`
 }
 
@@ -73,7 +76,7 @@ function startOfDay(d: Date): Date {
 const readingRows = computed(() => {
   const today = startOfDay(new Date())
   return (activeLoans.value ?? []).map((loan) => {
-    const due = startOfDay(new Date(loan.dueAt))
+    const due = startOfDay(parseDbDate(loan.dueAt))
     const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000)
     return {
       loan,
@@ -108,7 +111,7 @@ const readBooks = computed(() => doneSorted.value.map((l) => l.book))
 const readMetaTexts = computed(() =>
   doneSorted.value.map((l) => {
     if (!l.returnedAt) return ''
-    const d = new Date(l.returnedAt)
+    const d = parseDbDate(l.returnedAt)
     return `${d.getMonth() + 1}. ${d.getDate()}. 완독`
   })
 )
@@ -155,7 +158,9 @@ const STATUS_BADGE: Record<PurchaseRequest['status'], { cls: string; label: stri
 }
 
 function requestMeta(r: PurchaseRequest): string {
-  const d = new Date(r.createdAt)
+  // createdAt도 DB 기본값(datetime('now'))이라 loanedAt/returnedAt과 같은 파싱 버그가
+  // 적용된다. 리뷰 지적 범위(loanedAt/returnedAt)엔 없었지만 동일 원인이라 함께 고쳤다.
+  const d = parseDbDate(r.createdAt)
   const dateLabel = `${d.getMonth() + 1}. ${d.getDate()}. 신청`
   return r.author ? `${r.author} · ${dateLabel}` : dateLabel
 }
@@ -227,11 +232,11 @@ function requestMeta(r: PurchaseRequest): string {
           </div>
           <div class="panel" style="padding: 6px 20px;">
             <div v-if="!reservations?.length" class="hint">예약 중인 책이 없어요.</div>
-            <div v-for="(r, i) in reservations" :key="r.id" class="mini-row">
+            <div v-for="r in reservations" :key="r.id" class="mini-row">
               <BookCoverImage :src="r.book.coverUrl" :alt="r.book.title" />
               <div style="flex:1;">
                 <b style="font-size:14px;">{{ r.book.title }}</b>
-                <div style="font-size:12.5px; color:var(--sub);">예약 {{ i + 1 }}순위 · 반납되면 알려드려요</div>
+                <div style="font-size:12.5px; color:var(--sub);">예약 {{ r.queueRank }}순위 · 반납되면 알려드려요</div>
               </div>
               <button
                 type="button"

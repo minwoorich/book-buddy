@@ -29,12 +29,12 @@ const thisYear = now.getFullYear()
 const thisMonth = now.getMonth() + 1
 
 function isThisYear(iso: string | null): boolean {
-  return !!iso && new Date(iso).getFullYear() === thisYear
+  return !!iso && parseDbDate(iso).getFullYear() === thisYear
 }
 
 function isThisMonth(iso: string | null): boolean {
   if (!iso) return false
-  const d = new Date(iso)
+  const d = parseDbDate(iso)
   return d.getFullYear() === thisYear && d.getMonth() + 1 === thisMonth
 }
 
