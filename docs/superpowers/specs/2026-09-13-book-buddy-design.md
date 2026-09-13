@@ -14,7 +14,7 @@
 - 도서 검색 (키워드 결과 + 상단 AI 검색 영역, 구글 AI overview 스타일)
 - 도서 대출 / 반납 / 예약 (대출 중인 책)
 - 희망도서 구매 신청 (알라딘 검색 연동)
-- 리뷰: 별점(1~5) + 한줄 리뷰
+- 리뷰: 별점(1~5) + 한줄 리뷰 + 리뷰 추천(👍 사용자당 리뷰별 1회, 추천 수 표시)
 - 플로팅 AI 챗봇: 추천·검색·요약·Q&A + 도구 실행(대출/예약/신청) + 네비게이션 버튼 제안
 - 이름 선택 로그인 (비밀번호 없음)
 
@@ -67,6 +67,7 @@ scripts/
 | `reservations` | id, book_id, user_id, created_at, status(waiting/canceled/fulfilled) |
 | `purchase_requests` | id, user_id, title, author, isbn13, cover_url, reason, created_at, status(requested) |
 | `reviews` | id, book_id, user_id, rating(1~5), content(한줄), created_at |
+| `review_votes` | id, review_id, user_id, created_at — (review_id, user_id) 유니크로 중복 추천 방지 |
 
 규칙(느슨):
 
@@ -86,8 +87,10 @@ scripts/
 | `GET /api/users` | 로그인 화면용 직원 목록 |
 | `GET /api/books?query=&category=` | 사내 도서 목록/키워드 검색 |
 | `GET /api/books/:id` | 상세 (대출 상태, 예약 수 포함) |
-| `GET /api/books/:id/reviews` | 리뷰 목록 |
+| `GET /api/books/:id/reviews` | 리뷰 목록 (추천 수 `voteCount`, 내 추천 여부 `votedByMe` 포함) |
 | `POST /api/books/:id/reviews` | 리뷰 작성 `{rating, content}` |
+| `POST /api/reviews/:id/votes` | 리뷰 추천 (사용자당 1회, 중복 시 409) |
+| `DELETE /api/reviews/:id/votes` | 내 리뷰 추천 취소 |
 | `GET /api/loans?userId=&active=` | 대출 목록 (내 서재) |
 | `POST /api/loans` | 대출 `{bookId}` |
 | `PATCH /api/loans/:id` | 반납 `{returned: true}` |
@@ -140,7 +143,8 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 2. `/` (메인) — 상단 검색바. 검색 시: **AI 검색 영역**(로딩 → 답변 + 책 카드) 위,
    키워드 매칭 결과 리스트 아래. 검색 전: 카테고리별 도서 목록
 3. `/books/:id` — 표지·저자·소개·대출 상태, [대출]/[반납]/[예약] 버튼(상태에 따라 노출),
-   리뷰 목록 + 작성 폼(`?review=1`이면 폼 자동 포커스), "AI에게 이 책 물어보기" 버튼
+   리뷰 목록(추천 수 순 정렬, 👍 추천 버튼 — 내가 누른 리뷰는 활성 표시) + 작성 폼
+   (`?review=1`이면 폼 자동 포커스), "AI에게 이 책 물어보기" 버튼
 4. `/my` (내 서재) — 대출 중/이력, 예약, 구매 신청 목록, 반납 버튼
 5. **플로팅 챗봇** — 우하단 호버링 버튼. **로그인 상태에서만 렌더링** (비로그인 화면에는 없음)
 
@@ -161,4 +165,4 @@ LangGraph `createReactAgent` + Claude로 서버에서 도구 실행 루프를 �
 
 1. 알라딘 ItemList API로 카테고리 4~5개(경제경영, IT, 자기계발, 인문 등) 베스트셀러 수집 → 책 40권 내외
 2. 가짜 직원 8명 (이름 + 부서)
-3. 데모 리얼리티용: 대출 몇 건(일부 연체 포함), 리뷰 10여 건, 예약 1~2건
+3. 데모 리얼리티용: 대출 몇 건(일부 연체 포함), 리뷰 10여 건 + 리뷰 추천 몇 건, 예약 1~2건
