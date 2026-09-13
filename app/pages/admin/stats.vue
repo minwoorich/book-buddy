@@ -61,13 +61,13 @@ const ageVColRows = computed(() =>
 )
 
 const mainHBarRows = computed(() =>
-  (rows.value ?? []).map((r) => ({ label: r.label, value: r.doneCount, sub: `인당 ${r.perHead}` }))
+  (rows.value ?? []).map((r) => ({ label: r.label, value: r.doneCount, sub: `인당 ${r.perHead.toFixed(1)}` }))
 )
 
 const totalDone = computed(() => (rows.value ?? []).reduce((sum, r) => sum + r.doneCount, 0))
 const totalHead = computed(() => (rows.value ?? []).reduce((sum, r) => sum + r.headCount, 0))
 const topGroupLabel = computed(() => rows.value?.[0]?.label ?? '-')
-const avgPerHead = computed(() => (totalHead.value > 0 ? Math.round((totalDone.value / totalHead.value) * 10) / 10 : 0))
+const avgPerHead = computed(() => (totalHead.value > 0 ? totalDone.value / totalHead.value : 0).toFixed(1))
 </script>
 
 <template>
@@ -115,7 +115,7 @@ const avgPerHead = computed(() => (totalHead.value > 0 ? Math.round((totalDone.v
                 <td>{{ row.doneCount }}권</td>
                 <td>{{ row.loanCount }}권</td>
                 <td>{{ row.headCount }}명</td>
-                <td>{{ row.perHead }}</td>
+                <td>{{ row.perHead.toFixed(1) }}</td>
               </tr>
             </table>
           </template>
