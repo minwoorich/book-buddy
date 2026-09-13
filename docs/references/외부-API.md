@@ -1,5 +1,11 @@
 # 외부 API 정리
 
+## 디자인 캔버스 (Claude Design)
+
+- 화면 디자인 캔버스: https://claude.ai/code/artifact/8a2ec268-8b68-4ffa-8264-e804e300da99
+- 작업 파일: `design/*.dc.html` + `design/canvas.json` (수정 시 여기를 고치고 다시 시드/발행)
+- 현재 상태: 방향 시안 3종 (A 따뜻한 서점 / B 생산성 툴 / C AI 퍼스트) — 방향 선택 대기
+
 ## 알라딘 Open API
 
 - 키: TTB 키 필요 (`.env`의 `ALADIN_TTB_KEY`), 발급: https://www.aladin.co.kr/ttb/wblog_manage.aspx

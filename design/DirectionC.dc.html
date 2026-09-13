@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Gaegu', 'Malgun Gothic', sans-serif; color: #26332f; }
+    a { color: #0d9488; } a:hover { color: #0f766e; }
+    .ph {
+      background:
+        linear-gradient(to top right, transparent calc(50% - 1px), #a9c2bc calc(50% - 1px), #a9c2bc calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(to bottom right, transparent calc(50% - 1px), #a9c2bc calc(50% - 1px), #a9c2bc calc(50% + 1px), transparent calc(50% + 1px)),
+        #e9f1ef;
+      border: 1.5px solid #8fada6;
+      box-sizing: border-box;
+    }
+    .bar { background: #d7e4e1; border-radius: 4px; height: 9px; }
+  </style>
+</helmet>
+<div style="width: 880px; height: 640px; box-sizing: border-box; background: #f7fbfa; display: flex; flex-direction: column; padding: 0 0 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 28px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#26332f" stroke-width="2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
+      <span style="font-size: 21px; font-weight: 700;">Book Buddy</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 18px; color: #5d6f6a; font-size: 16px;">
+      <span>도서 목록</span>
+      <span>내 서재</span>
+      <span style="width: 26px; height: 26px; border-radius: 50%; background: #e9f1ef; border: 1.5px solid #8fada6; display: flex; align-items: center; justify-content: center; font-size: 13px; box-sizing: border-box;">민</span>
+    </div>
+  </div>
+  <div style="width: 600px; margin: 0 auto; flex-grow: 1; display: flex; flex-direction: column; gap: 14px; padding-top: 8px;">
+    <div style="align-self: flex-end; background: #3f4a47; color: #ffffff; border-radius: 16px 16px 4px 16px; padding: 8px 16px; font-size: 17px;">요즘 팀장이 됐는데 읽을 만한 책 추천해줘</div>
+    <div style="border: 1.5px dashed #0d9488; background: #ecf7f5; border-radius: 16px 16px 16px 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+        <span style="font-weight: 700; color: #0f766e; font-size: 17px;">AI 사서</span>
+      </div>
+      <div class="bar" style="width: 92%;"></div>
+      <div class="bar" style="width: 70%;"></div>
+      <div style="display: flex; gap: 10px;">
+        <div style="border: 1.5px solid #b9d8d2; background: #ffffff; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 118px; box-sizing: border-box;">
+          <div class="ph" style="width: 58px; height: 80px; border-radius: 3px;"></div>
+          <span style="font-size: 15px; font-weight: 700;">팀장의 탄생</span>
+          <span style="border: 1.5px solid #0d9488; color: #0d9488; border-radius: 6px; padding: 1px 10px; font-size: 13px; font-weight: 700;">대출하기</span>
+        </div>
+        <div style="border: 1.5px solid #b9d8d2; background: #ffffff; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 118px; box-sizing: border-box;">
+          <div class="ph" style="width: 58px; height: 80px; border-radius: 3px;"></div>
+          <span style="font-size: 15px; font-weight: 700;">실리콘밸리의 팀장들</span>
+          <span style="border: 1.5px solid #0d9488; color: #0d9488; border-radius: 6px; padding: 1px 10px; font-size: 13px; font-weight: 700;">대출하기</span>
+        </div>
+        <div style="border: 1.5px solid #b9d8d2; background: #ffffff; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 118px; box-sizing: border-box;">
+          <div class="ph" style="width: 58px; height: 80px; border-radius: 3px;"></div>
+          <span style="font-size: 15px; font-weight: 700;">함께 자라기</span>
+          <span style="border: 1.5px solid #8fada6; color: #5d6f6a; border-radius: 6px; padding: 1px 10px; font-size: 13px; font-weight: 700;">예약하기</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <span style="border: 1.5px solid #0d9488; color: #0f766e; border-radius: 999px; padding: 3px 14px; font-size: 15px;">상세 비교해줘</span>
+        <span style="border: 1.5px solid #0d9488; color: #0f766e; border-radius: 999px; padding: 3px 14px; font-size: 15px;">리뷰 쓰러가기</span>
+        <span style="border: 1.5px solid #0d9488; color: #0f766e; border-radius: 999px; padding: 3px 14px; font-size: 15px;">내 대출 이력 기반 추천</span>
+      </div>
+    </div>
+    <div style="align-self: flex-end; background: #3f4a47; color: #ffffff; border-radius: 16px 16px 4px 16px; padding: 8px 16px; font-size: 17px;">첫 번째 책 대출해줘</div>
+    <div style="border: 1.5px dashed #0d9488; background: #ecf7f5; border-radius: 16px 16px 16px 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; width: 70%;">
+      <div class="bar" style="width: 85%;"></div>
+      <div class="bar" style="width: 45%;"></div>
+    </div>
+    <div style="margin-top: auto; box-sizing: border-box; background: #ffffff; border: 2px solid #3f4a47; border-radius: 999px; padding: 11px 18px; display: flex; align-items: center; gap: 10px;">
+      <span style="color: #9ab0ab; font-size: 17px; flex-grow: 1;">AI 사서에게 무엇이든 물어보세요 — 검색·대출·신청까지</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linejoin="round"><path d="M3 11l18-7-7 18-2.5-7L3 11z"></path></svg>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

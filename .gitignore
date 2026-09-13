@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.sqlite
+.nuxt/
+.output/
+dist/
+
+# 시드된 디자인 캔버스 출력물 (2MB, design/*.dc.html 작업 파일에서 재생성 가능)
+design/book-buddy-ui.html
