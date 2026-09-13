@@ -1,5 +1,5 @@
 import { loanRepo } from '../../repositories/loanRepo'
-import { handleApi, requireUser } from '../../utils/api'
+import { handleApi, requireUser, parseQueryUserId } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 
 export default defineEventHandler(
@@ -10,7 +10,7 @@ export default defineEventHandler(
     const scopeAll = q.scope === 'all'
     const recent = typeof q.recent === 'string' ? Number(q.recent) : undefined
 
-    const queryUserId = typeof q.userId === 'string' ? Number(q.userId) : undefined
+    const queryUserId = parseQueryUserId(q.userId)
     let userId: number | undefined
     if (queryUserId !== undefined) {
       if (queryUserId !== me.id && me.role !== 'admin') throw new ApiError(403, '권한이 없어요')

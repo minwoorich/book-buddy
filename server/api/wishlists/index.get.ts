@@ -1,5 +1,5 @@
 import { wishlistRepo } from '../../repositories/wishlistRepo'
-import { handleApi, requireUser } from '../../utils/api'
+import { handleApi, requireUser, parseQueryUserId } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 
 export default defineEventHandler(
@@ -7,8 +7,7 @@ export default defineEventHandler(
     const me = requireUser(event)
     const q = getQuery(event)
 
-    const queryUserId = typeof q.userId === 'string' ? Number(q.userId) : undefined
-    const userId = queryUserId ?? me.id
+    const userId = parseQueryUserId(q.userId) ?? me.id
     if (userId !== me.id && me.role !== 'admin') throw new ApiError(403, '권한이 없어요')
 
     return wishlistRepo.listByUser(userId)

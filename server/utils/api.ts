@@ -27,6 +27,18 @@ export function requireAdmin(event: H3Event): User {
 }
 
 /**
+ * 쿼리스트링의 `userId` 값을 안전하게 파싱한다. `Number('')===0`, `Number('abc')===NaN`이
+ * 그대로 유효한 userId처럼 취급되면(예: `?userId=` 빈 값) 자기 자신이 아닌 다른 id로 오인돼
+ * 403이 나는 문제가 있었다 — 유한한 양의 정수일 때만 값을 채택하고, 그 외(빈 문자열/숫자가
+ * 아닌 문자열/0 이하)는 전부 "생략됨"으로 취급해 호출부가 기본값(me.id)으로 폴백하게 한다.
+ */
+export function parseQueryUserId(value: unknown): number | undefined {
+  if (typeof value !== 'string') return undefined
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+/**
  * API 핸들러 래퍼. ApiError를 h3의 createError로 변환해 statusCode/message가
  * 응답에 그대로 실리게 한다. ApiError가 아닌 예외는 그대로 다시 던진다.
  */
