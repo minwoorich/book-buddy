@@ -10,10 +10,14 @@ import { makeGetBookDetail } from './tools/getBookDetail'
 import { makeGetMyLoans } from './tools/getMyLoans'
 import { makeGetReviews } from './tools/getReviews'
 import { makeSearchAladin } from './tools/searchAladin'
+import { makeBorrowBook } from './tools/borrowBook'
+import { makeReturnBook } from './tools/returnBook'
+import { makeReserveBook } from './tools/reserveBook'
+import { makeRequestPurchase } from './tools/requestPurchase'
+import { makeAddWishlist } from './tools/addWishlist'
 
 /**
- * 이 태스크(9)의 조회 도구 5종을 조합한다. Task 10에서 대출/예약/리뷰 작성 등
- * 행동(action) 도구가 추가될 예정이며, 그때도 이 함수에 이어붙이면 된다.
+ * Task 9의 조회 도구 5종 + Task 10의 행동 도구 5종을 조합한다.
  */
 export function createTools(
   userId: number,
@@ -25,6 +29,11 @@ export function createTools(
     makeGetMyLoans(userId),
     makeGetReviews(),
     makeSearchAladin(opts.aladinTtbKey),
+    makeBorrowBook(userId),
+    makeReturnBook(userId),
+    makeReserveBook(userId),
+    makeRequestPurchase(userId),
+    makeAddWishlist(userId),
   ]
 }
 
