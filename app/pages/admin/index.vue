@@ -241,6 +241,14 @@ function onBookRegistered() {
           <div class="panel">
             <AdminBookRegister ref="bookRegisterRef" @registered="onBookRegistered" />
           </div>
+
+          <div class="sec-head">
+            <h2>메인 화면 구성</h2>
+            <div class="rule" />
+          </div>
+          <div class="panel" style="padding: 8px 14px;">
+            <AdminHomeSectionEditor />
+          </div>
         </div>
 
         <div>

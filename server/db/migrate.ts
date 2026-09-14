@@ -60,5 +60,27 @@ export function migrate(db: Database.Database): void {
       path TEXT NOT NULL, viewport TEXT, content TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS home_sections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, section_key TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL);
   `)
+
+  // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
+  // 값을 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE section_key)로 최초 1회만 채운다.
+  const seedSection = db.prepare(
+    'INSERT OR IGNORE INTO home_sections (section_key, title, enabled, sort_order) VALUES (?, ?, ?, ?)'
+  )
+  const defaultSections: [string, string, number, number][] = [
+    ['new', '새로 들어온 책', 1, 1],
+    ['top-rated', '동료 평점이 높은 책', 1, 2],
+    ['popular', '가장 많이 빌린 책', 1, 3],
+    ['available', '지금 바로 빌릴 수 있는 책', 0, 4],
+    ['cat-경제경영', '경제경영 서가', 1, 5],
+    ['cat-IT · 프로그래밍', 'IT · 프로그래밍 서가', 1, 6],
+    ['cat-자기계발', '자기계발 서가', 0, 7],
+    ['cat-인문', '인문 서가', 0, 8],
+  ]
+  for (const [key, title, enabled, sortOrder] of defaultSections) {
+    seedSection.run(key, title, enabled, sortOrder)
+  }
 }
