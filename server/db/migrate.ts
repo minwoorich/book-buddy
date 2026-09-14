@@ -7,7 +7,10 @@ export function migrate(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
       company TEXT NOT NULL, department TEXT NOT NULL, team TEXT NOT NULL,
       position TEXT NOT NULL, gender TEXT NOT NULL CHECK (gender IN ('M','F')),
-      birth_year INTEGER NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member','admin')));
+      birth_year INTEGER NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member','admin')),
+      -- 데모용 평문 비밀번호 — 시연 종료와 함께 폐기. 해싱/세션 토큰 없이 x-user-id 신뢰 모델의
+      -- 로그인 관문에서만 사용한다.
+      password TEXT NOT NULL DEFAULT '1234');
     CREATE TABLE IF NOT EXISTS books (
       id INTEGER PRIMARY KEY AUTOINCREMENT, isbn13 TEXT UNIQUE, title TEXT NOT NULL,
       author TEXT NOT NULL, publisher TEXT, category TEXT NOT NULL, description TEXT,
@@ -85,6 +88,18 @@ export function migrate(db: Database.Database): void {
       input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
       duration_ms INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
   `)
+
+  // 기존 DB 호환: users 테이블에 password 컬럼이 없으면(CREATE TABLE IF NOT EXISTS는 이미
+  // 존재하는 테이블에 새 컬럼을 추가하지 않는다) ALTER TABLE로 채워 넣는다. 데모용 평문
+  // 비밀번호 — 시연 종료와 함께 폐기.
+  const userColumns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[]
+  const hasPasswordColumn = userColumns.some((c) => c.name === 'password')
+  if (!hasPasswordColumn) {
+    db.exec(`ALTER TABLE users ADD COLUMN password TEXT NOT NULL DEFAULT '1234'`)
+    // 방금 컬럼을 추가한 경우에만: 관리자 계정 비번을 데모 기본값으로 반영한다
+    // (라이브 DB를 리시드하지 않고도 관리자 로그인이 되게 하기 위함).
+    db.prepare(`UPDATE users SET password = 'admin1234' WHERE role = 'admin'`).run()
+  }
 
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
   // 값을 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE section_key)로 최초 1회만 채운다.
