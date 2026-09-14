@@ -7,7 +7,7 @@ const api = useApi()
 const { user } = useCurrentUser()
 const config = useRuntimeConfig()
 
-// places.html의 고정 예시 4곳. 네이버 지역 검색 키가 없어 GET /api/places가 503을 내는
+// places.html의 고정 예시 4곳. 카카오 로컬 검색 키가 없어 GET /api/places가 503을 내는
 // 상황(또는 로그인 전 SSR)에서 정적 폴백으로 그대로 보여준다. address 필드는 실제 API
 // 결과에선 도로명 주소가 들어가지만, 여기선 목업과 동일하게 운영시간/메모 텍스트를 담는다.
 const FALLBACK_PLACES: PlaceWithReason[] = [
@@ -119,7 +119,7 @@ async function requestAiRanking() {
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
 
       <div class="pl-layout">
-        <CommonNaverMap :places="displayList" :client-id="config.public.naverMapClientId" />
+        <CommonKakaoMap :places="displayList" :app-key="config.public.kakaoJsKey" />
 
         <div class="plist">
           <div v-for="(place, i) in displayList" :key="place.name" class="place">

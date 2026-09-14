@@ -15,7 +15,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     anthropicApiKey: '',
-    naverSearchClientId: '', naverSearchClientSecret: '',
-    public: { naverMapClientId: '' },
+    kakaoRestKey: '',
+    public: { kakaoJsKey: '' },
   },
 })

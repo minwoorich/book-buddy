@@ -83,7 +83,7 @@ async function register(item: ExternalBookItem, idx: number) {
         placeholder="검색할 책 제목을 입력하세요"
         @keyup.enter="search"
       >
-      <button type="button" class="btn" :disabled="searching" @click="search">네이버 검색</button>
+      <button type="button" class="btn" :disabled="searching" @click="search">카카오 검색</button>
     </div>
 
     <p v-if="searched && !results.length" class="hint">검색 결과가 없어요.</p>
