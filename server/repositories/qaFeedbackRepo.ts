@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection'
-import type { QaFeedback } from '../../shared/types'
+import type { QaCategory, QaFeedback, QaSeverity } from '../../shared/types'
 
 interface QaFeedbackRow {
   id: number
@@ -7,8 +7,22 @@ interface QaFeedbackRow {
   path: string
   viewport: string | null
   content: string
+  category: QaCategory
+  severity: QaSeverity
+  detail: string | null
+  image_paths: string
   status: QaFeedback['status']
   created_at: string
+}
+
+/** image_paths는 JSON 배열 문자열 — 깨진 값이면 빈 배열로 가드한다. */
+function parseImagePaths(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 function toQaFeedback(row: QaFeedbackRow): QaFeedback {
@@ -18,6 +32,10 @@ function toQaFeedback(row: QaFeedbackRow): QaFeedback {
     path: row.path,
     viewport: row.viewport,
     content: row.content,
+    category: row.category,
+    severity: row.severity,
+    detail: row.detail,
+    images: parseImagePaths(row.image_paths),
     status: row.status,
     createdAt: row.created_at,
   }
@@ -32,11 +50,33 @@ function toQaFeedbackWithUser(row: QaFeedbackWithUserRow): QaFeedback & { userNa
   return { ...toQaFeedback(row), userName: row.user_name, department: row.department }
 }
 
+export interface QaFeedbackInput {
+  path: string
+  viewport: string | null
+  content: string
+  category: QaCategory
+  severity: QaSeverity
+  detail: string | null
+  images: string[]
+}
+
 export const qaFeedbackRepo = {
-  insert(userId: number, path: string, viewport: string | null, content: string): QaFeedback {
+  insert(userId: number, input: QaFeedbackInput): QaFeedback {
     const result = getDb()
-      .prepare('INSERT INTO qa_feedback (user_id, path, viewport, content) VALUES (?, ?, ?, ?)')
-      .run(userId, path, viewport, content)
+      .prepare(
+        `INSERT INTO qa_feedback (user_id, path, viewport, content, category, severity, detail, image_paths)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        userId,
+        input.path,
+        input.viewport,
+        input.content,
+        input.category,
+        input.severity,
+        input.detail,
+        JSON.stringify(input.images)
+      )
     return toQaFeedback(
       getDb().prepare('SELECT * FROM qa_feedback WHERE id = ?').get(Number(result.lastInsertRowid)) as QaFeedbackRow
     )
@@ -63,5 +103,10 @@ export const qaFeedbackRepo = {
 
   updateStatus(id: number, status: QaFeedback['status']): void {
     getDb().prepare('UPDATE qa_feedback SET status = ? WHERE id = ?').run(status, id)
+  },
+
+  /** 해결 처리 시 스크린샷 파일을 지운 뒤 경로 목록도 비운다. */
+  clearImages(id: number): void {
+    getDb().prepare(`UPDATE qa_feedback SET image_paths = '[]' WHERE id = ?`).run(id)
   },
 }

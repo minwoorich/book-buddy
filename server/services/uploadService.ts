@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ApiError } from '../utils/errors'
 
@@ -40,6 +40,17 @@ export const uploadService = {
     const name = `${randomUUID()}.${ext}`
     writeFileSync(join(UPLOAD_DIR, name), file.data)
     return `/api/uploads/${name}`
+  },
+
+  /**
+   * 저장된 이미지를 삭제한다. `/api/uploads/<name>` 형태의 공개 경로와 파일명 둘 다 받는다.
+   * 검증에 실패하거나 파일이 이미 없으면 조용히 무시한다(정리 용도 — 실패가 흐름을 막으면 안 된다).
+   */
+  remove(pathOrName: string): void {
+    const name = pathOrName.split('/').pop() ?? ''
+    if (!NAME_RE.test(name)) return
+    const path = join(UPLOAD_DIR, name)
+    if (existsSync(path)) unlinkSync(path)
   },
 
   /** 파일명을 검증해 경로 탈출을 막고 파일을 읽어 돌려준다. 없으면 404. */

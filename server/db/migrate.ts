@@ -68,6 +68,8 @@ export function migrate(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS qa_feedback (
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id),
       path TEXT NOT NULL, viewport TEXT, content TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'bug', severity TEXT NOT NULL DEFAULT 'minor',
+      detail TEXT, image_paths TEXT NOT NULL DEFAULT '[]',
       status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS home_sections (
@@ -100,6 +102,14 @@ export function migrate(db: Database.Database): void {
     // (라이브 DB를 리시드하지 않고도 관리자 로그인이 되게 하기 위함).
     db.prepare(`UPDATE users SET password = 'admin1234' WHERE role = 'admin'`).run()
   }
+
+  // 기존 DB 호환: qa_feedback의 구조화 필드(유형/심각도/상세/스크린샷)가 없으면 추가한다.
+  const qaColumns = db.prepare('PRAGMA table_info(qa_feedback)').all() as { name: string }[]
+  const qaColumnNames = new Set(qaColumns.map((c) => c.name))
+  if (!qaColumnNames.has('category')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN category TEXT NOT NULL DEFAULT 'bug'`)
+  if (!qaColumnNames.has('severity')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN severity TEXT NOT NULL DEFAULT 'minor'`)
+  if (!qaColumnNames.has('detail')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN detail TEXT`)
+  if (!qaColumnNames.has('image_paths')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]'`)
 
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
   // 값을 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE section_key)로 최초 1회만 채운다.

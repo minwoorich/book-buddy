@@ -222,12 +222,22 @@ export interface Place {
 }
 
 /** 팀 QA용 인앱 피드백. path/viewport는 신고 시점에 자동 수집된다. */
+export type QaCategory = 'bug' | 'ui' | 'idea' | 'question'
+export type QaSeverity = 'blocker' | 'inconvenient' | 'minor'
+
 export interface QaFeedback {
   id: number
   userId: number
   path: string
   viewport: string | null
+  /** 한 줄 요약. */
   content: string
+  category: QaCategory
+  severity: QaSeverity
+  /** 재현 순서·기대/실제 결과 등 상세 설명(선택). */
+  detail: string | null
+  /** 첨부 스크린샷 경로 목록. 해결 처리 시 파일과 함께 비워진다. */
+  images: string[]
   status: 'open' | 'resolved'
   createdAt: string
 }

@@ -45,6 +45,19 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'resolved', label: '해결됨' },
   { key: 'all', label: '전체' },
 ]
+
+const CATEGORY_LABELS: Record<QaFeedback['category'], string> = {
+  bug: '🐛 버그',
+  ui: '🎨 디자인·UI',
+  idea: '💡 개선',
+  question: '❓ 질문',
+}
+
+const SEVERITY_LABELS: Record<QaFeedback['severity'], string> = {
+  blocker: '진행 불가',
+  inconvenient: '불편함',
+  minor: '사소함',
+}
 </script>
 
 <template>
@@ -89,7 +102,19 @@ const FILTERS: { key: Filter; label: string }[] = [
                 <NuxtLink :to="row.path" style="font-size: 12.5px;">{{ row.path }}</NuxtLink>
                 <div v-if="row.viewport" style="font-size: 11.5px; color: var(--sub);">{{ row.viewport }}</div>
               </td>
-              <td style="font-size: 14px;">{{ row.content }}</td>
+              <td style="font-size: 14px;">
+                <div class="tags">
+                  <span class="tag">{{ CATEGORY_LABELS[row.category] }}</span>
+                  <span class="tag" :class="{ hot: row.severity === 'blocker' }">{{ SEVERITY_LABELS[row.severity] }}</span>
+                </div>
+                <b>{{ row.content }}</b>
+                <div v-if="row.detail" class="detail">{{ row.detail }}</div>
+                <div v-if="row.images.length" class="shots">
+                  <a v-for="src in row.images" :key="src" :href="src" target="_blank" rel="noopener">
+                    <img :src="src" alt="첨부 스크린샷" />
+                  </a>
+                </div>
+              </td>
               <td>
                 <span class="badge" :class="row.status === 'open' ? 'warn' : 'ok'">
                   {{ row.status === 'open' ? '미해결' : '해결됨' }}
@@ -124,4 +149,18 @@ const FILTERS: { key: Filter; label: string }[] = [
 .head-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 22px; }
 .filters { margin-left: auto; display: flex; gap: 8px; }
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+.tags { display: flex; gap: 6px; margin-bottom: 4px; }
+.tag {
+  font-size: 11px; font-weight: 700; color: var(--sub);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px;
+}
+.tag.hot { color: #fff; background: var(--red); border-color: var(--red); }
+.detail { font-size: 12.5px; color: var(--sub); line-height: 1.55; margin-top: 4px; white-space: pre-line; }
+.shots { display: flex; gap: 6px; margin-top: 8px; }
+.shots img {
+  width: 56px; height: 56px; object-fit: cover; display: block;
+  border: 1px solid var(--line-strong); border-radius: 5px;
+}
+.shots img:hover { border-color: var(--red); }
 </style>
