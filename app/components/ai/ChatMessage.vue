@@ -21,7 +21,7 @@ async function runAction(action: ChatAction) {
 
   <div v-else class="msg-ai">
     <span class="tag">책벗</span>
-    {{ msg.content }}
+    <span class="msg-text">{{ msg.content }}</span>
 
     <div v-if="msg.books?.length" class="mini-books">
       <NuxtLink
@@ -64,4 +64,5 @@ async function runAction(action: ChatAction) {
 .chat-acts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .chat-act { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--red); background: transparent; border: 1px solid var(--red); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
 .chat-act:hover { background: var(--red-tint); }
+.msg-text { white-space: pre-line; display: block; }
 </style>

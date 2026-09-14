@@ -61,7 +61,7 @@ async function runAction(to: string) {
         <b>책벗의 추천</b>
         <span class="ai-q">"{{ query }}"</span>
       </div>
-      <p>{{ answer.message }}</p>
+      <p class="ai-message">{{ answer.message }}</p>
       <div v-if="answer.books.length" class="ai-books">
         <NuxtLink v-for="book in answer.books" :key="book.id" :to="`/books/${book.id}`" class="ai-book">
           <BookCoverImage :src="book.coverUrl" :alt="book.title" />
@@ -117,4 +117,5 @@ p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-wi
 }
 
 .ai-fallback { margin: 0; font-size: 14px; color: var(--sub); }
+.ai-message { white-space: pre-line; }
 </style>
