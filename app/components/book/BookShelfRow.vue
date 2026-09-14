@@ -10,28 +10,42 @@ const props = withDefaults(
 )
 
 const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(${props.columns}, minmax(0, 1fr))` }))
+
+// books를 columns개씩 줄 단위로 나눈다 — 각 줄마다 covers-row → .shelf → meta-row를 반복 렌더해
+// 7권 이상일 때도 줄바꿈이 서가(선반) 단위로 깔끔하게 떨어지게 한다.
+const rows = computed(() => {
+  const size = props.columns
+  const chunks: typeof props.books[] = []
+  for (let i = 0; i < props.books.length; i += size) {
+    chunks.push(props.books.slice(i, i + size))
+  }
+  return chunks
+})
 </script>
 
 <template>
-  <div class="shelf-grid covers-row" :style="gridStyle">
-    <NuxtLink v-for="book in books" :key="book.id" :to="`/books/${book.id}`">
-      <BookCoverImage class="hover" :src="book.coverUrl" :alt="book.title" />
-    </NuxtLink>
-  </div>
-  <div class="shelf" />
-  <div class="meta-row" :style="gridStyle">
-    <div v-for="book in books" :key="book.id" class="meta">
-      <div class="t">{{ book.title }}</div>
-      <div class="a">{{ book.author }}</div>
-      <span v-if="book.avgRating !== null" class="stars">
-        <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }} · {{ book.reviewCount }}
-      </span>
-      <span v-else class="stars">리뷰 없음</span>
+  <div v-for="(row, i) in rows" :key="i" class="shelf-row">
+    <div class="shelf-grid covers-row" :style="gridStyle">
+      <NuxtLink v-for="book in row" :key="book.id" :to="`/books/${book.id}`">
+        <BookCoverImage class="hover" :src="book.coverUrl" :alt="book.title" />
+      </NuxtLink>
+    </div>
+    <div class="shelf" />
+    <div class="meta-row" :style="gridStyle">
+      <div v-for="book in row" :key="book.id" class="meta">
+        <div class="t">{{ book.title }}</div>
+        <div class="a">{{ book.author }}</div>
+        <span v-if="book.avgRating !== null" class="stars">
+          <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }} · {{ book.reviewCount }}
+        </span>
+        <span v-else class="stars">리뷰 없음</span>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.shelf-row + .shelf-row { margin-top: 28px; }
 .covers-row .cv { aspect-ratio: 500 / 726; width: 100%; }
 .shelf { margin: 0 -14px; }
 .meta-row { display: grid; gap: 22px; }
