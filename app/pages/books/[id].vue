@@ -62,6 +62,7 @@ const pubDateLabel = computed(() => {
 const loanBusy = ref(false)
 
 async function borrow() {
+  if (!user.value) return navigateTo('/login')
   if (!book.value || loanBusy.value) return
   loanBusy.value = true
   try {
@@ -75,6 +76,7 @@ async function borrow() {
 }
 
 async function returnLoan() {
+  if (!user.value) return navigateTo('/login')
   const loanId = myLoanId.value
   if (!loanId || loanBusy.value) return
   loanBusy.value = true
@@ -89,6 +91,7 @@ async function returnLoan() {
 }
 
 async function reserve() {
+  if (!user.value) return navigateTo('/login')
   if (!book.value || loanBusy.value) return
   loanBusy.value = true
   try {
@@ -109,6 +112,7 @@ async function findWishlistId(): Promise<number | null> {
 }
 
 async function toggleWish() {
+  if (!user.value) return navigateTo('/login')
   if (!book.value || wishBusy.value) return
   wishBusy.value = true
   try {
@@ -127,6 +131,7 @@ async function toggleWish() {
 }
 
 async function reportIssue() {
+  if (!user.value) return navigateTo('/login')
   const reason = window.prompt('분실·파손 사유를 알려주세요')
   if (!reason || !reason.trim()) return
   try {
@@ -224,7 +229,8 @@ function askAi() {
             <div class="rule" />
           </div>
 
-          <ReviewForm :book-id="bookId" :autofocus="focusReview" @created="onReviewCreated" />
+          <p v-if="!user" class="guest-review-hint">로그인 후 리뷰를 남길 수 있어요</p>
+          <ReviewForm v-else :book-id="bookId" :autofocus="focusReview" @created="onReviewCreated" />
           <ReviewList ref="reviewListRef" :book-id="bookId" />
         </div>
       </div>
@@ -256,4 +262,5 @@ function askAi() {
 .ai-mini { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; }
 .ai-mini i { flex: 1; font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; }
 .ai-mini .btn { white-space: nowrap; }
+.guest-review-hint { font-size: 13.5px; color: var(--sub); margin: 0 0 18px; }
 </style>
