@@ -34,23 +34,24 @@ function makeSeedPhoto(bg: string, text: string, sub = 'BOOK BUDDY 인증샷'): 
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 
+// 데모용 평문 비밀번호 — 시연 종료와 함께 폐기. 일반 직원은 '1234', 관리자는 'admin1234'.
 const insUser = db.prepare(
-  `INSERT INTO users (name, company, department, team, position, gender, birth_year, role)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  `INSERT INTO users (name, company, department, team, position, gender, birth_year, role, password)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 )
-const users: [string, string, string, string, string, 'M' | 'F', number, string][] = [
-  ['김민우', '바텍', '개발본부', 'SW개발팀', '사원', 'M', 1996, 'member'],
-  ['이서연', '바텍', '마케팅본부', '마케팅팀', '대리', 'F', 1993, 'member'],
-  ['박지훈', '레이언스', '연구소', '연구1팀', '책임', 'M', 1987, 'member'],
-  ['최은지', '바텍', '경영지원본부', '인사팀', '과장', 'F', 1989, 'member'],
-  ['정다은', '바텍네트웍스', '영업본부', '영업팀', '사원', 'F', 1998, 'member'],
-  ['한상우', '바텍', '개발본부', 'SW개발팀', '팀장', 'M', 1983, 'member'],
-  ['오유진', '레이언스', '품질본부', '품질팀', '대리', 'F', 1992, 'member'],
-  ['강태호', '바텍', '경영지원본부', '재무팀', '차장', 'M', 1980, 'member'],
-  ['윤소라', '바텍네트웍스', '영업본부', 'CS팀', '사원', 'F', 1997, 'member'],
-  ['임준영', '바텍', '연구소', '연구2팀', '수석', 'M', 1978, 'member'],
-  ['서지민', '레이언스', '기획본부', '기획팀', '대리', 'F', 1994, 'member'],
-  ['도서관리자', '바텍', '경영지원본부', '총무팀', '사서', 'F', 1985, 'admin'],
+const users: [string, string, string, string, string, 'M' | 'F', number, string, string][] = [
+  ['김민우', '바텍', '개발본부', 'SW개발팀', '사원', 'M', 1996, 'member', '1234'],
+  ['이서연', '바텍', '마케팅본부', '마케팅팀', '대리', 'F', 1993, 'member', '1234'],
+  ['박지훈', '레이언스', '연구소', '연구1팀', '책임', 'M', 1987, 'member', '1234'],
+  ['최은지', '바텍', '경영지원본부', '인사팀', '과장', 'F', 1989, 'member', '1234'],
+  ['정다은', '바텍네트웍스', '영업본부', '영업팀', '사원', 'F', 1998, 'member', '1234'],
+  ['한상우', '바텍', '개발본부', 'SW개발팀', '팀장', 'M', 1983, 'member', '1234'],
+  ['오유진', '레이언스', '품질본부', '품질팀', '대리', 'F', 1992, 'member', '1234'],
+  ['강태호', '바텍', '경영지원본부', '재무팀', '차장', 'M', 1980, 'member', '1234'],
+  ['윤소라', '바텍네트웍스', '영업본부', 'CS팀', '사원', 'F', 1997, 'member', '1234'],
+  ['임준영', '바텍', '연구소', '연구2팀', '수석', 'M', 1978, 'member', '1234'],
+  ['서지민', '레이언스', '기획본부', '기획팀', '대리', 'F', 1994, 'member', '1234'],
+  ['도서관리자', '바텍', '경영지원본부', '총무팀', '사서', 'F', 1985, 'admin', 'admin1234'],
 ]
 const uid: Record<string, number> = {}
 for (const u of users) uid[u[0]] = Number(insUser.run(...u).lastInsertRowid)

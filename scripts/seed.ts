@@ -194,15 +194,17 @@ const USERS: SeedUser[] = [
   { name: '도서관리자', company: '바텍', department: '경영지원본부', team: '총무팀', position: '사서', gender: 'F', birthYear: 1978, role: 'admin' },
 ]
 
+// 데모용 평문 비밀번호 — 시연 종료와 함께 폐기. 일반 직원은 '1234', 관리자는 'admin1234'.
 function seedUsers(): number[] {
   const db = getDb()
   const stmt = db.prepare(
-    `INSERT INTO users (name, company, department, team, position, gender, birth_year, role)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO users (name, company, department, team, position, gender, birth_year, role, password)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   const ids: number[] = []
   for (const u of USERS) {
-    const result = stmt.run(u.name, u.company, u.department, u.team, u.position, u.gender, u.birthYear, u.role)
+    const password = u.role === 'admin' ? 'admin1234' : '1234'
+    const result = stmt.run(u.name, u.company, u.department, u.team, u.position, u.gender, u.birthYear, u.role, password)
     ids.push(Number(result.lastInsertRowid))
   }
   return ids
