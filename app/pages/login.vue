@@ -49,6 +49,10 @@ async function submit() {
           {{ loading ? '로그인 중...' : '로그인' }}
         </button>
       </form>
+
+      <div class="switch">
+        처음이신가요? <NuxtLink to="/signup">회원가입</NuxtLink>
+      </div>
     </div>
 
     <div class="hint card-2">
@@ -72,6 +76,9 @@ h1 { font-family: "Noto Serif KR", serif; font-size: 24px; font-weight: 600; mar
 .login-btn { width: 100%; padding: 11px 16px; margin-top: 4px; }
 .login-btn:disabled { opacity: .6; cursor: not-allowed; }
 .error { color: var(--red); font-size: 13px; margin: 2px 0 0; }
+
+.switch { margin-top: 20px; font-size: 13px; color: var(--sub); }
+.switch a { color: var(--red); font-weight: 600; }
 
 .hint { margin-top: 22px; padding: 12px 16px; border-radius: 4px; font-size: 12.5px; color: var(--sub); background: var(--card-2); border: 1px solid var(--line); }
 </style>
