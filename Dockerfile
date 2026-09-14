@@ -31,4 +31,5 @@ RUN npm ci --omit=dev && npm i -D tsx
 # 로컬 docker run은 -v 플래그(README 참고), Railway는 서비스 볼륨(/app/.data).
 # (Dockerfile의 VOLUME 명령은 Railway 빌드 검증에서 거부되므로 사용하지 않음)
 EXPOSE 3000
-CMD ["node", ".output/server/index.mjs"]
+# 부팅 시 DB가 비어 있으면 데모 시드 후 서버 시작 (재시작 시 기존 데이터 유지)
+CMD ["sh", "-c", "npx tsx scripts/demo-seed.ts --if-empty; exec node .output/server/index.mjs"]
