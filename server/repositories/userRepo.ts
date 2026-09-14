@@ -51,4 +51,35 @@ export const userRepo = {
       | undefined
     return row ? { ...toUser(row), password: row.password } : undefined
   },
+
+  /** 회원가입 전용. role은 'member' 고정, password는 평문 그대로 저장한다(데모용 — 시연 종료와 함께 폐기). */
+  insert(input: {
+    name: string
+    password: string
+    company: string
+    department: string
+    team: string
+    position: string
+    gender: 'M' | 'F'
+    birthYear: number
+  }): User {
+    const result = getDb()
+      .prepare(
+        `INSERT INTO users (name, company, department, team, position, gender, birth_year, role, password)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'member', ?)`
+      )
+      .run(
+        input.name,
+        input.company,
+        input.department,
+        input.team,
+        input.position,
+        input.gender,
+        input.birthYear,
+        input.password
+      )
+    const user = userRepo.findById(Number(result.lastInsertRowid))
+    if (!user) throw new Error('방금 생성한 사용자를 다시 조회하지 못했어요')
+    return user
+  },
 }
