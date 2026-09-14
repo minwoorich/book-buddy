@@ -8,6 +8,8 @@ import type { Place } from '#shared/types'
 const props = defineProps<{
   places: (Place & { reason?: string })[]
   appKey: string
+  /** 사용자의 현재 위치(브라우저 geolocation). 오면 파란 점으로 표시하고 지도를 이동한다. */
+  myLocation?: { lat: number; lng: number } | null
 }>()
 
 /** 목업(places.html)의 4개 고정 핀 좌표. 폴백 렌더링에서 최대 4곳까지만 그대로 사용한다. */
@@ -87,12 +89,49 @@ function pinLabelHtml(no: number): string {
 let mapInstance: any = null
 let markers: any[] = []
 let overlays: any[] = []
+let myLocationOverlay: any = null
 
 function clearMarkers() {
   markers.forEach((m) => m.setMap(null))
   overlays.forEach((o) => o.setMap(null))
   markers = []
   overlays = []
+}
+
+/** 장소를 카카오맵(새 탭)으로 연다 — 마커/순번 클릭용. */
+function openInKakaoMap(place: Place) {
+  window.open(
+    `https://map.kakao.com/link/map/${encodeURIComponent(place.name)},${place.lat},${place.lng}`,
+    '_blank',
+    'noopener'
+  )
+}
+
+/** 내 위치 파란 점 오버레이를 (재)배치한다. pan=true면 지도를 그 지점으로 이동한다. */
+function renderMyLocation(pan = false) {
+  const kakao = (window as any).kakao
+  const map = ensureMap(kakao)
+  if (!map) return
+
+  if (myLocationOverlay) {
+    myLocationOverlay.setMap(null)
+    myLocationOverlay = null
+  }
+  const loc = props.myLocation
+  if (!loc) return
+
+  const position = new kakao.maps.LatLng(loc.lat, loc.lng)
+  myLocationOverlay = new kakao.maps.CustomOverlay({
+    position,
+    content:
+      '<div style="position:relative;width:18px;height:18px;">' +
+      '<div style="position:absolute;inset:0;border-radius:50%;background:rgba(38,110,255,.25);animation:bb-pulse 1.8s ease-out infinite;"></div>' +
+      '<div style="position:absolute;inset:4px;border-radius:50%;background:#266EFF;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);"></div>' +
+      '</div>',
+    map,
+    zIndex: 10,
+  })
+  if (pan) map.panTo(position)
 }
 
 /** mapEl에 지도 인스턴스가 없으면 새로 만들고, 있으면 그대로 재사용한다. */
@@ -123,6 +162,7 @@ function renderMarkers() {
   validPlaces.value.forEach((place, i) => {
     const position = new kakao.maps.LatLng(place.lat, place.lng)
     const marker = new kakao.maps.Marker({ position, map, title: place.name })
+    kakao.maps.event.addListener(marker, 'click', () => openInKakaoMap(place))
     const overlay = new kakao.maps.CustomOverlay({
       position,
       content: pinLabelHtml(i + 1),
@@ -132,6 +172,9 @@ function renderMarkers() {
     markers.push(marker)
     overlays.push(overlay)
   })
+
+  // 내 위치 점은 마커 목록과 별개로 유지한다(목록이 갈려도 사라지면 안 된다).
+  renderMyLocation()
 }
 
 async function initMap(): Promise<void> {
@@ -181,8 +224,18 @@ watch(showFallback, (isFallback) => {
     mapInstance = null
     markers = []
     overlays = []
+    myLocationOverlay = null
   }
 })
+
+// 내 위치가 도착/갱신되면 파란 점을 다시 그리고 그 지점으로 이동한다.
+watch(
+  () => props.myLocation,
+  () => {
+    if (showFallback.value) return
+    renderMyLocation(true)
+  }
+)
 </script>
 
 <template>
@@ -215,6 +268,14 @@ watch(showFallback, (isFallback) => {
     </template>
   </div>
 </template>
+
+<style>
+/* 내 위치 오버레이는 카카오 SDK가 body 아래 DOM으로 주입하므로 전역 keyframes가 필요하다. */
+@keyframes bb-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+</style>
 
 <style scoped>
 .map { flex: 1; min-height: 620px; background: #EFE9DC; border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }

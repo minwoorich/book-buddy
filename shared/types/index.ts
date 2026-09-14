@@ -217,6 +217,8 @@ export interface Place {
   mapy: number
   lat: number
   lng: number
+  /** 검색 기준 좌표(내 위치)로부터의 거리(미터). 좌표 기반 검색일 때만 채워진다. */
+  distanceM?: number
 }
 
 /** 팀 QA용 인앱 피드백. path/viewport는 신고 시점에 자동 수집된다. */

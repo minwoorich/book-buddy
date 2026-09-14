@@ -15,6 +15,7 @@ interface KakaoLocalRawItem {
   address_name?: string
   x?: string
   y?: string
+  distance?: string
 }
 
 interface KakaoLocalResponse {
@@ -47,6 +48,7 @@ function lastCategorySegment(raw: string | undefined): string {
 function toPlace(raw: KakaoLocalRawItem): Place {
   const lng = safeNumber(raw.x)
   const lat = safeNumber(raw.y)
+  const distance = Number(raw.distance)
   return {
     name: stripHtml(raw.place_name),
     category: lastCategorySegment(raw.category_name),
@@ -55,6 +57,8 @@ function toPlace(raw: KakaoLocalRawItem): Place {
     mapy: Math.round(lat * 1e7),
     lng,
     lat,
+    // distance는 x/y(기준 좌표)를 준 검색에서만 내려오는 미터 문자열이다.
+    ...(Number.isFinite(distance) && distance > 0 ? { distanceM: distance } : {}),
   }
 }
 
@@ -85,11 +89,26 @@ export function mergeRanking(
 }
 
 export const kakaoLocalService = {
-  /** 키워드로 장소(카페/도서관/공원 등)를 검색한다. */
-  async search(restKey: string, query: string, display = 5): Promise<Place[]> {
+  /**
+   * 키워드로 장소(카페/도서관/공원 등)를 검색한다.
+   * origin(WGS84 좌표)을 주면 그 지점 반경 내에서 거리순으로 검색하고, 각 결과에
+   * distanceM(미터)이 채워진다 — "내 위치 근처" 검색용.
+   */
+  async search(
+    restKey: string,
+    query: string,
+    display = 5,
+    origin?: { lat: number; lng: number }
+  ): Promise<Place[]> {
     const url = new URL(BASE_URL)
     url.searchParams.set('query', query)
     url.searchParams.set('size', String(display))
+    if (origin) {
+      url.searchParams.set('x', String(origin.lng))
+      url.searchParams.set('y', String(origin.lat))
+      url.searchParams.set('radius', '5000')
+      url.searchParams.set('sort', 'distance')
+    }
 
     const res = await fetch(url.toString(), {
       headers: {
