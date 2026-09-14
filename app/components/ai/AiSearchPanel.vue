@@ -128,7 +128,13 @@ async function runSearch(q: string) {
 
 watch(
   () => props.query,
-  (q) => runSearch(q),
+  (q) => {
+    // 비로그인 상태에서는 스트림 엔드포인트를 아예 호출하지 않는다(requireUser 401을
+    // 굳이 왕복시키지 않고, 대신 로그인 유도 카드만 보여준다). 키워드 검색 결과 자체는
+    // public이라 index.vue 쪽 책 목록은 그대로 노출된다.
+    if (!user.value) return
+    runSearch(q)
+  },
   { immediate: true }
 )
 
@@ -139,11 +145,25 @@ onBeforeUnmount(() => {
 async function runAction(to: string) {
   await navigateTo(to)
 }
+
+function goLogin() {
+  void navigateTo('/login')
+}
 </script>
 
 <template>
   <div class="panel accent ai">
-    <div v-if="loading && !streamText && !errorMessage && !answer" class="ai-loading" aria-busy="true">
+    <template v-if="!user">
+      <div class="ai-head">
+        <i>책벗 · AI</i>
+        <b>책벗의 추천</b>
+        <span class="ai-q">"{{ query }}"</span>
+      </div>
+      <p class="ai-fallback">책벗 AI 검색은 로그인 후 이용할 수 있어요</p>
+      <button type="button" class="btn primary" @click="goLogin">로그인하기</button>
+    </template>
+
+    <div v-else-if="loading && !streamText && !errorMessage && !answer" class="ai-loading" aria-busy="true">
       <div class="ai-loading-row">
         <svg class="wander-path" viewBox="0 0 410 80" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <path d="M10,40 C60,10 90,70 140,40 S220,10 270,40 S350,70 400,40" />
