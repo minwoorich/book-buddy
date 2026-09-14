@@ -85,10 +85,26 @@ export async function runAgent(
   })
 
   const startedAt = Date.now()
-  const res = await agent.invoke(
-    { messages },
-    deps.settings.recursionLimit ? { recursionLimit: deps.settings.recursionLimit } : undefined
-  )
+  let res
+  try {
+    res = await agent.invoke(
+      { messages },
+      deps.settings.recursionLimit ? { recursionLimit: deps.settings.recursionLimit } : undefined
+    )
+  } catch (e) {
+    // 도구 루프가 한도(recursionLimit)에 닿으면 500 대신 부드러운 안내로 폴백한다.
+    if (e instanceof Error && ('lc_error_code' in e ? (e as { lc_error_code?: string }).lc_error_code : '') === 'GRAPH_RECURSION_LIMIT') {
+      return {
+        answer: {
+          message: '질문을 살피다 서가를 너무 오래 돌았어요. 조금 더 구체적으로(예: 분야나 상황을 붙여서) 다시 물어봐 주시겠어요?',
+          bookIds: [],
+          actions: [],
+        },
+        usage: { inputTokens: 0, outputTokens: 0, durationMs: Date.now() - startedAt },
+      }
+    }
+    throw e
+  }
   const durationMs = Date.now() - startedAt
 
   let inputTokens = 0

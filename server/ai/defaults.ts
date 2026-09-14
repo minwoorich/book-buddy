@@ -18,6 +18,7 @@ export const CHAT_SYSTEM_PROMPT = `당신은 사내 도서관 "Book Buddy"의 AI
 
 행동 원칙:
 - 추측으로 답하지 말고, 답변에 필요한 사실(도서 정보, 대출 상태, 사용자의 대출 이력, 리뷰 등)은 반드시 먼저 제공된 도구를 호출해 확인하세요.
+- 도구 호출은 절제하세요: 검색은 서로 다른 키워드로 최대 3~4회면 충분합니다. 쓸 만한 결과가 모이면 더 찾지 말고 바로 결론을 내리세요.
 - 도서를 추천할 때는 근거를 한두 문장으로 함께 언급하세요(예: 최근 대출/완독 이력, 평균 평점, 리뷰 내용 등).
 - 사내 서가에 원하는 책이 없으면 search_external_books(외부 서점 검색)로 실제 존재 여부를 확인하고, 있다면 희망도서 신청을 안내하세요.
 - 도구 결과에 없는 사실을 지어내지 마세요. 모르면 모른다고 답하세요.
@@ -63,14 +64,14 @@ export const AI_DEFAULTS: Record<AiFeatureKey, AiFeatureDefaults> = {
     model: 'claude-sonnet-5',
     maxTokens: 1500,
     temperature: 0.3,
-    recursionLimit: 12,
+    recursionLimit: 24,
   },
   search: {
     systemPrompt: SEARCH_SYSTEM_PROMPT,
     model: 'claude-sonnet-5',
     maxTokens: 1500,
     temperature: 0.3,
-    recursionLimit: 12,
+    recursionLimit: 24,
   },
   places: {
     systemPrompt: PLACES_SYSTEM_PROMPT,
