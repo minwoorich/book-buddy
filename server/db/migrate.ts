@@ -41,8 +41,14 @@ export function migrate(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(user_id, book_id));
     CREATE TABLE IF NOT EXISTS posts (
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id),
+      -- image_path: 대표(첫 번째) 사진. 실제 전체 사진 목록은 post_images를 사용하고,
+      -- post_images가 비어 있을 때(구 데이터 등)의 폴백으로만 이 컬럼을 쓴다.
       book_id INTEGER REFERENCES books(id), image_path TEXT NOT NULL, caption TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS post_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER NOT NULL REFERENCES posts(id), image_path TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS post_likes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id INTEGER NOT NULL REFERENCES posts(id), user_id INTEGER NOT NULL REFERENCES users(id),

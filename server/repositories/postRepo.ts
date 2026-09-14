@@ -1,4 +1,5 @@
 import { getDb } from '../db/connection'
+import { postImageRepo } from './postImageRepo'
 import type { Book, Post } from '../../shared/types'
 
 interface PostRow {
@@ -35,6 +36,7 @@ export type PostWithMeta = Post & {
   likeCount: number
   likedByMe: boolean
   commentCount: number
+  images: string[]
 }
 
 function toPost(row: PostRow): Post {
@@ -91,7 +93,11 @@ export const postRepo = {
          ORDER BY p.created_at DESC`
       )
       .all(meId ?? 0) as PostJoinRow[]
-    return rows.map(toPostWithMeta)
+    const imagesByPost = postImageRepo.listByPosts(rows.map((row) => row.id))
+    return rows.map((row) => {
+      const images = imagesByPost.get(row.id)
+      return { ...toPostWithMeta(row), images: images && images.length > 0 ? images : [row.image_path] }
+    })
   },
 
   findById(id: number): Post | undefined {
