@@ -41,6 +41,25 @@ function pickIsbn13(raw: string | undefined): string | null {
   return candidate ?? null
 }
 
+/**
+ * 카카오 책 검색의 thumbnail은 저해상도 프록시 URL이다
+ * (`https://search1.kakaocdn.net/thumb/R120x174.q85/?fname=<url인코딩된 원본>`).
+ * `fname` 쿼리 파라미터를 디코딩해 원본 고화질 표지 URL을 꺼낸다. 추출에 실패하거나
+ * fname이 없으면 thumbnail 원값을 그대로 쓴다. thumbnail 자체가 비어있으면 null.
+ */
+export function extractOriginalCover(thumbnail: string): string | null {
+  if (!thumbnail) return null
+  const match = thumbnail.match(/[?&]fname=([^&]+)/)
+  if (!match) return thumbnail
+  try {
+    const original = decodeURIComponent(match[1])
+    if (!original) return thumbnail
+    return original.startsWith('http:') ? `https:${original.slice('http:'.length)}` : original
+  } catch {
+    return thumbnail
+  }
+}
+
 function toItem(raw: KakaoBookRawItem): ExternalBookItem {
   return {
     title: cleanText(raw.title),
@@ -49,7 +68,7 @@ function toItem(raw: KakaoBookRawItem): ExternalBookItem {
     pubDate: formatPubDate(raw.datetime) ?? '',
     description: cleanText(raw.contents),
     isbn13: pickIsbn13(raw.isbn),
-    cover: raw.thumbnail || null,
+    cover: extractOriginalCover(raw.thumbnail ?? ''),
     pageCount: null,
   }
 }
