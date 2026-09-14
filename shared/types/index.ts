@@ -177,6 +177,17 @@ export interface AiAnswer {
   actions: ChatAction[]
 }
 
+/**
+ * `/api/ai/search-stream`(SSE)이 클라이언트로 내려보내는 이벤트 와이어 포맷.
+ * tool/delta는 서버 streamAgent가 진행 중 흘려보내고, done/error는 엔드포인트가
+ * 스트림 마지막에 한 번만 보낸다.
+ */
+export type AiSearchStreamEvent =
+  | { type: 'tool'; name: string; detail: string }
+  | { type: 'delta'; text: string }
+  | { type: 'done'; answer: AiAnswer; books: Book[] }
+  | { type: 'error'; message: string }
+
 export interface RankRow {
   key: string
   label: string

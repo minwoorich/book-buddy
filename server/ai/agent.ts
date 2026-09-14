@@ -6,6 +6,7 @@ import type { AiAnswer } from '../../shared/types'
 import { ApiError } from '../utils/errors'
 import { parseAiAnswer } from './parse'
 import { resolveTemperature } from './defaults'
+import { createMessageExtractor } from './streamText'
 import { makeSearchBooks } from './tools/searchBooks'
 import { makeGetBookDetail } from './tools/getBookDetail'
 import { makeGetMyLoans } from './tools/getMyLoans'
@@ -56,6 +57,60 @@ export interface AgentDeps {
   settings: AgentSettings
 }
 
+/** streamAgent가 진행 중 흘려보내는 이벤트. done/error는 엔드포인트가 별도로 보낸다. */
+export type AgentStreamEvent = { type: 'tool'; name: string; detail: string } | { type: 'delta'; text: string }
+
+/** 도구 루프가 recursionLimit에 닿았을 때 LangGraph가 던지는 에러인지 판별한다. */
+function isGraphRecursionError(e: unknown): boolean {
+  return e instanceof Error && ('lc_error_code' in e ? (e as { lc_error_code?: string }).lc_error_code : '') === 'GRAPH_RECURSION_LIMIT'
+}
+
+/** recursionLimit 초과 시 runAgent/streamAgent가 공통으로 돌려주는 부드러운 안내 답변. */
+function recursionFallbackAnswer(startedAt: number): { answer: AiAnswer; usage: AgentUsage } {
+  return {
+    answer: {
+      message: '질문을 살피다 서가를 너무 오래 돌았어요. 조금 더 구체적으로(예: 분야나 상황을 붙여서) 다시 물어봐 주시겠어요?',
+      bookIds: [],
+      actions: [],
+    },
+    usage: { inputTokens: 0, outputTokens: 0, durationMs: Date.now() - startedAt },
+  }
+}
+
+/**
+ * Anthropic 청크의 content는 문자열이거나(구형) content block 배열일 수 있다
+ * (`[{type:'text', text:'...'}, {type:'tool_use', ...}]` 등). text 파트만 이어붙인다.
+ */
+function extractDeltaText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  let out = ''
+  for (const part of content) {
+    if (part && typeof part === 'object' && (part as { type?: unknown }).type === 'text') {
+      const text = (part as { text?: unknown }).text
+      if (typeof text === 'string') out += text
+    }
+  }
+  return out
+}
+
+/** on_tool_start 이벤트의 name/input으로 사람이 읽을 짧은 활동 요약을 만든다. */
+function toolDetail(name: string, input: unknown): string {
+  const obj = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+  const str = (key: string) => (typeof obj[key] === 'string' ? (obj[key] as string) : '')
+  switch (name) {
+    case 'search_books':
+      return [str('query'), str('category')].filter(Boolean).join(' · ')
+    case 'get_book_detail':
+    case 'get_reviews':
+      return typeof obj.bookId === 'number' ? `#${obj.bookId}` : ''
+    case 'search_external_books':
+      return str('query')
+    default:
+      return ''
+  }
+}
+
 /**
  * agent.ts는 Nitro 컨텍스트 밖(검증 스크립트, 향후 워커 등)에서도 실행 가능해야 하므로
  * useRuntimeConfig()를 직접 호출하지 않는다 — 호출부(Task 10의 API 핸들러 등)가
@@ -93,16 +148,7 @@ export async function runAgent(
     )
   } catch (e) {
     // 도구 루프가 한도(recursionLimit)에 닿으면 500 대신 부드러운 안내로 폴백한다.
-    if (e instanceof Error && ('lc_error_code' in e ? (e as { lc_error_code?: string }).lc_error_code : '') === 'GRAPH_RECURSION_LIMIT') {
-      return {
-        answer: {
-          message: '질문을 살피다 서가를 너무 오래 돌았어요. 조금 더 구체적으로(예: 분야나 상황을 붙여서) 다시 물어봐 주시겠어요?',
-          bookIds: [],
-          actions: [],
-        },
-        usage: { inputTokens: 0, outputTokens: 0, durationMs: Date.now() - startedAt },
-      }
-    }
+    if (isGraphRecursionError(e)) return recursionFallbackAnswer(startedAt)
     throw e
   }
   const durationMs = Date.now() - startedAt
@@ -119,6 +165,91 @@ export async function runAgent(
   const last = res.messages.at(-1)
   const content = typeof last?.content === 'string' ? last.content : JSON.stringify(last?.content)
   const answer = parseAiAnswer(content)
+
+  return { answer, usage: { inputTokens, outputTokens, durationMs } }
+}
+
+/**
+ * runAgent의 스트리밍 버전. LangGraph의 `streamEvents(v2)`로 도구 호출 시작과 LLM 텍스트
+ * 델타를 실시간으로 emit하면서도, 최종 신뢰 소스는 runAgent와 동일하게 "누적된 최종 턴
+ * 텍스트를 parseAiAnswer로 파싱한 결과"로 유지한다.
+ *
+ * ReAct 루프는 LLM을 여러 번 호출할 수 있다(도구 호출 결정 턴 → 도구 실행 → 최종 답변
+ * 턴 등). on_chat_model_start마다 누적 버퍼와 message 추출기를 리셋해, 마지막에 남는
+ * 텍스트가 항상 "가장 최근(=최종) 턴"의 것이 되게 한다 — runAgent가 `res.messages.at(-1)`로
+ * 마지막 메시지만 쓰는 것과 같은 효과다.
+ */
+export async function streamAgent(
+  deps: AgentDeps,
+  userId: number,
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  systemExtra: string,
+  emit: (ev: AgentStreamEvent) => void
+): Promise<{ answer: AiAnswer; usage: AgentUsage }> {
+  if (!deps.anthropicApiKey) {
+    throw new ApiError(503, 'AI를 사용할 수 없어요')
+  }
+
+  const llm = new ChatAnthropic({
+    apiKey: deps.anthropicApiKey,
+    model: deps.settings.model,
+    maxTokens: deps.settings.maxTokens,
+    temperature: resolveTemperature(deps.settings.model, deps.settings.temperature),
+  })
+
+  const agent = createReactAgent({
+    llm,
+    tools: createTools(userId, { kakaoRestKey: deps.kakaoRestKey }),
+    prompt: deps.settings.systemPrompt + systemExtra,
+  })
+
+  const startedAt = Date.now()
+  let fullText = ''
+  let extractor = createMessageExtractor()
+  let inputTokens = 0
+  let outputTokens = 0
+
+  try {
+    const eventStream = agent.streamEvents(
+      { messages },
+      {
+        version: 'v2' as const,
+        ...(deps.settings.recursionLimit ? { recursionLimit: deps.settings.recursionLimit } : {}),
+      }
+    )
+
+    for await (const ev of eventStream) {
+      if (ev.event === 'on_chat_model_start') {
+        // 새 LLM 턴이 시작됐다 — 이전 턴(도구 호출 결정 등)의 텍스트는 최종 답변이
+        // 아니므로 버리고 이번 턴부터 다시 쌓는다.
+        fullText = ''
+        extractor = createMessageExtractor()
+      } else if (ev.event === 'on_tool_start') {
+        emit({ type: 'tool', name: ev.name, detail: toolDetail(ev.name, (ev.data as { input?: unknown } | undefined)?.input) })
+      } else if (ev.event === 'on_chat_model_stream') {
+        const chunk = (ev.data as { chunk?: { content?: unknown } } | undefined)?.chunk
+        const text = extractDeltaText(chunk?.content)
+        if (text) {
+          fullText += text
+          const delta = extractor.feed(text)
+          if (delta) emit({ type: 'delta', text: delta })
+        }
+      } else if (ev.event === 'on_chat_model_end') {
+        const output = (ev.data as { output?: { usage_metadata?: { input_tokens?: number; output_tokens?: number } } } | undefined)
+          ?.output
+        if (output?.usage_metadata) {
+          inputTokens += output.usage_metadata.input_tokens ?? 0
+          outputTokens += output.usage_metadata.output_tokens ?? 0
+        }
+      }
+    }
+  } catch (e) {
+    if (isGraphRecursionError(e)) return recursionFallbackAnswer(startedAt)
+    throw e
+  }
+
+  const durationMs = Date.now() - startedAt
+  const answer = parseAiAnswer(fullText)
 
   return { answer, usage: { inputTokens, outputTokens, durationMs } }
 }
