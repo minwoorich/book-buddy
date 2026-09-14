@@ -25,16 +25,16 @@
 | 키 | 용도 | 발급처 |
 | --- | --- | --- |
 | `NUXT_ANTHROPIC_API_KEY` | AI 사서 챗봇 / AI 검색 / 장소 큐레이션 (Claude) | [Anthropic Console](https://console.anthropic.com/) |
-| `NUXT_NAVER_SEARCH_CLIENT_ID` / `NUXT_NAVER_SEARCH_CLIENT_SECRET` | 책 검색(시드 포함) + 지역(장소) 검색 | [네이버 개발자센터](https://developers.naver.com/apps/#/register) → 애플리케이션 등록 시 "검색" API 사용 설정 |
-| `NUXT_PUBLIC_NAVER_MAP_CLIENT_ID` | 지도 표시 (NCP Maps) | [네이버 클라우드 플랫폼(NCP) 콘솔](https://console.ncloud.com/) → AI·Application Service → Maps |
+| `NUXT_KAKAO_REST_KEY` | 책 검색(시드 포함) + 장소(로컬) 검색 | [카카오 개발자센터](https://developers.kakao.com/console/app) |
+| `NUXT_PUBLIC_KAKAO_JS_KEY` | 지도 표시 (카카오맵 JS SDK) | [카카오 개발자센터](https://developers.kakao.com/console/app) |
 
-> ⚠️ 네이버 키는 발급처가 서로 다릅니다. 검색 API(`NUXT_NAVER_SEARCH_*`)는 **네이버 개발자센터**, 지도 API(`NUXT_PUBLIC_NAVER_MAP_CLIENT_ID`)는 **NCP(네이버 클라우드 플랫폼)** 콘솔에서 발급받습니다. 서로 다른 콘솔이니 혼동하지 않도록 주의하세요.
+> ⚠️ 카카오 키는 앱 하나에서 REST API 키와 JavaScript 키 2개를 함께 발급받습니다. developers.kakao.com → 앱 추가 → 앱 키(REST API 키 = `NUXT_KAKAO_REST_KEY`, JavaScript 키 = `NUXT_PUBLIC_KAKAO_JS_KEY`) 확인 → 플랫폼 설정의 Web에 `localhost:3000`과 배포 도메인 등록 → 제품 설정에서 카카오맵 사용 ON, 이 네 단계만 거치면 됩니다.
 
 ### 2. 설치 및 시드
 
 ```bash
 npm install
-npm run seed   # 네이버 검색 키 필요 (책 데이터 확보용)
+npm run seed   # 카카오 REST 키 필요 (책 데이터 확보용)
 npm run dev
 ```
 
@@ -66,10 +66,10 @@ docker exec -it <container> npx tsx scripts/seed.ts
 
 | 기능 | 키 없이 동작? |
 | --- | --- |
-| 시드(`npm run seed`) | ❌ 네이버 검색 키 필수 |
+| 시드(`npm run seed`) | ❌ 카카오 REST 키 필수 |
 | AI 사서 챗봇 / AI 검색 / 장소 AI 큐레이션 | ❌ Anthropic 키 필수 |
-| 장소(지역) 검색 | ❌ 네이버 검색 키 필수 |
-| 관리자 책 등록(외부 도서 검색, `/api/book-search`) — 희망도서 승인 후 등록 플로우 포함 | ❌ 네이버 검색 키 필수 (키 없으면 503, 수동 입력 폴백 없음) |
+| 장소(로컬) 검색 | ❌ 카카오 REST 키 필수 |
+| 관리자 책 등록(외부 도서 검색, `/api/book-search`) — 희망도서 승인 후 등록 플로우 포함 | ❌ 카카오 REST 키 필수 (키 없으면 503, 수동 입력 폴백 없음) |
 | 지도 표시 | ⚠️ 키 없으면 예시 지도로 폴백 |
 | 검색, 대출/반납/예약, 리뷰, 내 서재, 달력, 랭킹, 커뮤니티 피드, 관리자(현황/신청·신고 처리/통계) | ✅ 키 없이 동작 (시드된 데이터 필요)¹ |
 
