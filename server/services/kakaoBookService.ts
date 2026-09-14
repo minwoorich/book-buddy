@@ -74,11 +74,16 @@ function toItem(raw: KakaoBookRawItem): ExternalBookItem {
 }
 
 export const kakaoBookService = {
-  /** 제목/저자 키워드 검색 (희망도서 신청, AI 검색 도구, 시드 스크립트에서 사용). */
-  async search(restKey: string, query: string, display = 10): Promise<ExternalBookItem[]> {
+  /**
+   * 제목/저자 키워드 검색 (희망도서 신청, AI 검색 도구, 시드 스크립트에서 사용).
+   * page: 카카오 책 검색 API의 페이지 번호(1~50, size와 곱해 최대 결과 수를 늘릴 때 시드
+   * 스크립트가 사용). 다른 호출부는 생략해 기본값(1페이지)을 그대로 쓴다.
+   */
+  async search(restKey: string, query: string, display = 10, page = 1): Promise<ExternalBookItem[]> {
     const url = new URL(BASE_URL)
     url.searchParams.set('query', query)
     url.searchParams.set('size', String(display))
+    url.searchParams.set('page', String(page))
 
     const res = await fetch(url.toString(), {
       headers: {

@@ -29,6 +29,10 @@ function daysAgo(n: number): Date {
   return new Date(Date.now() - n * 86_400_000)
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /** 런타임 SQLite `datetime('now')`와 같은 포맷('YYYY-MM-DD HH:MM:SS', UTC)으로 변환한다 —
  * ISO 문자열('...T...Z') 그대로 넣으면 같은 날 데이터끼리 정렬이 인터리브된다. */
 function dbTimestamp(d: Date): string {
@@ -70,52 +74,90 @@ function resetAll(): void {
 
 // ── 2. 책 (카카오 책 검색, 카테고리별 키워드 검색) ───────────────────
 // 카카오 책 검색 API에는 베스트셀러 목록이 없어 카테고리별 대표 키워드로 검색해 수집한다.
+// 키워드 하나당 최대 결과가 제한적이라, 카테고리당 목표치(MAX_PER_CATEGORY)를 채우려면
+// 키워드를 8~12개로 넉넉히 늘리고 키워드당 여러 페이지(PAGES_PER_KEYWORD)를 조회한다.
 const CATEGORIES: { label: string; keywords: string[] }[] = [
-  { label: '경제경영', keywords: ['리더십', '경영 전략', '마케팅'] },
-  { label: 'IT · 프로그래밍', keywords: ['프로그래밍', '소프트웨어 개발', '클린 코드'] },
-  { label: '자기계발', keywords: ['습관', '자기계발 베스트'] },
-  { label: '인문', keywords: ['철학 입문', '세계사'] },
+  {
+    label: '경제경영',
+    keywords: ['리더십', '경영 전략', '마케팅', '투자', '조직문화', '협상', '스타트업', '재무', '브랜딩'],
+  },
+  {
+    label: 'IT · 프로그래밍',
+    keywords: [
+      '프로그래밍',
+      '파이썬',
+      '자바스크립트',
+      '데이터베이스',
+      '알고리즘',
+      '인공지능',
+      '클라우드',
+      '소프트웨어 설계',
+      '개발자',
+    ],
+  },
+  {
+    label: '자기계발',
+    keywords: ['습관', '시간관리', '글쓰기', '대화법', '집중력', '커리어', '동기부여', '마인드셋'],
+  },
+  {
+    label: '인문',
+    keywords: ['철학', '역사', '심리학', '과학 교양', '에세이', '사회', '경제사', '예술'],
+  },
 ]
-const MAX_PER_CATEGORY = 10
+// 카테고리당 목표 권수. 총 목표는 CATEGORIES.length * MAX_PER_CATEGORY(현재 4 * 125 = 500).
+const MAX_PER_CATEGORY = 125
+const PAGE_SIZE = 20
+const PAGES_PER_KEYWORD = 2
+// 카카오 API 레이트 리밋 배려용 호출 간 대기.
+const KAKAO_SLEEP_MS = 100
 
-async function seedBooks(restKey: string): Promise<Book[]> {
+async function seedBooks(restKey: string): Promise<{ books: Book[]; perCategory: Record<string, number> }> {
   const inserted: Book[] = []
   const seenIsbn = new Set<string>()
+  const perCategory: Record<string, number> = {}
 
   for (const cat of CATEGORIES) {
     console.log(`  - [${cat.label}] 키워드 검색 수집 중... (${cat.keywords.join(', ')})`)
     let categoryCount = 0
     for (const keyword of cat.keywords) {
       if (categoryCount >= MAX_PER_CATEGORY) break
-      const display = randomInt(5, 6)
-      const items = await kakaoBookService.search(restKey, keyword, display)
-      if (isDebug() && items.length > 0) {
-        console.log(`[seed] "${keyword}" raw first item:`, JSON.stringify(items[0], null, 2))
-      }
-      for (const item of items) {
+      for (let page = 1; page <= PAGES_PER_KEYWORD; page++) {
         if (categoryCount >= MAX_PER_CATEGORY) break
-        if (!item.isbn13 || seenIsbn.has(item.isbn13)) continue
-        seenIsbn.add(item.isbn13)
-        const id = bookRepo.insert({
-          isbn13: item.isbn13,
-          title: item.title,
-          author: item.author,
-          publisher: item.publisher || null,
-          category: cat.label,
-          description: item.description || null,
-          coverUrl: item.cover,
-          pubDate: item.pubDate || null,
-          pageCount: null,
-        })
-        const book = bookRepo.findById(id)
-        if (book) {
-          inserted.push(book)
-          categoryCount++
+        const items = await kakaoBookService.search(restKey, keyword, PAGE_SIZE, page)
+        await sleep(KAKAO_SLEEP_MS)
+        if (isDebug() && items.length > 0) {
+          console.log(`[seed] "${keyword}" p${page} raw first item:`, JSON.stringify(items[0], null, 2))
+        }
+        if (items.length === 0) break // 더 이상 결과가 없으면 다음 페이지를 시도하지 않는다.
+
+        for (const item of items) {
+          if (categoryCount >= MAX_PER_CATEGORY) break
+          if (!item.isbn13 || seenIsbn.has(item.isbn13)) continue
+          seenIsbn.add(item.isbn13)
+          const id = bookRepo.insert({
+            isbn13: item.isbn13,
+            title: item.title,
+            author: item.author,
+            publisher: item.publisher || null,
+            category: cat.label,
+            description: item.description || null,
+            coverUrl: item.cover,
+            pubDate: item.pubDate || null,
+            pageCount: null,
+          })
+          const book = bookRepo.findById(id)
+          if (book) {
+            inserted.push(book)
+            categoryCount++
+          }
         }
       }
     }
+    perCategory[cat.label] = categoryCount
+    console.log(`    → [${cat.label}] ${categoryCount}권 수집`)
   }
-  return inserted
+
+  return { books: inserted, perCategory }
 }
 
 // ── 3. 직원 12명 (design/mockups/v1a/login.html 명단과 동일) ─────────
@@ -337,7 +379,7 @@ async function main(): Promise<void> {
   resetAll()
 
   console.log('카카오 책 검색으로 책 시딩 중...')
-  const books = await seedBooks(restKey)
+  const { books, perCategory } = await seedBooks(restKey)
   if (books.length < 3) {
     console.error(
       `카카오 책 검색 API에서 책을 충분히 가져오지 못했어요 (${books.length}권). 키가 유효한지 확인해주세요.`
@@ -366,7 +408,10 @@ async function main(): Promise<void> {
   seedReport(userIds, books)
 
   console.log('\n--- 시드 완료 ---')
-  console.log(`books: ${books.length}`)
+  console.log(`books: ${books.length} (목표 ${CATEGORIES.length * MAX_PER_CATEGORY}권)`)
+  for (const cat of CATEGORIES) {
+    console.log(`  - ${cat.label}: ${perCategory[cat.label] ?? 0}권`)
+  }
   console.log(`users: ${userIds.length} (관리자 1명 포함)`)
   console.log(`loans: 완료 ${completedCount} + 진행중 3 (연체 1 포함)`)
   console.log(`reservations: 1`)
