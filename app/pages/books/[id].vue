@@ -215,8 +215,8 @@ function askAi() {
           <p v-if="book.description" class="desc">{{ book.description }}</p>
 
           <div class="panel accent ai-mini">
-            <i>AI LIBRARIAN</i>
-            <button type="button" class="btn" @click="askAi">AI에게 이 책 물어보기</button>
+            <i>책벗 · AI</i>
+            <button type="button" class="btn" @click="askAi">책벗에게 이 책 물어보기</button>
           </div>
 
           <div class="sec-head" style="margin-top:0;">

@@ -20,7 +20,7 @@ async function runAction(action: ChatAction) {
   <div v-if="msg.role === 'user'" class="msg-user">{{ msg.content }}</div>
 
   <div v-else class="msg-ai">
-    <span class="tag">AI LIBRARIAN</span>
+    <span class="tag">책벗</span>
     {{ msg.content }}
 
     <div v-if="msg.books?.length" class="mini-books">

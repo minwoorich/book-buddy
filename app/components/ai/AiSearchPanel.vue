@@ -43,13 +43,13 @@ async function runAction(to: string) {
       <svg class="wander-path" viewBox="0 0 410 80" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <path d="M10,40 C60,10 90,70 140,40 S220,10 270,40 S350,70 400,40" />
       </svg>
-      <span class="wander-label">사서가 서가를 걷는 중...</span>
+      <span class="wander-label">책벗이 서가를 걷는 중...</span>
     </div>
 
     <template v-else-if="errorMessage">
       <div class="ai-head">
-        <i>AI LIBRARIAN</i>
-        <b>사서의 추천</b>
+        <i>책벗 · AI</i>
+        <b>책벗의 추천</b>
         <span class="ai-q">"{{ query }}"</span>
       </div>
       <p class="ai-fallback">{{ errorMessage }}</p>
@@ -57,8 +57,8 @@ async function runAction(to: string) {
 
     <template v-else-if="answer">
       <div class="ai-head">
-        <i>AI LIBRARIAN</i>
-        <b>사서의 추천</b>
+        <i>책벗 · AI</i>
+        <b>책벗의 추천</b>
         <span class="ai-q">"{{ query }}"</span>
       </div>
       <p>{{ answer.message }}</p>

@@ -24,7 +24,7 @@ watch([() => messages.value.length, sending], async () => {
 
 <template>
   <template v-if="user">
-    <button v-if="!open" type="button" class="fab" title="AI 사서" @click="open = true">
+    <button v-if="!open" type="button" class="fab" title="책벗" @click="open = true">
       <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
     </button>
 
@@ -33,7 +33,7 @@ watch([() => messages.value.length, sending], async () => {
         <div class="logo-mark">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
         </div>
-        <div><b>AI 사서</b><span>● 대출·예약·신청까지 대신해드려요</span></div>
+        <div><b>책벗</b><span>● 대출·예약·신청까지 대신해드려요</span></div>
         <button type="button" class="x" title="닫기" @click="close">×</button>
       </div>
 
@@ -43,13 +43,13 @@ watch([() => messages.value.length, sending], async () => {
         <AiChatMessage v-for="(msg, i) in messages" :key="i" :msg="msg" />
 
         <div v-if="sending" class="thinking">
-          <span class="tag">AI LIBRARIAN</span>
+          <span class="tag">책벗</span>
           생각 중...
         </div>
       </div>
 
       <form class="chat-foot" @submit.prevent="submit">
-        <input v-model="draft" :disabled="sending" placeholder="AI 사서에게 무엇이든 물어보세요">
+        <input v-model="draft" :disabled="sending" placeholder="책벗에게 무엇이든 물어보세요">
         <button type="submit" class="send" :disabled="sending" aria-label="전송">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3 11l18-7-7 18-2.5-7L3 11z"></path></svg>
         </button>
