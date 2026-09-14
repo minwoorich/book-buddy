@@ -157,3 +157,14 @@ export interface Place {
   lat: number
   lng: number
 }
+
+/** 팀 QA용 인앱 피드백. path/viewport는 신고 시점에 자동 수집된다. */
+export interface QaFeedback {
+  id: number
+  userId: number
+  path: string
+  viewport: string | null
+  content: string
+  status: 'open' | 'resolved'
+  createdAt: string
+}

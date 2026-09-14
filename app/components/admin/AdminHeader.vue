@@ -1,11 +1,12 @@
 <script setup lang="ts">
-const props = defineProps<{ active: 'dashboard' | 'stats' }>()
+const props = defineProps<{ active: 'dashboard' | 'stats' | 'qa' }>()
 
 const { user } = useCurrentUser()
 
 const navItems = [
   { key: 'dashboard', label: '대시보드', to: '/admin' },
   { key: 'stats', label: '통계', to: '/admin/stats' },
+  { key: 'qa', label: 'QA', to: '/admin/qa' },
 ] as const
 
 const activeKey = computed(() => props.active)

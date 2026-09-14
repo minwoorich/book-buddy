@@ -55,5 +55,10 @@ export function migrate(db: Database.Database): void {
       target_type TEXT NOT NULL CHECK (target_type IN ('book','post','review')), target_id INTEGER NOT NULL,
       reason TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','resolved')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS qa_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id),
+      path TEXT NOT NULL, viewport TEXT, content TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')));
   `)
 }

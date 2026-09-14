@@ -2,5 +2,6 @@
   <NuxtPage />
   <ClientOnly>
     <AiChatWidget />
+    <CommonQaFeedbackButton />
   </ClientOnly>
 </template>
