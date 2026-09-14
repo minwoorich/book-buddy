@@ -17,7 +17,7 @@ if (process.argv.includes('--if-empty')) {
 }
 
 const TABLES = [
-  'review_votes', 'reviews', 'post_comments', 'post_likes', 'posts',
+  'qa_feedback', 'review_votes', 'reviews', 'post_comments', 'post_likes', 'posts',
   'reports', 'wishlists', 'purchase_requests', 'reservations', 'loans', 'books', 'users',
 ]
 for (const t of TABLES) db.prepare(`DELETE FROM ${t}`).run()

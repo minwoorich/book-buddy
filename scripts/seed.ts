@@ -49,6 +49,7 @@ const FALLBACK_COVER = `data:image/svg+xml,${encodeURIComponent(FALLBACK_COVER_S
 function resetAll(): void {
   const db = getDb()
   const tablesInDeleteOrder = [
+    'qa_feedback',
     'reports',
     'post_comments',
     'post_likes',
