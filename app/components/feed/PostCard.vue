@@ -8,6 +8,7 @@ type PostWithMeta = Post & {
   likeCount: number
   likedByMe: boolean
   commentCount: number
+  images: string[]
 }
 
 type CommentWithUser = PostComment & { userName: string }
@@ -27,6 +28,24 @@ const timeLabel = computed(() => {
   if (diffHour < 24) return `${diffHour}시간 전`
   return `${d.getMonth() + 1}. ${d.getDate()}.`
 })
+
+// images가 비어 있을 일은 없지만(레포에서 imagePath로 폴백) 방어적으로 한 번 더 폴백한다.
+const photos = computed(() => (props.post.images.length > 0 ? props.post.images : [props.post.imagePath]))
+const activeIndex = ref(0)
+watch(
+  () => props.post.id,
+  () => {
+    activeIndex.value = 0
+  }
+)
+
+function prevPhoto() {
+  if (activeIndex.value > 0) activeIndex.value--
+}
+
+function nextPhoto() {
+  if (activeIndex.value < photos.value.length - 1) activeIndex.value++
+}
 
 const likeBusy = ref(false)
 
@@ -106,7 +125,21 @@ async function submitComment() {
 <template>
   <div class="post">
     <div class="photo">
-      <img :src="post.imagePath" :alt="post.caption ?? post.book?.title ?? '게시물 사진'">
+      <img :src="photos[activeIndex]" :alt="post.caption ?? post.book?.title ?? '게시물 사진'">
+      <template v-if="photos.length > 1">
+        <button
+          type="button" class="nav prev" :disabled="activeIndex === 0"
+          aria-label="이전 사진" @click="prevPhoto"
+        >‹</button>
+        <button
+          type="button" class="nav next" :disabled="activeIndex === photos.length - 1"
+          aria-label="다음 사진" @click="nextPhoto"
+        >›</button>
+        <div class="dots">
+          <span v-for="(p, i) in photos" :key="p + i" class="dot" :class="{ on: i === activeIndex }" />
+        </div>
+        <div class="counter">{{ activeIndex + 1 }}/{{ photos.length }}</div>
+      </template>
     </div>
     <div class="body">
       <div class="who">
@@ -142,6 +175,15 @@ async function submitComment() {
 .post { background: var(--card); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; box-shadow: 0 2px 10px rgba(84, 70, 45, .06); }
 .post .photo { aspect-ratio: 4 / 3; background: #EDE7DA; position: relative; overflow: hidden; }
 .post .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.post .photo .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0, 0, 0, .4); color: #fff; font-size: 17px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.post .photo .nav:hover:not(:disabled) { background: rgba(0, 0, 0, .6); }
+.post .photo .nav:disabled { opacity: .3; cursor: default; }
+.post .photo .nav.prev { left: 10px; }
+.post .photo .nav.next { right: 10px; }
+.post .photo .dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 5px; }
+.post .photo .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, .55); }
+.post .photo .dot.on { background: var(--red); }
+.post .photo .counter { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .post .body { padding: 14px 16px 16px; }
 .post .who { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
 .post .who b { font-size: 13.5px; display: block; }
