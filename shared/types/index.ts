@@ -55,6 +55,37 @@ export interface HomeSection {
   sortOrder: number
 }
 
+/** AI 기능(chat/search/places)별 프롬프트·모델 설정. 관리자가 편집할 수 있다. */
+export interface AiSetting {
+  id: number
+  featureKey: string
+  systemPrompt: string
+  model: string
+  maxTokens: number
+  temperature: number
+  recursionLimit: number | null
+  updatedAt: string
+}
+
+/** AI 사용량 요약(오늘/누적 호출 수·토큰). */
+export interface AiUsageSummary {
+  today: { calls: number; inputTokens: number; outputTokens: number }
+  total: { calls: number; inputTokens: number; outputTokens: number }
+}
+
+/** 최근 AI 호출 1건 — userName은 탈퇴/시드 리셋된 사용자면 null. */
+export interface AiUsageRecord {
+  id: number
+  featureKey: string
+  userId: number
+  userName: string | null
+  model: string
+  inputTokens: number
+  outputTokens: number
+  durationMs: number
+  createdAt: string
+}
+
 export interface Loan {
   id: number
   bookId: number

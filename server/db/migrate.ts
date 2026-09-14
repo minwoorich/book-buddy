@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3'
+import { AI_DEFAULTS, AI_FEATURE_KEYS } from '../ai/defaults'
 
 export function migrate(db: Database.Database): void {
   db.exec(`
@@ -63,6 +64,20 @@ export function migrate(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS home_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT, section_key TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS ai_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, feature_key TEXT NOT NULL UNIQUE,
+      system_prompt TEXT NOT NULL, model TEXT NOT NULL, max_tokens INTEGER NOT NULL,
+      temperature REAL NOT NULL, recursion_limit INTEGER,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, feature_key TEXT NOT NULL,
+      -- user_id는 users(id) FK를 걸지 않는다: seed.ts가 재실행마다 users 테이블을 통째로
+      -- 비우는데, ai_usage는 과거 사용 기록 보존을 위해 시드 리셋 대상에서 제외돼 있다.
+      -- FK가 있으면 users DELETE 시 제약 위반이 난다. 탈퇴/리셋된 사용자의 기록은 조회부에서
+      -- LEFT JOIN으로 처리한다(aiUsageRepo.recent 참고).
+      user_id INTEGER NOT NULL, model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
   `)
 
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
@@ -82,5 +97,17 @@ export function migrate(db: Database.Database): void {
   ]
   for (const [key, title, enabled, sortOrder] of defaultSections) {
     seedSection.run(key, title, enabled, sortOrder)
+  }
+
+  // AI 기능(chat/search/places) 기본 설정 3행 — 관리자가 편집한 뒤에도 재시딩 때마다 값을
+  // 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE feature_key)로 최초 1회만 채운다.
+  const seedAiSetting = db.prepare(
+    `INSERT OR IGNORE INTO ai_settings
+       (feature_key, system_prompt, model, max_tokens, temperature, recursion_limit)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  )
+  for (const key of AI_FEATURE_KEYS) {
+    const d = AI_DEFAULTS[key]
+    seedAiSetting.run(key, d.systemPrompt, d.model, d.maxTokens, d.temperature, d.recursionLimit)
   }
 }

@@ -1,4 +1,6 @@
 import { runAgent } from '../../ai/agent'
+import { aiSettingsRepo } from '../../repositories/aiSettingsRepo'
+import { aiUsageRepo } from '../../repositories/aiUsageRepo'
 import { bookRepo } from '../../repositories/bookRepo'
 import { handleApi, requireUser } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
@@ -36,8 +38,18 @@ export default defineEventHandler(
       }
     }
 
+    const setting = aiSettingsRepo.findByKey('chat')
+    if (!setting) throw new ApiError(503, 'AI를 사용할 수 없어요')
+
     const { anthropicApiKey, kakaoRestKey } = useRuntimeConfig(event)
-    const answer = await runAgent({ anthropicApiKey, kakaoRestKey }, me.id, recent, systemExtra)
+    const { answer, usage } = await runAgent(
+      { anthropicApiKey, kakaoRestKey, settings: setting },
+      me.id,
+      recent,
+      systemExtra
+    )
+
+    aiUsageRepo.insert('chat', me.id, setting.model, usage.inputTokens, usage.outputTokens, usage.durationMs)
 
     const books = answer.bookIds
       .map((id) => bookRepo.findById(id))
