@@ -3,7 +3,7 @@ const props = defineProps<{ active: string }>()
 
 const { user, logout } = useCurrentUser()
 
-const navItems = [
+const ALL_NAV_ITEMS = [
   { key: 'home', label: '홈', to: '/' },
   { key: 'my', label: '내 서재', to: '/my' },
   { key: 'calendar', label: '도서 달력', to: '/calendar' },
@@ -11,6 +11,10 @@ const navItems = [
   { key: 'feed', label: '피드', to: '/feed' },
   { key: 'places', label: '장소', to: '/places' },
 ]
+
+// 비로그인 상태에서는 보호된 메뉴(홈 제외 5개)를 숨긴다 — 클릭해도 가드에 막혀 로그인으로
+// 튕겨나가는 것보다, 애초에 보이지 않는 편이 게스트 경험상 자연스럽다.
+const navItems = computed(() => (user.value ? ALL_NAV_ITEMS : ALL_NAV_ITEMS.filter((item) => item.key === 'home')))
 
 const activeKey = computed(() => props.active)
 
@@ -41,6 +45,15 @@ async function handleLogout() {
       <button v-if="user" type="button" class="me" style="background:none;border:0;cursor:pointer;font:inherit;" @click="handleLogout">
         <div class="avatar">{{ user.name.charAt(0) }}</div> {{ user.name }} 님
       </button>
+      <div v-else class="guest-actions">
+        <NuxtLink to="/signup" class="signup-link">회원가입</NuxtLink>
+        <NuxtLink to="/login" class="btn primary sm">로그인</NuxtLink>
+      </div>
     </div>
   </nav>
 </template>
+
+<style scoped>
+.guest-actions { display: flex; align-items: center; gap: 14px; }
+.signup-link { font-size: 13px; color: var(--sub); }
+</style>
