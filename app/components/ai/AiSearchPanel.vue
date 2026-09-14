@@ -39,9 +39,11 @@ async function runAction(to: string) {
 
 <template>
   <div class="panel accent ai">
-    <div v-if="loading" class="ai-skeleton" aria-busy="true">
-      <div class="bar w1" />
-      <div class="bar w2" />
+    <div v-if="loading" class="ai-loading" aria-busy="true">
+      <svg class="wander-path" viewBox="0 0 410 80" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <path d="M10,40 C60,10 90,70 140,40 S220,10 270,40 S350,70 400,40" />
+      </svg>
+      <span class="wander-label">사서가 서가를 걷는 중...</span>
     </div>
 
     <template v-else-if="errorMessage">
@@ -97,13 +99,21 @@ p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-wi
 .ai-book .a { font-size: 12.5px; color: var(--sub); }
 .ai-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.ai-skeleton { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
-.bar { height: 14px; border-radius: 3px; background: #EDE7DA; animation: ai-pulse 1.2s ease-in-out infinite; }
-.bar.w1 { width: 70%; }
-.bar.w2 { width: 45%; }
-@keyframes ai-pulse {
-  0%, 100% { opacity: .5; }
-  50% { opacity: 1; }
+.ai-loading { display: flex; align-items: center; gap: 18px; padding: 4px 0; min-height: 46px; }
+.wander-path { width: 230px; height: 46px; flex-shrink: 0; }
+.wander-path path {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 700;
+  animation: wander 2.4s ease-in-out infinite;
+}
+.wander-label { font-size: 14px; color: var(--sub); }
+@keyframes wander {
+  0% { stroke-dashoffset: 700; }
+  45%, 55% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -700; }
 }
 
 .ai-fallback { margin: 0; font-size: 14px; color: var(--sub); }
