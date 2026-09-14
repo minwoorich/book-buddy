@@ -1,12 +1,24 @@
 <script setup lang="ts">
 const { user } = useCurrentUser()
 const { open, messages, sending, send } = useChat()
+const route = useRoute()
+
+// /login·/signup 화면에서는 굳이 책벗 FAB로 로그인을 또 유도할 필요가 없다.
+const hideWidget = computed(() => route.path === '/login' || route.path === '/signup')
 
 const draft = ref('')
 const bodyRef = ref<HTMLElement | null>(null)
 
 function close() {
   open.value = false
+}
+
+function goLogin() {
+  void navigateTo('/login')
+}
+
+function goSignup() {
+  void navigateTo('/signup')
 }
 
 async function submit() {
@@ -23,10 +35,28 @@ watch([() => messages.value.length, sending], async () => {
 </script>
 
 <template>
-  <template v-if="user">
+  <template v-if="!hideWidget">
     <button v-if="!open" type="button" class="fab" title="책벗" @click="open = true">
       <span class="fab-glyph">友</span>
     </button>
+
+    <div v-else-if="!user" class="chat guest-teaser">
+      <div class="chat-head">
+        <div class="logo-mark">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+        </div>
+        <div><b>책벗</b></div>
+        <button type="button" class="x" title="닫기" @click="close">×</button>
+      </div>
+      <div class="guest-body">
+        <span class="guest-glyph">友</span>
+        <p>책벗은 로그인 후 이용할 수 있는 서비스예요</p>
+        <div class="guest-actions">
+          <button type="button" class="btn primary" @click="goLogin">로그인</button>
+          <button type="button" class="btn" @click="goSignup">회원가입</button>
+        </div>
+      </div>
+    </div>
 
     <div v-else class="chat">
       <div class="chat-head">
@@ -75,4 +105,10 @@ watch([() => messages.value.length, sending], async () => {
 .chat-foot .send { width: 36px; height: 36px; border-radius: 50%; background: var(--red); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
 .chat-foot .send:hover { background: var(--red-dark); }
 .chat-foot .send:disabled { opacity: .6; cursor: not-allowed; }
+
+.guest-teaser { height: auto; }
+.guest-body { padding: 34px 24px 30px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; }
+.guest-glyph { font-family: "Noto Serif KR", serif; font-size: 34px; font-weight: 600; color: var(--red); line-height: 1; }
+.guest-body p { margin: 0; font-size: 14px; color: var(--sub); line-height: 1.6; }
+.guest-actions { display: flex; gap: 10px; }
 </style>
