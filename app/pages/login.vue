@@ -1,12 +1,30 @@
 <script setup lang="ts">
 import type { User } from '#shared/types'
 
-const { data: users } = await useFetch<User[]>('/api/users')
+const api = useApi()
 const { login } = useCurrentUser()
 
-async function selectUser(u: User) {
-  login(u)
-  await navigateTo(u.role === 'admin' ? '/admin' : '/')
+const name = ref('')
+const password = ref('')
+const loading = ref(false)
+const error = ref('')
+
+async function submit() {
+  if (loading.value) return
+  error.value = ''
+  loading.value = true
+  try {
+    const user = await api<User>('/api/auth/login', {
+      method: 'POST',
+      body: { name: name.value, password: password.value },
+    })
+    login(user)
+    await navigateTo(user.role === 'admin' ? '/admin' : '/')
+  } catch (e) {
+    error.value = apiErrorMessage(e)
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -18,41 +36,42 @@ async function selectUser(u: User) {
       </div>
       <div><b>Book Buddy</b><span>VATECH LIBRARY</span></div>
     </div>
-    <h1>어서 오세요</h1>
-    <div class="sub">이름을 선택하면 바로 시작합니다</div>
 
-    <div class="people">
-      <button
-        v-for="u in users"
-        :key="u.id"
-        type="button"
-        class="person"
-        @click="selectUser(u)"
-      >
-        <span class="avatar">{{ u.name.charAt(0) }}</span>
-        <span class="nm">{{ u.name }}</span>
-        <span class="org">
-          {{ u.company }} · {{ u.department }}<br>
-          <template v-if="u.role === 'admin'"><span class="badge red">관리자</span></template>
-          <template v-else>{{ u.team }} · {{ u.position }}</template>
-        </span>
-      </button>
+    <div class="panel login-panel">
+      <h1>어서 오세요</h1>
+      <div class="sub">이름과 비밀번호로 로그인하세요</div>
+
+      <form class="login-form" @submit.prevent="submit">
+        <input v-model="name" type="text" class="input" placeholder="이름" autofocus autocomplete="username">
+        <input v-model="password" type="password" class="input" placeholder="비밀번호" autocomplete="current-password">
+        <p v-if="error" class="error">{{ error }}</p>
+        <button type="submit" class="btn primary login-btn" :disabled="loading">
+          {{ loading ? '로그인 중...' : '로그인' }}
+        </button>
+      </form>
+    </div>
+
+    <div class="hint card-2">
+      시연 계정 — 일반: 김민우 / 1234 · 관리자: 도서관리자 / admin1234
     </div>
   </div>
 </template>
 
 <style scoped>
-.login-wrap { max-width: 860px; margin: 0 auto; padding: 70px 24px 90px; text-align: center; }
+.login-wrap { max-width: 420px; margin: 0 auto; padding: 70px 24px 90px; text-align: center; }
 .logo-big { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 26px; }
 .logo-big .logo-mark { width: 44px; height: 44px; border-radius: 10px; }
 .logo-big b { font-family: "Noto Serif KR", serif; font-size: 26px; display: block; text-align: left; }
 .logo-big span { font-size: 11px; color: var(--sub); letter-spacing: 2.6px; display: block; text-align: left; margin-top: 2px; }
+
+.login-panel { text-align: center; padding: 32px 28px 30px; }
 h1 { font-family: "Noto Serif KR", serif; font-size: 24px; font-weight: 600; margin: 0 0 8px; }
-.sub { color: var(--sub); font-size: 14.5px; margin-bottom: 40px; }
-.people { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.person { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 12px 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: border-color .12s, transform .12s; font: inherit; }
-.person:hover { border-color: var(--red); transform: translateY(-3px); }
-.person .avatar { width: 44px; height: 44px; font-size: 17px; }
-.person .nm { font-weight: 700; font-size: 15px; color: var(--ink); }
-.person .org { font-size: 12px; color: var(--sub); line-height: 1.5; }
+.sub { color: var(--sub); font-size: 14.5px; margin-bottom: 28px; }
+
+.login-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.login-btn { width: 100%; padding: 11px 16px; margin-top: 4px; }
+.login-btn:disabled { opacity: .6; cursor: not-allowed; }
+.error { color: var(--red); font-size: 13px; margin: 2px 0 0; }
+
+.hint { margin-top: 22px; padding: 12px 16px; border-radius: 4px; font-size: 12.5px; color: var(--sub); background: var(--card-2); border: 1px solid var(--line); }
 </style>
