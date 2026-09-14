@@ -94,9 +94,25 @@ function extractDeltaText(content: unknown): string {
   return out
 }
 
+/**
+ * on_tool_start의 `data.input`은 `{ input: '<JSON 문자열>' }` 형태로 온다(LangGraph의
+ * ToolNode가 도구 인자를 문자열로 직렬화해 콜백에 넘김) — 실제 파싱된 인자 객체가 아니다.
+ * 그 문자열을 다시 JSON.parse해 실제 도구 인자 객체를 꺼낸다.
+ */
+function unwrapToolInput(raw: unknown): Record<string, unknown> {
+  const wrapped = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).input : undefined
+  if (typeof wrapped !== 'string') return {}
+  try {
+    const parsed = JSON.parse(wrapped)
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
 /** on_tool_start 이벤트의 name/input으로 사람이 읽을 짧은 활동 요약을 만든다. */
 function toolDetail(name: string, input: unknown): string {
-  const obj = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+  const obj = unwrapToolInput(input)
   const str = (key: string) => (typeof obj[key] === 'string' ? (obj[key] as string) : '')
   switch (name) {
     case 'search_books':
