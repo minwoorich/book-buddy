@@ -17,10 +17,22 @@ if (process.argv.includes('--if-empty')) {
 }
 
 const TABLES = [
-  'qa_feedback', 'review_votes', 'reviews', 'post_comments', 'post_likes', 'posts',
+  'qa_feedback', 'review_votes', 'reviews', 'post_comments', 'post_likes', 'post_images', 'posts',
   'reports', 'wishlists', 'purchase_requests', 'reservations', 'loans', 'books', 'users',
 ]
 for (const t of TABLES) db.prepare(`DELETE FROM ${t}`).run()
+
+// 피드 게시물 사진: 책 표지를 썸네일로 쓰면 게시물이 표지 이미지처럼 보이는 문제가 있어(책 태그는
+// booktag 칩으로 이미 따로 붙는다), 자체 생성한 단색 SVG data URI 플레이스홀더로 대체한다.
+function makeSeedPhoto(bg: string, text: string, sub = 'BOOK BUDDY 인증샷'): string {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+    `<rect width="400" height="300" fill="${bg}"/>` +
+    `<text x="200" y="150" font-family="sans-serif" font-size="22" font-weight="600" fill="#4A4033" text-anchor="middle" dominant-baseline="middle">${text}</text>` +
+    `<text x="200" y="270" font-family="sans-serif" font-size="12" letter-spacing="2" fill="#4A4033" opacity="0.6" text-anchor="middle">${sub}</text>` +
+    '</svg>'
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
 
 const insUser = db.prepare(
   `INSERT INTO users (name, company, department, team, position, gender, birth_year, role)
@@ -148,10 +160,19 @@ db.prepare(
 const insPost = db.prepare(
   `INSERT INTO posts (user_id, book_id, image_path, caption, created_at) VALUES (?, ?, ?, ?, ?)`,
 )
-const p1 = Number(insPost.run(uid['이서연'], bid['함께 자라기'], COVER('17597/74/cover500/8966262333_1'),
+const p1Photo = makeSeedPhoto('#E8DFD0', '점심시간 옥상 독서')
+const p1 = Number(insPost.run(uid['이서연'], bid['함께 자라기'], p1Photo,
   '점심시간 옥상 독서 15분. 짧아도 매일 하는 게 중요하다길래 시작했어요', ts('2026-09-12', '12:40:00')).lastInsertRowid)
-const p2 = Number(insPost.run(uid['김민우'], bid['하드씽'], COVER('26666/69/cover500/8947547034_1'),
+const p2 = Number(insPost.run(uid['김민우'], bid['하드씽'], makeSeedPhoto('#DCE5DA', '퇴근 후 한 챕터'),
   '하드씽 완독! "쉬운 선택을 하지 마라"는 문장이 오래 남네요. 다음은 클린 코드 2판.', ts('2026-09-06', '19:10:00')).lastInsertRowid)
+
+// p1은 사진 3장으로 캐러셀 데모가 되게 post_images에 추가로 넣는다.
+const insPostImage = db.prepare(
+  `INSERT INTO post_images (post_id, image_path, sort_order) VALUES (?, ?, ?)`,
+)
+;[p1Photo, makeSeedPhoto('#F0E4D8', '도시락 먹고 책 한 장'), makeSeedPhoto('#D9E3EA', '옥상 벤치 독서')]
+  .forEach((path, i) => insPostImage.run(p1, path, i))
+
 const insLike = db.prepare(`INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`)
 insLike.run(p1, uid['한상우'], ts('2026-09-12', '13:00:00'))
 insLike.run(p1, uid['정다은'], ts('2026-09-12', '13:30:00'))
@@ -169,5 +190,5 @@ db.prepare(
 const count = (t: string) => (db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get() as { c: number }).c
 console.log('미니 시드 완료:',
   `users=${count('users')}, books=${count('books')}, loans=${count('loans')},`,
-  `reviews=${count('reviews')}, votes=${count('review_votes')}, posts=${count('posts')},`,
+  `reviews=${count('reviews')}, votes=${count('review_votes')}, posts=${count('posts')}, post_images=${count('post_images')},`,
   `reservations=${count('reservations')}, wishlists=${count('wishlists')}, requests=${count('purchase_requests')}, reports=${count('reports')}`)

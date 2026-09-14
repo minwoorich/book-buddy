@@ -41,13 +41,19 @@ function dbTimestamp(d: Date): string {
 
 const isDebug = () => process.env.SEED_DEBUG === '1'
 
-// via.placeholder.com이 서비스 종료돼(2023년) 외부 요청 없이 항상 뜨는 단색 SVG data URI로 대체.
-const FALLBACK_COVER_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="360">' +
-  '<rect width="240" height="360" fill="#C9BCA2"/>' +
-  '<text x="120" y="180" font-family="sans-serif" font-size="20" fill="#4A4033" text-anchor="middle" dominant-baseline="middle">Book Buddy</text>' +
-  '</svg>'
-const FALLBACK_COVER = `data:image/svg+xml,${encodeURIComponent(FALLBACK_COVER_SVG)}`
+// 피드 게시물 사진: 책 표지를 썸네일로 쓰면 게시물이 표지 이미지처럼 보이는 문제가 있어(책 태그는
+// booktag 칩으로 이미 따로 붙는다), 자체 생성한 단색 SVG data URI 플레이스홀더로 대체한다.
+const SEED_PHOTO_COLORS = ['#E8DFD0', '#DCE5DA', '#E3DDE9', '#F0E4D8', '#D9E3EA']
+
+function makeSeedPhoto(bg: string, text: string, sub = 'BOOK BUDDY 인증샷'): string {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+    `<rect width="400" height="300" fill="${bg}"/>` +
+    `<text x="200" y="150" font-family="sans-serif" font-size="22" font-weight="600" fill="#4A4033" text-anchor="middle" dominant-baseline="middle">${text}</text>` +
+    `<text x="200" y="270" font-family="sans-serif" font-size="12" letter-spacing="2" fill="#4A4033" opacity="0.6" text-anchor="middle">${sub}</text>` +
+    '</svg>'
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
 
 // ── 1. 기존 데이터 초기화 (FK 역순) ──────────────────────────────────
 function resetAll(): void {
@@ -57,6 +63,7 @@ function resetAll(): void {
     'reports',
     'post_comments',
     'post_likes',
+    'post_images',
     'posts',
     'purchase_requests',
     'wishlists',
@@ -340,15 +347,31 @@ function seedPurchaseRequests(userIds: number[]): number {
   return requests.length
 }
 
-// ── 9. 커뮤니티 피드 3건 (표지 URL을 image_path로) ──────────────────
+// ── 9. 커뮤니티 피드 3건 (자체 생성 SVG 사진 플레이스홀더, 책은 booktag로만 태그) ─
 function seedPosts(userIds: number[], books: Book[]): number {
   const captions = ['오늘 드디어 완독했어요! 📚', '점심시간에 틈틈이 읽고 있습니다.', '표지부터 마음에 들었던 책이에요.']
+  const moods = ['점심시간 옥상 독서', '퇴근 후 한 챕터', '주말 카페 독서']
   for (let i = 0; i < captions.length; i++) {
     const userId = pick(userIds)
     const book = pick(books)
-    getDb()
+    const imagePath = makeSeedPhoto(SEED_PHOTO_COLORS[i % SEED_PHOTO_COLORS.length], moods[i])
+    const result = getDb()
       .prepare(`INSERT INTO posts (user_id, book_id, image_path, caption) VALUES (?, ?, ?, ?)`)
-      .run(userId, book.id, book.coverUrl ?? FALLBACK_COVER, captions[i])
+      .run(userId, book.id, imagePath, captions[i])
+    const postId = Number(result.lastInsertRowid)
+
+    // 첫 게시물은 사진 3장으로 캐러셀 데모가 되게 post_images에 추가로 넣는다.
+    if (i === 0) {
+      const extraPhotos = [
+        imagePath,
+        makeSeedPhoto(SEED_PHOTO_COLORS[3], '도시락 먹고 책 한 장'),
+        makeSeedPhoto(SEED_PHOTO_COLORS[4], '옥상 벤치에서 한 챕터 더'),
+      ]
+      const insImage = getDb().prepare(
+        `INSERT INTO post_images (post_id, image_path, sort_order) VALUES (?, ?, ?)`
+      )
+      extraPhotos.forEach((path, sortOrder) => insImage.run(postId, path, sortOrder))
+    }
   }
   return captions.length
 }
@@ -418,7 +441,7 @@ async function main(): Promise<void> {
   console.log(`reviews: ${reviewIds.length}, review_votes: ${voteCount}`)
   console.log(`wishlists: ${wishCount}`)
   console.log(`purchase_requests: ${purchaseCount}`)
-  console.log(`posts: ${postCount}`)
+  console.log(`posts: ${postCount} (1건은 사진 3장 post_images)`)
   console.log(`reports: 1`)
 }
 
