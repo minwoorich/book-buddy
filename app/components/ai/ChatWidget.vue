@@ -25,7 +25,7 @@ watch([() => messages.value.length, sending], async () => {
 <template>
   <template v-if="user">
     <button v-if="!open" type="button" class="fab" title="책벗" @click="open = true">
-      <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H10l-6 5V4z"></path></svg>
+      <span class="fab-glyph">友</span>
     </button>
 
     <div v-else class="chat">
@@ -59,6 +59,7 @@ watch([() => messages.value.length, sending], async () => {
 </template>
 
 <style scoped>
+.fab-glyph { font-family: "Noto Serif KR", serif; font-size: 26px; font-weight: 600; color: #fff; line-height: 1; }
 .chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
 .chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .chat-head .logo-mark { width: 30px; height: 30px; }
