@@ -1,6 +1,10 @@
 # ── build stage ─────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+# better-sqlite3 네이티브 빌드용 툴체인 (prebuild 미제공/다운로드 실패 시 소스 컴파일)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci
 COPY . .
