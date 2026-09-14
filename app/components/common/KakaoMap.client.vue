@@ -132,7 +132,7 @@ function renderMarkers() {
   })
 }
 
-onMounted(async () => {
+async function initMap(): Promise<void> {
   if (!props.appKey) {
     scriptFailed.value = true
     return
@@ -141,11 +141,23 @@ onMounted(async () => {
     await loadScript(`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${props.appKey}&autoload=false`)
     await new Promise<void>((resolve) => (window as any).kakao.maps.load(() => resolve()))
     await nextTick() // showFallback=false일 때 mapEl이 DOM에 붙을 때까지 대기
+    scriptFailed.value = false
     renderMarkers()
   } catch {
     scriptFailed.value = true
   }
-})
+}
+
+onMounted(initMap)
+
+// appKey가 비동기로 도착하는 경우(/api/public-config 런타임 조회) 재시도한다 —
+// mount 시점엔 빈 값이라 폴백에 빠졌더라도, 키가 오면 실지도로 전환한다.
+watch(
+  () => props.appKey,
+  (key, prev) => {
+    if (key && !prev) void initMap()
+  }
+)
 
 // places.vue가 AI 추천 후 displayList(= props.places)를 교체하는 등 목록이 바뀔 때마다
 // 마커를 다시 배치한다(순번이 우측 리스트와 항상 일치하도록). 지도 인스턴스는 재사용한다.

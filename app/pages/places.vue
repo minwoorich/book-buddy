@@ -7,6 +7,15 @@ const api = useApi()
 const { user } = useCurrentUser()
 const config = useRuntimeConfig()
 
+// ssr:false SPA는 public runtimeConfig가 빌드 시점 값으로 굳으므로(배포 빌드에선 빈 값),
+// 서버가 런타임 env에서 읽은 키를 /api/public-config로 받아 보완한다.
+const { data: publicConfig } = await useAsyncData<{ kakaoJsKey: string }>(
+  'public-config',
+  () => $fetch<{ kakaoJsKey: string }>('/api/public-config'),
+  { default: () => ({ kakaoJsKey: '' }) }
+)
+const kakaoJsKey = computed(() => publicConfig.value.kakaoJsKey || config.public.kakaoJsKey || '')
+
 // places.html의 고정 예시 4곳. 카카오 로컬 검색 키가 없어 GET /api/places가 503을 내는
 // 상황(또는 로그인 전 SSR)에서 정적 폴백으로 그대로 보여준다. address 필드는 실제 API
 // 결과에선 도로명 주소가 들어가지만, 여기선 목업과 동일하게 운영시간/메모 텍스트를 담는다.
@@ -119,7 +128,7 @@ async function requestAiRanking() {
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
 
       <div class="pl-layout">
-        <CommonKakaoMap :places="displayList" :app-key="config.public.kakaoJsKey" />
+        <CommonKakaoMap :places="displayList" :app-key="kakaoJsKey" />
 
         <div class="plist">
           <div v-for="(place, i) in displayList" :key="place.name" class="place">
