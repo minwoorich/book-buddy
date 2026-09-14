@@ -21,6 +21,8 @@ const FALLBACK_PIN_POSITIONS = [
 const mapEl = ref<HTMLElement | null>(null)
 /** 스크립트 로드 실패 또는 appKey 없음 — 이 경우에만 영구 폴백(래치)한다. */
 const scriptFailed = ref(false)
+/** 폴백 사유: 'no-key' | 'load-failed' | '' — 안내 문구 구분용. */
+const fallbackReason = ref<'no-key' | 'load-failed' | ''>('')
 
 const fallbackPlaces = computed(() => props.places.slice(0, 4))
 
@@ -135,6 +137,7 @@ function renderMarkers() {
 async function initMap(): Promise<void> {
   if (!props.appKey) {
     scriptFailed.value = true
+    fallbackReason.value = 'no-key'
     return
   }
   try {
@@ -142,9 +145,13 @@ async function initMap(): Promise<void> {
     await new Promise<void>((resolve) => (window as any).kakao.maps.load(() => resolve()))
     await nextTick() // showFallback=false일 때 mapEl이 DOM에 붙을 때까지 대기
     scriptFailed.value = false
+    fallbackReason.value = ''
     renderMarkers()
-  } catch {
+  } catch (e) {
+    // 도메인 미등록(domain mismatched)·잘못된 키 등 — 원인을 콘솔에 남겨 진단 가능하게 한다.
+    console.error('[KakaoMap] SDK 로드 실패:', e)
     scriptFailed.value = true
+    fallbackReason.value = 'load-failed'
   }
 }
 
@@ -198,7 +205,13 @@ watch(showFallback, (isFallback) => {
         <div class="head"><span>{{ i + 1 }}</span></div>
         <div class="lbl">{{ place.name }}</div>
       </div>
-      <div class="note">카카오 지도 키가 없어 예시 지도를 표시 중</div>
+      <div class="note">{{
+        fallbackReason === 'load-failed'
+          ? '카카오 지도를 불러오지 못해 예시 지도를 표시 중 (콘솔 확인 · 카카오 콘솔의 Web 도메인 등록 필요)'
+          : fallbackReason === 'no-key'
+            ? '카카오 지도 키가 없어 예시 지도를 표시 중'
+            : '표시할 장소가 없어 예시 지도를 표시 중'
+      }}</div>
     </template>
   </div>
 </template>
