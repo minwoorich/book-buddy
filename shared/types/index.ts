@@ -28,7 +28,7 @@ export type NewBook = Omit<Book, 'id'>
 /** 서가 카테고리 4종. `CommonCategoryChips`의 '전체'는 필터 UI 전용이라 제외. */
 export const BOOK_CATEGORIES = ['경제경영', 'IT · 프로그래밍', '자기계발', '인문'] as const
 
-/** 외부 서점(네이버 책 검색) 검색 결과 1건. */
+/** 외부 서점(카카오 책 검색) 검색 결과 1건. */
 export interface ExternalBookItem {
   title: string
   author: string
@@ -147,7 +147,11 @@ export interface StatRow {
   perHead: number
 }
 
-/** 네이버 지역 검색 결과 1건(책 읽기 좋은 장소). mapx/mapy는 WGS84 * 1e7 원본값, lat/lng는 변환값. */
+/**
+ * 카카오 로컬(장소) 검색 결과 1건(책 읽기 좋은 장소). mapx/mapy는 이전 지역 검색 연동 시절부터
+ * 써온 WGS84 * 1e7 정수 필드 — 카카오는 x(lng)/y(lat) 문자열만 주므로 lat/lng에 1e7을 곱해
+ * 역산해 채운다. lat/lng이 실제 좌표(도 단위)이고, mapx/mapy는 호환을 위해 남겨둔 파생값이다.
+ */
 export interface Place {
   name: string
   category: string

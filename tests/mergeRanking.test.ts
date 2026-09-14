@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergeRanking } from '../server/services/naverPlaceService'
+import { mergeRanking } from '../server/services/kakaoLocalService'
 import type { Place } from '../shared/types'
 
 function place(name: string): Place {

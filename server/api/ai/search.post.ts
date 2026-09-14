@@ -13,9 +13,9 @@ export default defineEventHandler(
     const { query } = await readBody<{ query: string }>(event)
     if (!query?.trim()) throw new ApiError(400, '검색어를 입력해주세요')
 
-    const { anthropicApiKey, naverSearchClientId, naverSearchClientSecret } = useRuntimeConfig(event)
+    const { anthropicApiKey, kakaoRestKey } = useRuntimeConfig(event)
     const answer = await runAgent(
-      { anthropicApiKey, naverSearchClientId, naverSearchClientSecret },
+      { anthropicApiKey, kakaoRestKey },
       me.id,
       [{ role: 'user', content: query.trim() }],
       SEARCH_SYSTEM_EXTRA

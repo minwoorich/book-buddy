@@ -2,7 +2,7 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { handleApi, requireUser } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 import { parsePlaceRanking } from '../../ai/parse'
-import { mergeRanking } from '../../services/naverPlaceService'
+import { mergeRanking } from '../../services/kakaoLocalService'
 import type { Place } from '../../../shared/types'
 
 const SYSTEM_PROMPT =

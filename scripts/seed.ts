@@ -1,10 +1,10 @@
 // 데모용 시드 스크립트. 재실행 가능 — 시작 시 전 테이블을 비우고 다시 채운다.
 // 실행: npm run seed  (tsx scripts/seed.ts)
-// 네이버 책 검색 API 원본 응답을 확인하려면: SEED_DEBUG=1 npm run seed
+// 카카오 책 검색 API 원본 응답을 확인하려면: SEED_DEBUG=1 npm run seed
 import 'dotenv/config'
 import { initDb, getDb } from '../server/db/connection'
 import { bookRepo } from '../server/repositories/bookRepo'
-import { naverBookService } from '../server/services/naverBookService'
+import { kakaoBookService } from '../server/services/kakaoBookService'
 import type { Book } from '../shared/types'
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
@@ -67,8 +67,8 @@ function resetAll(): void {
   }
 }
 
-// ── 2. 책 (네이버 책 검색, 카테고리별 키워드 검색) ───────────────────
-// 네이버 책 검색 API에는 베스트셀러 목록이 없어 카테고리별 대표 키워드로 검색해 수집한다.
+// ── 2. 책 (카카오 책 검색, 카테고리별 키워드 검색) ───────────────────
+// 카카오 책 검색 API에는 베스트셀러 목록이 없어 카테고리별 대표 키워드로 검색해 수집한다.
 const CATEGORIES: { label: string; keywords: string[] }[] = [
   { label: '경제경영', keywords: ['리더십', '경영 전략', '마케팅'] },
   { label: 'IT · 프로그래밍', keywords: ['프로그래밍', '소프트웨어 개발', '클린 코드'] },
@@ -77,7 +77,7 @@ const CATEGORIES: { label: string; keywords: string[] }[] = [
 ]
 const MAX_PER_CATEGORY = 10
 
-async function seedBooks(clientId: string, clientSecret: string): Promise<Book[]> {
+async function seedBooks(restKey: string): Promise<Book[]> {
   const inserted: Book[] = []
   const seenIsbn = new Set<string>()
 
@@ -87,7 +87,7 @@ async function seedBooks(clientId: string, clientSecret: string): Promise<Book[]
     for (const keyword of cat.keywords) {
       if (categoryCount >= MAX_PER_CATEGORY) break
       const display = randomInt(5, 6)
-      const items = await naverBookService.search(clientId, clientSecret, keyword, display)
+      const items = await kakaoBookService.search(restKey, keyword, display)
       if (isDebug() && items.length > 0) {
         console.log(`[seed] "${keyword}" raw first item:`, JSON.stringify(items[0], null, 2))
       }
@@ -321,12 +321,11 @@ function seedReport(userIds: number[], books: Book[]): void {
 
 // ── main ─────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  const clientId = process.env.NUXT_NAVER_SEARCH_CLIENT_ID
-  const clientSecret = process.env.NUXT_NAVER_SEARCH_CLIENT_SECRET
-  if (!clientId || !clientSecret) {
+  const restKey = process.env.NUXT_KAKAO_REST_KEY
+  if (!restKey) {
     console.error(
-      'NUXT_NAVER_SEARCH_CLIENT_ID / NUXT_NAVER_SEARCH_CLIENT_SECRET이 없습니다. .env 파일에 값을 설정한 뒤 다시 실행해주세요.\n' +
-        '발급: https://developers.naver.com/apps/#/register'
+      'NUXT_KAKAO_REST_KEY가 없습니다. .env 파일에 값을 설정한 뒤 다시 실행해주세요.\n' +
+        '발급: https://developers.kakao.com/console/app'
     )
     process.exitCode = 1
     return
@@ -336,11 +335,11 @@ async function main(): Promise<void> {
   console.log('기존 데이터 초기화 중...')
   resetAll()
 
-  console.log('네이버 책 검색으로 책 시딩 중...')
-  const books = await seedBooks(clientId, clientSecret)
+  console.log('카카오 책 검색으로 책 시딩 중...')
+  const books = await seedBooks(restKey)
   if (books.length < 3) {
     console.error(
-      `네이버 책 검색 API에서 책을 충분히 가져오지 못했어요 (${books.length}권). 키가 유효한지 확인해주세요.`
+      `카카오 책 검색 API에서 책을 충분히 가져오지 못했어요 (${books.length}권). 키가 유효한지 확인해주세요.`
     )
     process.exitCode = 1
     return

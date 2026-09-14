@@ -1,4 +1,4 @@
-import { naverPlaceService } from '../../services/naverPlaceService'
+import { kakaoLocalService } from '../../services/kakaoLocalService'
 import { handleApi, requireUser } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 import type { Place } from '../../../shared/types'
@@ -12,15 +12,13 @@ export default defineEventHandler(
     const q = getQuery(event)
     const query = typeof q.query === 'string' ? q.query.trim() : ''
 
-    const { naverSearchClientId, naverSearchClientSecret } = useRuntimeConfig(event)
-    if (!naverSearchClientId || !naverSearchClientSecret) {
+    const { kakaoRestKey } = useRuntimeConfig(event)
+    if (!kakaoRestKey) {
       throw new ApiError(503, '장소 검색을 사용할 수 없어요')
     }
 
     const queries = query ? [query] : DEFAULT_QUERIES
-    const results = await Promise.all(
-      queries.map((q) => naverPlaceService.search(naverSearchClientId, naverSearchClientSecret, q, 5))
-    )
+    const results = await Promise.all(queries.map((q) => kakaoLocalService.search(kakaoRestKey, q, 5)))
 
     // 이름 기준 중복 제거(먼저 나온 검색 결과를 우선).
     const merged = new Map<string, Place>()

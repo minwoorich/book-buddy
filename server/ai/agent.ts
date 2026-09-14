@@ -19,16 +19,13 @@ import { makeAddWishlist } from './tools/addWishlist'
 /**
  * Task 9의 조회 도구 5종 + Task 10의 행동 도구 5종을 조합한다.
  */
-export function createTools(
-  userId: number,
-  opts: { naverSearchClientId: string; naverSearchClientSecret: string }
-): StructuredToolInterface[] {
+export function createTools(userId: number, opts: { kakaoRestKey: string }): StructuredToolInterface[] {
   return [
     makeSearchBooks(),
     makeGetBookDetail(),
     makeGetMyLoans(userId),
     makeGetReviews(),
-    makeSearchExternalBooks(opts.naverSearchClientId, opts.naverSearchClientSecret),
+    makeSearchExternalBooks(opts.kakaoRestKey),
     makeBorrowBook(userId),
     makeReturnBook(userId),
     makeReserveBook(userId),
@@ -43,7 +40,7 @@ export function createTools(
  * useRuntimeConfig()에서 읽은 키를 deps로 넘긴다.
  */
 export async function runAgent(
-  deps: { anthropicApiKey: string; naverSearchClientId: string; naverSearchClientSecret: string },
+  deps: { anthropicApiKey: string; kakaoRestKey: string },
   userId: number,
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemExtra = ''
@@ -60,10 +57,7 @@ export async function runAgent(
 
   const agent = createReactAgent({
     llm,
-    tools: createTools(userId, {
-      naverSearchClientId: deps.naverSearchClientId,
-      naverSearchClientSecret: deps.naverSearchClientSecret,
-    }),
+    tools: createTools(userId, { kakaoRestKey: deps.kakaoRestKey }),
     prompt: SYSTEM_PROMPT + systemExtra,
   })
 

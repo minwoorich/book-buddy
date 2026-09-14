@@ -1,5 +1,5 @@
-// naverBookService/naverPlaceService 양쪽에서 쓰는 HTML 정리 헬퍼.
-// 네이버 검색 API는 검색어 강조를 위해 title 등에 <b> 태그와 HTML 엔티티를 섞어 내려준다.
+// kakaoBookService/kakaoLocalService 양쪽에서 쓰는 HTML 정리 헬퍼.
+// 카카오 API 응답에 HTML 태그/엔티티가 섞여 오는 경우를 방어적으로 정리한다.
 
 const HTML_ENTITIES: Record<string, string> = {
   '&amp;': '&',
