@@ -40,6 +40,21 @@ export interface ExternalBookItem {
   pageCount: number | null
 }
 
+/** GET /api/book-search 응답 1건 — 외부 검색 결과에 사내 보유 여부를 더한 것. */
+export interface ExternalBookSearchItem extends ExternalBookItem {
+  inLibrary: boolean
+  libraryBookId: number | null
+}
+
+/** 홈 화면 섹션. 관리자가 노출 여부(enabled)와 순서(sortOrder)를 편집할 수 있다. */
+export interface HomeSection {
+  id: number
+  sectionKey: string
+  title: string
+  enabled: boolean
+  sortOrder: number
+}
+
 export interface Loan {
   id: number
   bookId: number

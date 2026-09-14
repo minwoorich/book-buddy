@@ -52,6 +52,11 @@ export const bookRepo = {
     return row ? toBook(row) : undefined
   },
 
+  findByIsbn13(isbn13: string): Book | undefined {
+    const row = getDb().prepare('SELECT * FROM books WHERE isbn13 = ?').get(isbn13) as BookRow | undefined
+    return row ? toBook(row) : undefined
+  },
+
   /** 책 등록. isbn13이 이미 등록돼 있으면(UNIQUE 위반) 409. */
   insert(b: NewBook): number {
     try {
