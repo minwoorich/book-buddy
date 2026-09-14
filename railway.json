@@ -1,0 +1,6 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "deploy": {
+    "startCommand": "sh -c 'npx tsx scripts/demo-seed.ts --if-empty; node .output/server/index.mjs'"
+  }
+}

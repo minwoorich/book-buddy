@@ -7,6 +7,15 @@ import { initDb } from '../server/db/connection'
 
 const db = initDb()
 
+// --if-empty: 이미 데이터가 있으면 아무것도 하지 않는다 (배포 부팅 시 자동 시드용)
+if (process.argv.includes('--if-empty')) {
+  const existing = (db.prepare('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
+  if (existing > 0) {
+    console.log(`데모 시드 건너뜀: 이미 users ${existing}명 존재 (--if-empty)`)
+    process.exit(0)
+  }
+}
+
 const TABLES = [
   'review_votes', 'reviews', 'post_comments', 'post_likes', 'posts',
   'reports', 'wishlists', 'purchase_requests', 'reservations', 'loans', 'books', 'users',
