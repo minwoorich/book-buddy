@@ -111,7 +111,8 @@ function onToggle(key: 'simple' | 'cvd', e: Event) {
 </template>
 
 <style scoped>
-.a11y { position: relative; }
+/* 2026-09-15: 민우 요청으로 잠정 비활성화(잘 안 쓸 것 같다고 판단) — 로직·설정은 그대로 두고 화면에서만 숨긴다. 되살릴 땐 이 한 줄만 지우면 된다. */
+.a11y { display: none; }
 .a11y-btn {
   display: inline-flex; align-items: center; gap: 5px;
   font: inherit; font-size: 13px; color: var(--sub);
