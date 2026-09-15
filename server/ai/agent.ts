@@ -3,6 +3,7 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt'
 import { isAIMessage } from '@langchain/core/messages'
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { AiAnswer } from '../../shared/types'
+import { isPlaceTagCode, PLACE_TAG_LABEL } from '../../shared/constants/placeTags'
 import { ApiError } from '../utils/errors'
 import { parseAiAnswer } from './parse'
 import { enrichAnswer, recentBookIdsFromHistory } from './enrich'
@@ -19,9 +20,12 @@ import { makeReserveBook } from './tools/reserveBook'
 import { makeRequestPurchase } from './tools/requestPurchase'
 import { makeAddWishlist } from './tools/addWishlist'
 import { makeSearchReadingPlaces } from './tools/searchReadingPlaces'
+import { makeSearchReviewedPlaces } from './tools/searchReviewedPlaces'
 
 /**
- * Task 9의 조회 도구 5종 + Task 10의 행동 도구 5종을 조합한다.
+ * Task 9의 조회 도구 5종 + Task 10의 행동 도구 5종 + 장소 도구 2종을 조합한다.
+ * 장소 도구는 짝이다 — search_reading_places는 "가까운 곳"(카카오 검색 + 사내 후기 요약),
+ * search_reviewed_places는 "동료들이 좋다고 한 곳"(사내 후기만)을 맡는다.
  */
 export function createTools(userId: number, opts: { kakaoRestKey: string }): StructuredToolInterface[] {
   return [
@@ -35,7 +39,8 @@ export function createTools(userId: number, opts: { kakaoRestKey: string }): Str
     makeReserveBook(userId),
     makeRequestPurchase(userId),
     makeAddWishlist(userId),
-    makeSearchReadingPlaces(opts.kakaoRestKey),
+    makeSearchReadingPlaces(opts.kakaoRestKey, userId),
+    makeSearchReviewedPlaces(),
   ]
 }
 
@@ -125,6 +130,10 @@ function toolDetail(name: string, input: unknown): string {
       return typeof obj.bookId === 'number' ? `#${obj.bookId}` : ''
     case 'search_external_books':
       return str('query')
+    case 'search_reading_places':
+      return str('kind')
+    case 'search_reviewed_places':
+      return isPlaceTagCode(obj.tag) ? PLACE_TAG_LABEL[obj.tag] : '동료 후기'
     default:
       return ''
   }

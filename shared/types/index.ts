@@ -266,6 +266,20 @@ export interface PlaceReviewSummary {
   mine: Pick<PlaceReview, 'tags' | 'comment'> | null
 }
 
+/**
+ * 사내 후기가 쌓인 장소 1곳의 집계(AI 추천 도구용). 카카오 검색 없이 place_reviews만으로
+ * 만들기 때문에 좌표·거리는 없고, 이름은 가장 최근 후기에 적힌 것을 쓴다.
+ */
+export interface ReviewedPlace {
+  kakaoPlaceId: string
+  placeName: string
+  total: number
+  /** 태그별 개수. 0인 태그는 키 자체가 없다. */
+  tagCounts: Partial<Record<PlaceTagCode, number>>
+  /** 비어 있지 않은 최근 코멘트 최대 2건(최신순). */
+  recentComments: string[]
+}
+
 /** 공지사항(QA #55). 관리자만 작성·수정·삭제할 수 있고, pinned는 목록 상단 고정. */
 export interface Notice {
   id: number

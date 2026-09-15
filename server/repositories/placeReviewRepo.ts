@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection'
-import type { PlaceReview, PlaceReviewSummary } from '../../shared/types'
+import type { PlaceReview, PlaceReviewSummary, ReviewedPlace } from '../../shared/types'
 import { isPlaceTagCode, type PlaceTagCode } from '../../shared/constants/placeTags'
 import type { PlaceReviewInput } from '../utils/placeReview'
 
@@ -109,5 +109,41 @@ export const placeReviewRepo = {
       if (review.userId === meId) summary.mine = { tags: review.tags, comment: review.comment }
     }
     return ids.map((id) => byPlace.get(id) as PlaceReviewSummary)
+  },
+
+  /**
+   * 후기가 쌓인 장소들의 집계. 카카오 검색과 무관하게 "동료들이 후기를 남긴 곳"만 고르는
+   * AI 도구(search_reviewed_places)가 쓴다. tag를 주면 그 태그가 하나라도 달린 장소만
+   * 남기고 그 태그 수가 많은 순으로, 없으면 총 후기 수가 많은 순으로 정렬한다.
+   * summaryByIds와 마찬가지로 후기 수가 작아 SQL 집계 대신 전부 읽어 JS에서 센다.
+   */
+  topPlaces({ tag, limit = 5 }: { tag?: PlaceTagCode; limit?: number }): ReviewedPlace[] {
+    const rows = getDb()
+      .prepare(`${SELECT} ORDER BY r.updated_at DESC, r.id DESC`)
+      .all() as PlaceReviewRow[]
+
+    const byPlace = new Map<string, ReviewedPlace>()
+    for (const row of rows) {
+      const review = toPlaceReview(row)
+      let place = byPlace.get(review.kakaoPlaceId)
+      if (!place) {
+        // rows가 최신순이므로 처음 만난 행이 가장 최근 후기 — 장소 이름도 그걸 따른다.
+        place = { kakaoPlaceId: review.kakaoPlaceId, placeName: review.placeName, total: 0, tagCounts: {}, recentComments: [] }
+        byPlace.set(review.kakaoPlaceId, place)
+      }
+      place.total += 1
+      for (const t of review.tags) place.tagCounts[t] = (place.tagCounts[t] ?? 0) + 1
+      if (review.comment && place.recentComments.length < RECENT_MAX) place.recentComments.push(review.comment)
+    }
+
+    const places = [...byPlace.values()].filter((p) => (tag ? (p.tagCounts[tag] ?? 0) > 0 : true))
+    places.sort((a, b) => {
+      if (tag) {
+        const diff = (b.tagCounts[tag] ?? 0) - (a.tagCounts[tag] ?? 0)
+        if (diff !== 0) return diff
+      }
+      return b.total - a.total
+    })
+    return places.slice(0, limit)
   },
 }

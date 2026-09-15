@@ -1,7 +1,9 @@
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { kakaoLocalService } from '../../services/kakaoLocalService'
+import { placeReviewRepo } from '../../repositories/placeReviewRepo'
 import { VATECH_OFFICES, findOffice } from '../../../shared/constants/company'
+import { toAgentPlaces } from './placeReviewDigest'
 
 const OFFICE_KEYS = VATECH_OFFICES.map((o) => o.key) as [string, ...string[]]
 const RADIUS_M = 3000
@@ -10,8 +12,11 @@ const RADIUS_M = 3000
  * 책 읽기 좋은 장소(카페·도서관·공원) 검색 도구(QA #88). 장소 페이지와 같은 카카오 로컬 검색을
  * 쓰되, 기준점은 사업장(기본: 바텍네트웍스 본사)이고 반경 3km 안에서 가까운 순으로 돌려준다.
  * 키를 클로저로 받고(전역 env 직접 참조 금지), 키가 없으면 실제 호출 없이 안내만 반환한다.
+ *
+ * 카카오가 돌려주는 장소 id는 사내 장소 후기(place_reviews)의 키와 같으므로, 검색 결과에
+ * 동료들이 남긴 태그·코멘트 요약을 한 번의 조회로 붙여준다 — 추천에 근거를 달기 위해서다.
  */
-export const makeSearchReadingPlaces = (kakaoRestKey: string) =>
+export const makeSearchReadingPlaces = (kakaoRestKey: string, userId: number) =>
   tool(
     async ({ kind, office }) => {
       if (!kakaoRestKey) {
@@ -26,16 +31,9 @@ export const makeSearchReadingPlaces = (kakaoRestKey: string) =>
           { lat: base.lat, lng: base.lng },
           RADIUS_M
         )
-        return JSON.stringify({
-          office: base.name,
-          places: places.map((p) => ({
-            name: p.name,
-            category: p.category,
-            address: p.address,
-            distanceM: p.distanceM ?? null,
-            mapUrl: `https://map.kakao.com/link/map/${encodeURIComponent(p.name)},${p.lat},${p.lng}`,
-          })),
-        })
+        const ids = places.map((p) => p.kakaoId).filter((id): id is string => Boolean(id))
+        const summaries = placeReviewRepo.summaryByIds(ids, userId)
+        return JSON.stringify({ office: base.name, places: toAgentPlaces(places, summaries) })
       } catch {
         return JSON.stringify({ message: '장소 검색 중 오류가 발생했어요' })
       }
@@ -45,6 +43,9 @@ export const makeSearchReadingPlaces = (kakaoRestKey: string) =>
       description:
         '회사 사업장 근처에서 책 읽기 좋은 장소(카페·북카페·도서관·공원)를 가까운 순으로 찾는다. ' +
         '"근처 카페 추천해줘", "점심에 책 읽을 데 있어?" 같은 질문에 사용. 결과에는 이름·주소·거리·지도 링크가 있다. ' +
+        'reviews 필드가 있는 장소는 사내 동료들이 남긴 후기가 쌓인 곳이다(tags=태그별 인원 수, comments=남긴 사람·부서·한 줄). ' +
+        '후기가 있으면 "동료 3명이 조용하다고 했어요"처럼 그 수치를 근거로 들어 우선 추천하고, ' +
+        'reviews가 없는 장소에는 후기를 지어내지 말고 거리·종류만 근거로 말하라. ' +
         '답변 뒤에는 /places 이동 버튼을 함께 제안하라.',
       schema: z.object({
         kind: z
