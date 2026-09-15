@@ -91,7 +91,11 @@ async function returnLoan() {
   if (!confirm(`『${book.value?.title}』을(를) 반납할까요?`)) return
   loanBusy.value = true
   try {
-    await api(`/api/loans/${loanId}`, { method: 'PATCH', body: { returned: true } })
+    const res = await api<{ canceled?: boolean }>(`/api/loans/${loanId}`, {
+      method: 'PATCH',
+      body: { returned: true },
+    })
+    if (res.canceled) alert('대출한 지 30분이 안 돼서, 완독이 아닌 대출 취소로 처리했어요.')
     await refreshBook()
   } catch (e) {
     alert(apiErrorMessage(e))
@@ -117,6 +121,16 @@ async function reserve() {
 
 const wishBusy = ref(false)
 
+// 찜/찜 해제 후 잠깐 보여주는 토스트(QA #22).
+const toast = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+function showToast(text: string) {
+  toast.value = text
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = ''), 2200)
+}
+onBeforeUnmount(() => clearTimeout(toastTimer))
+
 async function findWishlistId(): Promise<number | null> {
   const list = await api<Wishlist[]>('/api/wishlists')
   return list.find((w) => w.bookId === bookId.value)?.id ?? null
@@ -130,8 +144,10 @@ async function toggleWish() {
     if (book.value.myState?.wished) {
       const id = await findWishlistId()
       if (id) await api(`/api/wishlists/${id}`, { method: 'DELETE' })
+      showToast('찜을 해제했어요')
     } else {
       await api('/api/wishlists', { method: 'POST', body: { bookId: bookId.value } })
+      showToast('찜했어요 ❤ 내 서재의 찜한 책에서 볼 수 있어요')
     }
     await refreshBook()
   } catch (e) {
@@ -141,18 +157,33 @@ async function toggleWish() {
   }
 }
 
-async function reportIssue() {
+// 분실·파손 신고 — window.prompt는 브라우저가 도메인 주소를 제목으로 띄워 어색해서(QA #24)
+// 자체 모달로 입력받는다.
+const reportOpen = ref(false)
+const reportReason = ref('')
+const reportBusy = ref(false)
+
+function openReport() {
   if (!user.value) return navigateTo('/login')
-  const reason = window.prompt('분실·파손 사유를 알려주세요')
-  if (!reason || !reason.trim()) return
+  reportReason.value = ''
+  reportOpen.value = true
+}
+
+async function submitReport() {
+  const reason = reportReason.value.trim()
+  if (!reason || reportBusy.value) return
+  reportBusy.value = true
   try {
     await api('/api/reports', {
       method: 'POST',
-      body: { targetType: 'book', targetId: bookId.value, reason: reason.trim() },
+      body: { targetType: 'book', targetId: bookId.value, reason },
     })
-    alert('접수됐어요')
+    reportOpen.value = false
+    showToast('신고가 접수됐어요. 확인 후 조치할게요.')
   } catch (e) {
     alert(apiErrorMessage(e))
+  } finally {
+    reportBusy.value = false
   }
 }
 
@@ -206,7 +237,7 @@ function askAi() {
 
           <div class="aux">
             <span />
-            <a href="#" @click.prevent="reportIssue">분실·파손 신고</a>
+            <a href="#" @click.prevent="openReport">분실·파손 신고</a>
           </div>
         </div>
 
@@ -245,6 +276,28 @@ function askAi() {
           <ReviewList ref="reviewListRef" :book-id="bookId" @changed="refreshBook" />
         </div>
       </div>
+
+      <transition name="toast">
+        <div v-if="toast" class="toast">{{ toast }}</div>
+      </transition>
+
+      <div v-if="reportOpen" class="modal-back" @click.self="reportOpen = false">
+        <div class="modal">
+          <b>분실·파손 신고</b>
+          <p>『{{ book.title }}』에 어떤 문제가 있나요?</p>
+          <textarea
+            v-model="reportReason"
+            rows="3"
+            placeholder="예: 표지가 찢어져 있어요 / 서가에서 찾을 수 없어요"
+          ></textarea>
+          <div class="modal-acts">
+            <button type="button" class="btn sm" :disabled="reportBusy" @click="reportOpen = false">취소</button>
+            <button type="button" class="btn primary sm" :disabled="reportBusy || !reportReason.trim()" @click="submitReport">
+              {{ reportBusy ? '접수 중...' : '신고하기' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -274,4 +327,31 @@ function askAi() {
 .ai-mini i { flex: 1; font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; }
 .ai-mini .btn { white-space: nowrap; }
 .guest-review-hint { font-size: 13.5px; color: var(--sub); margin: 0 0 18px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%);
+  background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 600;
+  border-radius: 999px; padding: 11px 20px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 90;
+  white-space: nowrap;
+}
+.toast-enter-active, .toast-leave-active { transition: opacity .25s, transform .25s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
+
+.modal-back {
+  position: fixed; inset: 0; background: rgba(40, 32, 18, .45); z-index: 95;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  width: 380px; max-width: 100%; background: var(--card); border: 1px solid var(--line-strong);
+  border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 24px 60px rgba(60,48,28,.35);
+}
+.modal b { font-size: 15.5px; }
+.modal p { margin: 0; font-size: 13px; color: var(--sub); }
+.modal textarea {
+  font: inherit; font-size: 13.5px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 9px 11px; resize: none; outline: 0;
+}
+.modal textarea:focus { border-color: var(--red); }
+.modal-acts { display: flex; justify-content: flex-end; gap: 8px; }
 </style>

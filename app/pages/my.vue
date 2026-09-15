@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Book, Loan, PurchaseRequest, RankRow, Reservation, Wishlist } from '#shared/types'
+import type { Book, Loan, PurchaseRequest, RankRow, Reservation, Review, Wishlist } from '#shared/types'
 
 type LoanWithBook = Loan & { book: Book }
 type WishlistWithBook = Wishlist & { book: Book }
@@ -44,6 +44,14 @@ const { data: userRankings } = await useAsyncData<RankRow[]>(
   { default: () => [] }
 )
 
+type MyReview = Review & { bookTitle: string; bookCoverUrl: string | null }
+
+const { data: myReviews, refresh: refreshMyReviews } = await useAsyncData<MyReview[]>(
+  'my-reviews-list',
+  () => (user.value ? api<MyReview[]>('/api/reviews') : Promise.resolve([])),
+  { default: () => [] }
+)
+
 // 표준 경쟁 순위(1224식): count가 같으면 같은 순위, 다음 순위는 동률 인원수만큼 건너뛴다.
 // rankings.vue와 동일한 규칙(스펙: '동률은 공동 순위').
 function competitionRankAt(list: RankRow[], idx: number): number {
@@ -72,7 +80,44 @@ async function refreshAll() {
     refreshWishlists(),
     refreshReservations(),
     refreshPurchaseRequests(),
+    refreshMyReviews(),
   ])
+}
+
+// ── 많이 읽은 분야(완독 기준 상위 3개) — QA #25의 "분야 정리" 축소판 ────────
+const topCategories = computed(() => {
+  const counts = new Map<string, number>()
+  for (const l of doneLoans.value ?? []) {
+    if (!l.book.category) continue
+    counts.set(l.book.category, (counts.get(l.book.category) ?? 0) + 1)
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+})
+
+// ── 희망도서 직접 신청 폼(QA #30) ─────────────────────────────────
+const requestFormOpen = ref(false)
+const requestTitle = ref('')
+const requestAuthor = ref('')
+const requestBusy = ref(false)
+
+async function submitPurchaseRequest() {
+  const title = requestTitle.value.trim()
+  if (!title || requestBusy.value) return
+  requestBusy.value = true
+  try {
+    await api('/api/purchase-requests', {
+      method: 'POST',
+      body: { title, author: requestAuthor.value.trim() || undefined },
+    })
+    requestTitle.value = ''
+    requestAuthor.value = ''
+    requestFormOpen.value = false
+    await refreshPurchaseRequests()
+  } catch (e) {
+    alert(apiErrorMessage(e))
+  } finally {
+    requestBusy.value = false
+  }
 }
 
 // ── 읽고 있는 책: 대출일·반납일·D-day ─────────────────────────────
@@ -111,7 +156,11 @@ async function returnLoan(loanId: number) {
   if (!confirm(`${title ? `『${title}』을(를)` : '이 책을'} 반납할까요?`)) return
   returnBusyId.value = loanId
   try {
-    await api(`/api/loans/${loanId}`, { method: 'PATCH', body: { returned: true } })
+    const res = await api<{ canceled?: boolean }>(`/api/loans/${loanId}`, {
+      method: 'PATCH',
+      body: { returned: true },
+    })
+    if (res.canceled) alert('대출한 지 30분이 안 돼서, 완독이 아닌 대출 취소로 처리했어요.')
     await refreshAll()
   } catch (e) {
     alert(apiErrorMessage(e))
@@ -182,6 +231,11 @@ const STATUS_BADGE: Record<PurchaseRequest['status'], { cls: string; label: stri
   rejected: { cls: 'no', label: '거절됨' },
 }
 
+function reviewDate(iso: string): string {
+  const d = parseDbDate(iso)
+  return `${d.getMonth() + 1}. ${d.getDate()}.`
+}
+
 function requestMeta(r: PurchaseRequest): string {
   // createdAt도 DB 기본값(datetime('now'))이라 loanedAt/returnedAt과 같은 파싱 버그가
   // 적용된다. 리뷰 지적 범위(loanedAt/returnedAt)엔 없었지만 동일 원인이라 함께 고쳤다.
@@ -204,6 +258,10 @@ function requestMeta(r: PurchaseRequest): string {
             &nbsp;·&nbsp; 사내 랭킹
             <NuxtLink to="/rankings">{{ myRank ? `${myRank}위` : '보기' }}</NuxtLink>
           </span>
+          <div v-if="topCategories.length" class="fav-cats">
+            <span class="fav-label">많이 읽은 분야</span>
+            <span v-for="[cat, cnt] in topCategories" :key="cat" class="badge">{{ cat }} {{ cnt }}권</span>
+          </div>
         </div>
         <ReadingBookStack :done-loans="doneLoans ?? []" />
       </div>
@@ -276,9 +334,22 @@ function requestMeta(r: PurchaseRequest): string {
           <div class="sec-head" style="margin-top:0;">
             <h2>희망도서 신청</h2>
             <div class="rule" />
+            <button type="button" class="btn sm" @click="requestFormOpen = !requestFormOpen">
+              {{ requestFormOpen ? '닫기' : '+ 직접 신청' }}
+            </button>
           </div>
           <div class="panel" style="padding: 6px 20px;">
-            <div v-if="!purchaseRequests?.length" class="hint">신청한 희망도서가 없어요.</div>
+            <div v-if="requestFormOpen" class="request-form">
+              <input v-model="requestTitle" type="text" class="input" placeholder="책 제목 (필수)" @keyup.enter="submitPurchaseRequest" />
+              <input v-model="requestAuthor" type="text" class="input" placeholder="저자 (선택)" @keyup.enter="submitPurchaseRequest" />
+              <button
+                type="button"
+                class="btn primary sm"
+                :disabled="requestBusy || !requestTitle.trim()"
+                @click="submitPurchaseRequest"
+              >{{ requestBusy ? '신청 중...' : '신청하기' }}</button>
+            </div>
+            <div v-if="!purchaseRequests?.length && !requestFormOpen" class="hint">신청한 희망도서가 없어요.</div>
             <div v-for="req in purchaseRequests" :key="req.id" class="mini-row">
               <div style="flex:1;">
                 <b style="font-size:14px;">{{ req.title }}</b>
@@ -287,6 +358,26 @@ function requestMeta(r: PurchaseRequest): string {
               <span class="badge" :class="STATUS_BADGE[req.status].cls">{{ STATUS_BADGE[req.status].label }}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="sec-head">
+        <h2>내가 남긴 리뷰</h2>
+        <div class="rule" />
+      </div>
+      <div class="panel" style="padding: 6px 20px;">
+        <div v-if="!myReviews?.length" class="hint">아직 남긴 리뷰가 없어요.</div>
+        <div v-for="review in myReviews" :key="review.id" class="my-review">
+          <BookCoverImage :src="review.bookCoverUrl" :alt="review.bookTitle" />
+          <div style="flex:1; min-width:0;">
+            <NuxtLink :to="`/books/${review.bookId}`" class="rv-title">{{ review.bookTitle }}</NuxtLink>
+            <div class="rv-meta">
+              <span class="rv-stars">★ {{ review.rating.toFixed(1) }}</span>
+              <span>{{ reviewDate(review.createdAt) }}</span>
+            </div>
+            <div class="rv-text">{{ review.content }}</div>
+          </div>
+          <NuxtLink :to="`/books/${review.bookId}`" class="btn sm">책 보기</NuxtLink>
         </div>
       </div>
     </div>
@@ -312,4 +403,20 @@ function requestMeta(r: PurchaseRequest): string {
 .mini-row:last-child { border-bottom: 0; }
 .mini-row :deep(.cv) { width: 34px; height: 48px; }
 .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+
+.fav-cats { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.fav-label { font-size: 11.5px; font-weight: 700; color: var(--sub); margin-right: 2px; }
+
+.request-form { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.request-form .input { flex: 1; min-width: 0; }
+
+.my-review { display: flex; align-items: flex-start; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.my-review:last-child { border-bottom: 0; }
+.my-review :deep(.cv) { width: 38px; height: 54px; flex-shrink: 0; }
+.my-review .rv-title { font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: none; }
+.my-review .rv-title:hover { color: var(--red); }
+.my-review .rv-meta { display: flex; gap: 10px; font-size: 12px; color: var(--sub); margin: 2px 0 4px; }
+.my-review .rv-stars { color: #C9A227; font-weight: 700; }
+.my-review .rv-text { font-size: 13.5px; line-height: 1.6; color: #3E382D; }
+.my-review .btn { align-self: center; flex-shrink: 0; }
 </style>

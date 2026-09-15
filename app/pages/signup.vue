@@ -82,8 +82,8 @@ async function submit() {
         </div>
 
         <div class="row">
-          <input v-model="department" type="text" class="input" placeholder="부서" list="department-options">
-          <input v-model="team" type="text" class="input" placeholder="팀" list="team-options">
+          <input v-model="department" type="text" class="input" placeholder="부서 (선택)" list="department-options">
+          <input v-model="team" type="text" class="input" placeholder="팀 (선택)" list="team-options">
         </div>
         <datalist id="department-options">
           <option v-for="d in DEPARTMENT_SUGGESTIONS" :key="d" :value="d" />
@@ -93,7 +93,7 @@ async function submit() {
         </datalist>
 
         <div class="row">
-          <input v-model="position" type="text" class="input" placeholder="직급" list="position-options">
+          <input v-model="position" type="text" class="input" placeholder="직급 (선택)" list="position-options">
           <input v-model.number="birthYear" type="number" class="input" placeholder="출생연도" min="1940" max="2010">
         </div>
         <datalist id="position-options">

@@ -9,6 +9,8 @@ export default defineEventHandler(
     const { returned } = await readBody<{ returned?: boolean }>(event)
     if (returned !== true) throw new ApiError(400, '지원하지 않는 변경이에요')
 
-    return loanService.return_(me.id, loanId, { asAdmin: me.role === 'admin' })
+    // 대출 직후 반납은 실수 대출 취소로 처리한다(QA #28) — canceled로 구분해 내려준다.
+    const result = loanService.returnOrCancel(me.id, loanId, { asAdmin: me.role === 'admin' })
+    return { canceled: result.canceled, ...(result.loan ?? {}) }
   })
 )

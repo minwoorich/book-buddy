@@ -74,7 +74,7 @@ function isToday(d: Date): boolean {
 .dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; letter-spacing: 1px; color: var(--sub); padding-bottom: 8px; border-bottom: 1px solid var(--line-strong); }
 .dow .sun { color: var(--red); }
 .days { display: grid; grid-template-columns: repeat(7, 1fr); }
-.day { min-height: 100px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 8px; position: relative; background: var(--card); }
+.day { min-height: 132px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 8px; position: relative; background: var(--card); }
 .day:nth-child(7n) { border-right: 0; }
 .day .n { font-size: 12.5px; color: var(--sub); }
 .day.dim { background: transparent; }
@@ -83,7 +83,7 @@ function isToday(d: Date): boolean {
 .day.today { outline: 2px solid var(--red); outline-offset: -2px; }
 .day.today .n { color: var(--red); font-weight: 800; }
 .day .cv-link { display: block; }
-.day :deep(.cv) { width: 42px; height: 60px; margin: 6px auto 0; display: block; }
+.day :deep(.cv) { width: 58px; height: 84px; margin: 7px auto 0; display: block; }
 .day .done { position: absolute; top: 7px; right: 7px; font-size: 10px; color: var(--ok); font-weight: 700; }
 .day .more { position: absolute; bottom: 6px; right: 7px; font-size: 10px; font-weight: 700; color: var(--sub); background: #EDE7DA; border-radius: 8px; padding: 1px 5px; line-height: 1; }
 .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12.5px; color: var(--sub); align-items: center; }

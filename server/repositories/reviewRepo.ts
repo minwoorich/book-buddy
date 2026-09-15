@@ -75,6 +75,21 @@ export const reviewRepo = {
     return row ? toReview(row) : undefined
   },
 
+  /** 내가 남긴 리뷰 전체(최신순) — 내 서재 "내가 남긴 리뷰" 섹션용(QA #25). 책 제목·표지 포함. */
+  listByUser(userId: number): (Review & { bookTitle: string; bookCoverUrl: string | null })[] {
+    const rows = getDb()
+      .prepare(
+        `SELECT r.id, r.book_id, r.user_id, r.rating, r.content, r.created_at,
+                b.title AS book_title, b.cover_url AS book_cover_url
+         FROM reviews r
+         JOIN books b ON b.id = r.book_id
+         WHERE r.user_id = ?
+         ORDER BY r.created_at DESC, r.id DESC`
+      )
+      .all(userId) as (ReviewRow & { book_title: string; book_cover_url: string | null })[]
+    return rows.map((row) => ({ ...toReview(row), bookTitle: row.book_title, bookCoverUrl: row.book_cover_url }))
+  },
+
   /** 한 사용자가 이 책에 이미 남긴 리뷰(1인 1리뷰 규칙 검사용 — QA #18). */
   findByBookAndUser(bookId: number, userId: number): Review | undefined {
     const row = getDb()

@@ -24,17 +24,9 @@ export default defineEventHandler(
     const name = body.name?.trim()
     const { password, company, department, team, position, gender, birthYear } = body
 
-    if (
-      !name ||
-      !password ||
-      !company ||
-      !department ||
-      !team ||
-      !position ||
-      (gender !== 'M' && gender !== 'F') ||
-      birthYear == null
-    ) {
-      throw new ApiError(400, '모든 항목을 입력해주세요')
+    // 부서·팀·직급은 선택 입력(QA #27) — 비우면 '미지정'으로 채워 랭킹/통계 그룹핑이 깨지지 않게 한다.
+    if (!name || !password || !company || (gender !== 'M' && gender !== 'F') || birthYear == null) {
+      throw new ApiError(400, '이름·비밀번호·계열사·성별·출생연도를 입력해주세요')
     }
 
     if (userRepo.findByName(name)) {
@@ -49,7 +41,16 @@ export default defineEventHandler(
       throw new ApiError(400, '비밀번호는 4자 이상이어야 해요')
     }
 
-    const user = userRepo.insert({ name, password, company, department, team, position, gender, birthYear })
+    const user = userRepo.insert({
+      name,
+      password,
+      company,
+      department: department?.trim() || '미지정',
+      team: team?.trim() || '미지정',
+      position: position?.trim() || '미지정',
+      gender,
+      birthYear,
+    })
     setResponseStatus(event, 201)
     return user
   })

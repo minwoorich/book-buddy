@@ -113,6 +113,11 @@ export const loanRepo = {
     getDb().prepare("UPDATE loans SET returned_at = datetime('now') WHERE id = ?").run(id)
   },
 
+  /** 대출 기록 삭제 — 잘못 누른 대출의 "취소"용(QA #28). 완독/랭킹 집계에 남지 않는다. */
+  remove(id: number): void {
+    getDb().prepare('DELETE FROM loans WHERE id = ?').run(id)
+  },
+
   recent(limit: number): Loan[] {
     const rows = getDb()
       .prepare('SELECT * FROM loans ORDER BY loaned_at DESC LIMIT ?')

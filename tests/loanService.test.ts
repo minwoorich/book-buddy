@@ -92,6 +92,26 @@ describe('loanService.return_', () => {
   })
 })
 
+describe('loanService.returnOrCancel', () => {
+  it('대출 직후(30분 이내) 반납 → 기록 삭제(취소), 완독으로 집계되지 않음', () => {
+    const loan = loanService.borrow(u1, b1)
+    const result = loanService.returnOrCancel(u1, loan.id)
+    expect(result.canceled).toBe(true)
+    expect(loanRepo.findById(loan.id)).toBeUndefined()
+  })
+
+  it('30분이 지난 대출 반납 → 정상 반납(returned_at 세팅)', () => {
+    const loan = loanService.borrow(u1, b1)
+    // loaned_at을 1시간 전으로 되돌려 창을 벗어나게 만든다.
+    getDb()
+      .prepare("UPDATE loans SET loaned_at = datetime('now', '-1 hour') WHERE id = ?")
+      .run(loan.id)
+    const result = loanService.returnOrCancel(u1, loan.id)
+    expect(result.canceled).toBe(false)
+    expect(result.loan?.returnedAt).not.toBeNull()
+  })
+})
+
 describe('loanService.reserve', () => {
   it('5. 대출 중이 아닌 책 예약 → 409', () => {
     expect(() => loanService.reserve(u1, b1)).toThrowError(/대출 가능한 책은 바로 대출하세요/)
