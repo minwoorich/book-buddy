@@ -41,10 +41,38 @@ async function sendExample(question: string) {
   await send(question)
 }
 
-watch([() => messages.value.length, sending], async () => {
+/** 대화 영역을 맨 아래로 — 새 메시지, 전송 상태 변화, 패널 열림/크기 변경 때마다(QA #78). */
+async function scrollToBottom() {
   await nextTick()
   if (bodyRef.value) bodyRef.value.scrollTop = bodyRef.value.scrollHeight
+}
+
+watch([() => messages.value.length, sending], scrollToBottom)
+// 열 때는 복원된 대화(sessionStorage)가 렌더된 뒤 한 번 더 — 처음 열면 항상 최신 메시지가 보이게.
+watch(open, (isOpen) => {
+  if (isOpen) void scrollToBottom()
 })
+
+// 크기 늘리기/줄이기(QA #78): 기본 400×620 ↔ 확장 640×(화면 높이 - 60). 선택은 브라우저에 기억.
+const EXPANDED_KEY = 'bb:chat:expanded'
+const expanded = ref(false)
+onMounted(() => {
+  try {
+    expanded.value = localStorage.getItem(EXPANDED_KEY) === '1'
+  } catch {
+    // 저장소 접근 실패는 무시
+  }
+  if (open.value) void scrollToBottom()
+})
+function toggleExpanded() {
+  expanded.value = !expanded.value
+  try {
+    localStorage.setItem(EXPANDED_KEY, expanded.value ? '1' : '0')
+  } catch {
+    // 무시
+  }
+  void scrollToBottom()
+}
 </script>
 
 <template>
@@ -71,12 +99,16 @@ watch([() => messages.value.length, sending], async () => {
       </div>
     </div>
 
-    <div v-else class="chat">
+    <div v-else class="chat" :class="{ expanded }">
       <div class="chat-head">
         <div class="logo-mark">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
         </div>
         <div><b>책벗</b><span>● 대출·예약·신청까지 대신해드려요</span></div>
+        <button type="button" class="resize" :title="expanded ? '작게 보기' : '크게 보기'" :aria-label="expanded ? '작게 보기' : '크게 보기'" @click="toggleExpanded">
+          <svg v-if="!expanded" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+          <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
+        </button>
         <button type="button" class="x" title="닫기" @click="close">×</button>
       </div>
 
@@ -125,12 +157,17 @@ watch([() => messages.value.length, sending], async () => {
 
 <style scoped>
 .fab-glyph { font-family: var(--font-serif); font-size: 32px; font-weight: 600; color: #fff; line-height: 1; }
-.chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
+.chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; max-height: calc(100vh - 60px); background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; transition: width .2s ease, height .2s ease; }
+/* 크게 보기(QA #78): 폭 640, 높이는 화면에 맞춰 */
+.chat.expanded { width: 640px; height: calc(100vh - 60px); }
+.chat.expanded .chat-body { padding: 22px 24px; }
 .chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .chat-head .logo-mark { width: 30px; height: 30px; }
 .chat-head b { font-family: var(--font-display); font-size: 15.5px; display: block; }
 .chat-head span { font-size: 12px; font-weight: 600; color: var(--ok); }
-.chat-head .x { margin-left: auto; font-size: 20px; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 4px; }
+.chat-head .resize { margin-left: auto; display: flex; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 6px; border-radius: 4px; }
+.chat-head .resize:hover { color: var(--ink); background: var(--card-2); }
+.chat-head .x { font-size: 20px; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 4px; }
 .chat-body { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
 .welcome { margin: 0; font-size: 13.5px; color: var(--sub); line-height: 1.6; }
 .onboarding { display: flex; flex-direction: column; gap: 10px; }
@@ -161,7 +198,8 @@ watch([() => messages.value.length, sending], async () => {
 
 /* 모바일: 챗 패널을 화면 전체로 — 좁은 화면에서 400px 고정폭 카드가 넘치던 문제 */
 @media (max-width: 640px) {
-  .chat { inset: 0; width: auto; height: auto; border-radius: 0; border: 0; }
+  .chat, .chat.expanded { inset: 0; width: auto; height: auto; max-height: none; border-radius: 0; border: 0; }
+  .chat-head .resize { display: none; }
   .chat.guest-teaser { top: auto; }
   .chat-head { padding: 12px 14px; }
   .chat-foot { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }

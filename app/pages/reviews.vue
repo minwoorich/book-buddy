@@ -11,7 +11,7 @@ type ReviewCard = Review & {
   bookCoverUrl: string | null
 }
 
-type Sort = 'popular' | 'latest' | 'rating'
+type Sort = 'popular' | 'latest'
 
 const api = useApi()
 const { user } = useCurrentUser()
@@ -21,7 +21,6 @@ const sort = ref<Sort>('popular')
 const SORTS: { key: Sort; label: string }[] = [
   { key: 'popular', label: '추천순' },
   { key: 'latest', label: '최신순' },
-  { key: 'rating', label: '별점순' },
 ]
 
 const { data, refresh } = await useAsyncData<{ stats: { count: number; avg: number | null }; reviews: ReviewCard[] }>(

@@ -169,13 +169,8 @@ function goLogin() {
     </template>
 
     <div v-else-if="loading && !streamText && !errorMessage && !answer" class="ai-loading" aria-busy="true">
-      <div class="ai-loading-row">
-        <svg class="wander-path" viewBox="0 0 410 80" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <path d="M10,40 C60,10 90,70 140,40 S220,10 270,40 S350,70 400,40" />
-        </svg>
-        <span class="wander-label">책벗이 서가를 걷는 중...</span>
-      </div>
-      <span v-if="activity" class="ai-activity">{{ activity }}</span>
+      <!-- 서가 사이 통로를 따라 책벗이 걸어가는 장면(QA #79) -->
+      <AiLibrarySearchLoader :activity="activity" />
     </div>
 
     <template v-else-if="errorMessage">
@@ -240,24 +235,7 @@ p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-wi
 .ai-book .a { font-size: 12.5px; color: var(--sub); }
 .ai-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.ai-loading { padding: 4px 0; min-height: 46px; }
-.ai-loading-row { display: flex; align-items: center; gap: 18px; }
-.ai-activity { display: block; margin: 6px 0 0 4px; font-size: 12.5px; color: var(--sub); }
-.wander-path { width: 230px; height: 46px; flex-shrink: 0; }
-.wander-path path {
-  fill: none;
-  stroke: var(--red);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 700;
-  animation: wander 2.4s ease-in-out infinite;
-}
-.wander-label { font-size: 14px; color: var(--sub); }
-@keyframes wander {
-  0% { stroke-dashoffset: 700; }
-  45%, 55% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -700; }
-}
+.ai-loading { padding: 2px 0; min-height: 132px; }
 
 .ai-fallback { margin: 0; font-size: 14px; color: var(--sub); }
 .ai-message { white-space: pre-line; }
@@ -266,8 +244,6 @@ p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-wi
   .ai-head { flex-wrap: wrap; gap: 6px 10px; }
   .ai-q { margin-left: 0; flex-basis: 100%; }
   .ai-book { min-width: 100%; }
-  .ai-loading-row { flex-wrap: wrap; gap: 10px; }
-  .wander-path { width: 100%; max-width: 230px; }
   p { font-size: 14.5px; }
 }
 </style>
