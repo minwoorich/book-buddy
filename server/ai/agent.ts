@@ -18,6 +18,7 @@ import { makeReturnBook } from './tools/returnBook'
 import { makeReserveBook } from './tools/reserveBook'
 import { makeRequestPurchase } from './tools/requestPurchase'
 import { makeAddWishlist } from './tools/addWishlist'
+import { makeSearchReadingPlaces } from './tools/searchReadingPlaces'
 
 /**
  * Task 9의 조회 도구 5종 + Task 10의 행동 도구 5종을 조합한다.
@@ -34,6 +35,7 @@ export function createTools(userId: number, opts: { kakaoRestKey: string }): Str
     makeReserveBook(userId),
     makeRequestPurchase(userId),
     makeAddWishlist(userId),
+    makeSearchReadingPlaces(opts.kakaoRestKey),
   ]
 }
 

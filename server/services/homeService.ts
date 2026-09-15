@@ -12,7 +12,8 @@ type BookWithMeta = Book & {
   reviewCount: number
 }
 
-const SECTION_BOOK_LIMIT = 6
+// 서가가 칸 수를 넘으면 좌우 스와이프로 넘기므로(QA #81) 섹션당 12권(두 화면분)까지 보여준다(QA #89).
+const SECTION_BOOK_LIMIT = 12
 const CATEGORY_PREFIX = 'cat-'
 
 // GET /api/books와 동일한 부가필드 계산 로직 재사용(N+1 허용 — 데모 규모라 무방하다).
@@ -113,7 +114,7 @@ function idsForSection(section: HomeSection): number[] {
 }
 
 export const homeService = {
-  /** 노출 섹션을 sort_order순으로, 각각 책 최대 6권과 함께 반환한다(홈 화면 '전체' 카테고리용). */
+  /** 노출 섹션을 sort_order순으로, 각각 책 최대 12권과 함께 반환한다(홈 화면 '전체' 카테고리용). */
   getHomeSections(): { key: string; title: string; books: BookWithMeta[] }[] {
     return homeSectionRepo
       .listEnabled()
