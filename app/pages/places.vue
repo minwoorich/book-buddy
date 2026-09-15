@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Place } from '#shared/types'
+import type { Place, PlaceReviewSummary } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
 
 type PlaceWithReason = Place & { reason: string }
@@ -100,6 +100,7 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
     const keyword = searchQuery.value.trim()
     if (keyword) query.query = keyword
     fetchedPlaces.value = await api<Place[]>('/api/places', { query })
+    void fetchReviewSummaries(fetchedPlaces.value)
   } catch (e) {
     if (opts.silent) {
       fetchedPlaces.value = []
@@ -135,6 +136,30 @@ function locateMe() {
   )
 }
 
+/** 장소 id → 후기 요약. 목록이 바뀔 때마다 한 번에 다시 받는다. */
+const reviewSummaries = ref<Map<string, PlaceReviewSummary>>(new Map())
+
+async function fetchReviewSummaries(places: Place[]) {
+  const ids = places.map((p) => p.kakaoId).filter((id): id is string => Boolean(id))
+  if (ids.length === 0 || !user.value) {
+    reviewSummaries.value = new Map()
+    return
+  }
+  try {
+    const list = await api<PlaceReviewSummary[]>('/api/place-reviews', { query: { ids: ids.join(',') } })
+    reviewSummaries.value = new Map(list.map((s) => [s.kakaoPlaceId, s]))
+  } catch {
+    // 후기 요약은 부가 정보 — 실패해도 장소 목록은 그대로 보여준다.
+    reviewSummaries.value = new Map()
+  }
+}
+
+function onReviewChanged(summary: PlaceReviewSummary) {
+  const next = new Map(reviewSummaries.value)
+  next.set(summary.kakaoPlaceId, summary)
+  reviewSummaries.value = next
+}
+
 // 실제 검색 결과가 하나도 없으면(키 미설정으로 503이거나, 로그인 전) 예시로 대체한다.
 const isFallback = computed(() => fetchedPlaces.value.length === 0)
 
@@ -152,7 +177,9 @@ function hasCoords(place: Place): boolean {
   return place.lat !== 0 || place.lng !== 0
 }
 
+/** "카카오맵에서 보기"는 장소 상세 페이지(placeUrl, 카카오 리뷰가 있는 곳)를 우선하고, 없으면 좌표 링크. */
 function kakaoMapUrl(place: Place, kind: 'map' | 'to'): string {
+  if (kind === 'map' && place.placeUrl) return place.placeUrl
   return `https://map.kakao.com/link/${kind}/${encodeURIComponent(place.name)},${place.lat},${place.lng}`
 }
 
@@ -204,7 +231,7 @@ function formatDistance(m?: number): string {
         <CommonKakaoMap :places="displayList" :app-key="kakaoJsKey" :my-location="myLocation" :base="office" />
 
         <div class="plist">
-          <div v-for="(place, i) in displayList" :key="place.name" class="place">
+          <div v-for="(place, i) in displayList" :key="place.kakaoId ?? place.name" class="place">
             <div class="top">
               <span class="no">{{ i + 1 }}</span>
               <b>{{ place.name }}</b>
@@ -221,6 +248,11 @@ function formatDistance(m?: number): string {
               <a :href="kakaoMapUrl(place, 'map')" target="_blank" rel="noopener">카카오맵에서 보기</a>
               <a :href="kakaoMapUrl(place, 'to')" target="_blank" rel="noopener">길찾기</a>
             </div>
+            <ReadingPlaceReviewPanel
+              :place="place"
+              :summary="place.kakaoId ? (reviewSummaries.get(place.kakaoId) ?? null) : null"
+              @changed="onReviewChanged"
+            />
           </div>
         </div>
       </div>
