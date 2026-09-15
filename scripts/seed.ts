@@ -5,6 +5,8 @@ import 'dotenv/config'
 import { initDb, getDb } from '../server/db/connection'
 import { bookRepo } from '../server/repositories/bookRepo'
 import { kakaoBookService } from '../server/services/kakaoBookService'
+import { generateUniqueNames, randomOrgProfile } from './nameGenerator'
+import { pickReviewContent, pickWeightedRating, targetReviewCount } from './reviewContent'
 import type { Book } from '../shared/types'
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
@@ -167,7 +169,8 @@ async function seedBooks(restKey: string): Promise<{ books: Book[]; perCategory:
   return { books: inserted, perCategory }
 }
 
-// ── 3. 직원 12명 (design/mockups/v1a/login.html 명단과 동일) ─────────
+// ── 3. 직원 12명(design/mockups/v1a/login.html 명단과 동일, 로그인 힌트에 노출) +
+//       합성 직원 다수(리뷰 볼륨을 위해 — 로그인은 못 하지만 데이터는 실사용자와 동일) ──
 interface SeedUser {
   name: string
   company: string
@@ -194,6 +197,10 @@ const USERS: SeedUser[] = [
   { name: '도서관리자', company: '바텍', department: '경영지원본부', team: '총무팀', position: '사서', gender: 'F', birthYear: 1978, role: 'admin' },
 ]
 
+// USERS(12명) 외에 추가로 생성할 합성 직원 수 — 책마다 리뷰가 많으려면 리뷰어 풀 자체가
+// 커야 한다(1인 1책 1리뷰라 리뷰 수는 결국 "책 수 × 리뷰어 수"에 근접한다).
+const EXTRA_USER_COUNT = 55
+
 // 데모용 평문 비밀번호 — 시연 종료와 함께 폐기. 일반 직원은 '1234', 관리자는 'admin1234'.
 function seedUsers(): number[] {
   const db = getDb()
@@ -207,6 +214,14 @@ function seedUsers(): number[] {
     const result = stmt.run(u.name, u.company, u.department, u.team, u.position, u.gender, u.birthYear, u.role, password)
     ids.push(Number(result.lastInsertRowid))
   }
+
+  const extraNames = generateUniqueNames(EXTRA_USER_COUNT, new Set(USERS.map((u) => u.name)))
+  for (const name of extraNames) {
+    const p = randomOrgProfile()
+    const result = stmt.run(name, p.company, p.department, p.team, p.position, p.gender, p.birthYear, 'member', '1234')
+    ids.push(Number(result.lastInsertRowid))
+  }
+
   return ids
 }
 
@@ -264,50 +279,43 @@ function seedReservation(activeBooks: Book[], activeUserIds: number[], allUserId
     .run(book.id, reserverId)
 }
 
-// ── 6. 리뷰 12건 + 추천(review_votes) ────────────────────────────────
-const REVIEW_CONTENTS = [
-  '팀 운영에 바로 적용할 수 있는 조언이 많아서 좋았어요.',
-  '생각보다 술술 읽혀서 이틀 만에 다 읽었습니다.',
-  '사례가 풍부해서 실무에 도움이 많이 됐어요.',
-  '초반은 다소 이론적이지만 후반부가 알찹니다.',
-  '동료들에게도 추천하고 싶은 책이에요.',
-  '내용은 좋은데 번역이 조금 아쉬웠어요.',
-  '입문서로 딱 좋은 난이도였습니다.',
-  '읽고 나서 업무 방식을 다시 돌아보게 됐어요.',
-  '예시가 다소 오래된 느낌이 있지만 핵심은 여전히 유효해요.',
-  '한 줄 한 줄 밑줄 그으면서 읽었습니다.',
-  '가볍게 읽기 좋은데 인사이트는 묵직해요.',
-  '신입 때 읽었으면 더 좋았을 책이네요.',
-]
-
-function seedReviews(userIds: number[], books: Book[]): number[] {
-  const ids: number[] = []
-  for (let i = 0; i < REVIEW_CONTENTS.length; i++) {
-    const book = pick(books)
-    const userId = pick(userIds)
-    const rating = randomInt(3, 5)
-    const createdAt = daysAgo(randomInt(1, 80))
-    const result = getDb()
-      .prepare(`INSERT INTO reviews (book_id, user_id, rating, content, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(book.id, userId, rating, REVIEW_CONTENTS[i], dbTimestamp(createdAt))
-    ids.push(Number(result.lastInsertRowid))
+// ── 6. 책마다 리뷰(1인 1책 1리뷰, 별점 가중 랜덤 + 카테고리별 다양한 문구) + 추천(review_votes) ──
+// "책마다 리뷰가 엄청 많이" 달려 있으려면 책 수(500권) 대비 리뷰어 풀이 커야 한다 — 리뷰
+// 개수는 결국 "책 수 × 책당 리뷰어 수"에 근접하고, 한 사용자는 같은 책에 두 번 못 쓴다.
+function seedReviews(userIds: number[], books: Book[]): { id: number; userId: number }[] {
+  const reviews: { id: number; userId: number }[] = []
+  for (const book of shuffle(books)) {
+    const candidates = shuffle(userIds)
+    const target = Math.min(targetReviewCount(), candidates.length)
+    for (let i = 0; i < target; i++) {
+      const userId = candidates[i]
+      const rating = pickWeightedRating()
+      const content = pickReviewContent(book.category, rating)
+      const createdAt = daysAgo(randomInt(1, 150))
+      const result = getDb()
+        .prepare(`INSERT INTO reviews (book_id, user_id, rating, content, created_at) VALUES (?, ?, ?, ?, ?)`)
+        .run(book.id, userId, rating, content, dbTimestamp(createdAt))
+      reviews.push({ id: Number(result.lastInsertRowid), userId })
+    }
   }
-  return ids
+  return reviews
 }
 
-function seedReviewVotes(reviewIds: number[], userIds: number[]): number {
+/** 리뷰 수 대비 약 1.3배의 추천을 무작위로 뿌린다. 자기 리뷰에 스스로 추천은 걸지 않는다. */
+function seedReviewVotes(reviews: { id: number; userId: number }[], userIds: number[]): number {
   const used = new Set<string>()
-  const TARGET = 10
+  const target = Math.round(reviews.length * 1.3)
   let count = 0
   let guard = 0
-  while (count < TARGET && guard < 500) {
+  while (count < target && guard < target * 20) {
     guard++
-    const reviewId = pick(reviewIds)
+    const review = pick(reviews)
     const userId = pick(userIds)
-    const key = `${reviewId}:${userId}`
+    if (userId === review.userId) continue
+    const key = `${review.id}:${userId}`
     if (used.has(key)) continue
     used.add(key)
-    getDb().prepare(`INSERT INTO review_votes (review_id, user_id) VALUES (?, ?)`).run(reviewId, userId)
+    getDb().prepare(`INSERT INTO review_votes (review_id, user_id) VALUES (?, ?)`).run(review.id, userId)
     count++
   }
   return count
@@ -413,7 +421,7 @@ async function main(): Promise<void> {
     return
   }
 
-  console.log('직원 12명 시딩 중...')
+  console.log(`직원 ${USERS.length + EXTRA_USER_COUNT}명 시딩 중...`)
   const userIds = seedUsers()
 
   console.log('대출 활동 시딩 중...')
@@ -422,9 +430,9 @@ async function main(): Promise<void> {
   console.log('예약 시딩 중...')
   seedReservation(activeBooks, activeUserIds, userIds)
 
-  console.log('리뷰/추천 시딩 중...')
-  const reviewIds = seedReviews(userIds, books)
-  const voteCount = seedReviewVotes(reviewIds, userIds)
+  console.log('책마다 리뷰/추천 시딩 중... (책이 많아 다소 걸릴 수 있어요)')
+  const reviews = seedReviews(userIds, books)
+  const voteCount = seedReviewVotes(reviews, userIds)
 
   console.log('찜/구매신청/피드/신고 시딩 중...')
   const wishCount = seedWishlists(userIds, books)
@@ -440,7 +448,7 @@ async function main(): Promise<void> {
   console.log(`users: ${userIds.length} (관리자 1명 포함)`)
   console.log(`loans: 완료 ${completedCount} + 진행중 3 (연체 1 포함)`)
   console.log(`reservations: 1`)
-  console.log(`reviews: ${reviewIds.length}, review_votes: ${voteCount}`)
+  console.log(`reviews: ${reviews.length}, review_votes: ${voteCount}`)
   console.log(`wishlists: ${wishCount}`)
   console.log(`purchase_requests: ${purchaseCount}`)
   console.log(`posts: ${postCount} (1건은 사진 3장 post_images)`)

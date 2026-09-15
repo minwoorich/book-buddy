@@ -4,24 +4,33 @@ import { handleApi, requireAdmin } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 
 const execAsync = promisify(exec)
-const MODES = ['demo', 'real'] as const
+const MODES = ['demo', 'real', 'enrich-reviews'] as const
 type Mode = (typeof MODES)[number]
+
+const SCRIPT_BY_MODE: Record<Mode, string> = {
+  demo: 'scripts/demo-seed.ts',
+  real: 'scripts/seed.ts',
+  'enrich-reviews': 'scripts/enrich-reviews.ts',
+}
 
 let running = false
 
 /**
- * 관리자 전용 리시드. mode='demo'는 키 없이 도는 6권 데모 데이터,
- * 'real'은 카카오 책 검색 기반 실데이터(~40권). 기존 데이터는 전부 대체된다.
- * 실행 후 사용자 id가 바뀌므로 전원 재로그인 필요.
+ * 관리자 전용 리시드/보강. mode='demo'는 키 없이 도는 6권 데모 데이터, 'real'은 카카오 책
+ * 검색 기반 실데이터(~500권) — 둘 다 기존 데이터를 전부 지우고 다시 채우므로 실행 후 전원
+ * 재로그인 필요. 'enrich-reviews'는 유일하게 파괴적이지 않은 모드 — 기존 데이터(가입한
+ * 실제 계정·게시물 포함)는 그대로 두고 직원과 책마다의 리뷰·추천만 추가로 쌓는다.
  */
 export default defineEventHandler(
   handleApi(async (event) => {
     requireAdmin(event)
     const { mode } = await readBody<{ mode?: string }>(event)
-    if (!mode || !MODES.includes(mode as Mode)) throw new ApiError(400, 'mode는 demo 또는 real이어야 해요')
+    if (!mode || !MODES.includes(mode as Mode)) {
+      throw new ApiError(400, `mode는 ${MODES.join('/')} 중 하나여야 해요`)
+    }
     if (running) throw new ApiError(409, '이미 시드가 실행 중이에요')
 
-    const script = mode === 'real' ? 'scripts/seed.ts' : 'scripts/demo-seed.ts'
+    const script = SCRIPT_BY_MODE[mode as Mode]
     running = true
     try {
       const { stdout } = await execAsync(`npx tsx ${script}`, {
