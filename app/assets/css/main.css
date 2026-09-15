@@ -23,7 +23,96 @@
   --ok-tint: #EDF3E7;
   --warn: #A05A00;
   --warn-tint: #F8EEDC;
+  /* ── 접근성 모드용 토큰(2026-09-15). 컴포넌트에 하드코딩돼 있던 색을 여기로 모아 다크·색약 모드에서 덮어쓴다. */
+  --text-2: #3E382D;          /* 본문 보조 텍스트(리뷰 본문, 책 소개) */
+  --muted: #A39A88;           /* 비활성·흐린 글자, 아이콘 */
+  --hover: #F4F0E8;           /* 버튼·행 호버 배경 */
+  --line-hover: #C9BCA2;      /* 카드 호버 테두리, 별 외곽선 */
+  --cover-bg: #EDE7DA;        /* 표지 플레이스홀더 */
+  --star: #C9A227;            /* 별점 */
+  --star-off: #E4D9BE;
+  --star-text: #A8841C;
+  --sun: #C97B72;             /* 달력 일요일 */
+  --red-soft: #F2C4C4;        /* 고정 공지 테두리 */
+  --red-text: #6E3A34;        /* 레드 틴트 위 본문 */
+  --bar-track: #EDE6D7;
+  --bar-fill: #C9BCA2;
+  --accent-data: var(--red);  /* 관리자 차트 막대 — 색약 모드에서 파랑 */
+  --accent-data-dark: var(--red-dark);
+  --overlay: rgba(40, 32, 18, .45);
+  --shadow: rgba(84, 70, 45, .06);
+  --shadow-strong: rgba(60, 48, 28, .3);
+  --focus: #2F6FED;           /* 키보드 포커스 링 */
+  color-scheme: light;
 }
+
+/* ── 다크모드: 토큰만 덮어쓴다. 레드는 어두운 배경에서 #FF4438로 보정(디자인 규칙). ── */
+html[data-theme="dark"] {
+  --red: #FF4438;
+  --red-dark: #FF6A60;
+  --red-tint: #3A1F1E;
+  --ink: #F1EBE0;
+  --sub: #A89F8E;
+  --line: #3A342B;
+  --line-strong: #4A4336;
+  --bg: #17140F;
+  --card: #221D15;
+  --card-2: #2A241B;
+  --shelf-a: #8E7452;
+  --shelf-b: #5E4630;
+  --gold: #D9B44A;
+  --ok: #8BC47A;
+  --ok-tint: #24321F;
+  --warn: #E5A34A;
+  --warn-tint: #3A2B14;
+  --text-2: #D8D0C2;
+  --muted: #7C7364;
+  --hover: #2E281F;
+  --line-hover: #5C5446;
+  --cover-bg: #3A342B;
+  --star: #D9B44A;
+  --star-off: #4A4336;
+  --star-text: #E0B84A;
+  --sun: #E08A80;
+  --red-soft: #6B2A2A;
+  --red-text: #F2B8B3;
+  --bar-track: #2E281F;
+  --bar-fill: #5C5446;
+  --overlay: rgba(0, 0, 0, .6);
+  --shadow: rgba(0, 0, 0, .35);
+  --shadow-strong: rgba(0, 0, 0, .6);
+  --focus: #7FA8FF;
+  color-scheme: dark;
+}
+
+/* ── 색약 모드: 초록·주황·금색을 오카베-이토 계열(파랑/주황/호박)로. 레드는 브랜드라 유지 —
+      적록 색약의 문제는 "빨강 vs 초록"이라 초록을 파랑으로 바꾸면 해소된다. ── */
+html[data-cvd="true"] {
+  --ok: #0072B2;
+  --ok-tint: #E3F0F9;
+  --warn: #B64F00;
+  --warn-tint: #FBE9DC;
+  --gold: #B8860B;
+  --star: #B8860B;
+  --star-text: #8A6508;
+  --accent-data: #0072B2;
+  --accent-data-dark: #005A8E;
+}
+html[data-cvd="true"][data-theme="dark"] {
+  --ok: #56B4E9;
+  --ok-tint: #1B3040;
+  --warn: #F0A34A;
+  --warn-tint: #3A2B14;
+  --gold: #E5C04D;
+  --star: #E5C04D;
+  --star-text: #E5C04D;
+  --accent-data: #56B4E9;
+  --accent-data-dark: #7FC8F0;
+}
+
+/* ── 글자 크기: 브라우저 확대와 같은 방식(zoom)이라 레이아웃·아이콘이 비례 확대되고 고정폭이 넘치지 않는다. ── */
+html[data-text="large"] { zoom: 1.3; }
+html[data-text="xlarge"] { zoom: 1.6; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif; }
 a { color: var(--red); text-decoration: none; }
@@ -58,12 +147,12 @@ a:hover { color: var(--red-dark); }
 .sec-head a { font-size: 13px; white-space: nowrap; }
 
 /* ── 패널/카드 ─────────────────────────── */
-.panel { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 22px 24px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 22px 24px; box-shadow: 0 2px 10px var(--shadow); }
 .panel.accent { border-top: 2px solid var(--red); }
 
 /* ── 버튼/칩/입력 ──────────────────────── */
 .btn { font: inherit; font-size: 13.5px; font-weight: 600; border-radius: 3px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line-strong); background: transparent; color: var(--ink); }
-.btn:hover { background: #F4F0E8; }
+.btn:hover { background: var(--hover); }
 .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
 .btn.primary:hover { background: var(--red-dark); }
 .btn.sm { font-size: 12.5px; padding: 6px 12px; }
@@ -78,16 +167,16 @@ a:hover { color: var(--red-dark); }
 /* ── 상태 ──────────────────────────────── */
 .st { font-size: 12px; font-weight: 600; }
 .st.ok { color: var(--ok); }
-.st.no { color: #9A9184; }
+.st.no { color: var(--muted); }
 .st.warn { color: var(--warn); }
 .badge { display: inline-block; font-size: 11.5px; font-weight: 700; border-radius: 3px; padding: 2.5px 9px; }
 .badge.ok { color: var(--ok); background: var(--ok-tint); }
-.badge.no { color: #7A7263; background: #EFEAE0; }
+.badge.no { color: var(--sub); background: var(--hover); }
 .badge.warn { color: var(--warn); background: var(--warn-tint); }
 .badge.red { color: var(--red); background: var(--red-tint); }
 
 /* ── 책 표지 (책등 하이라이트 + 그림자) ── */
-.cv { position: relative; border-radius: 2px 5px 5px 2px; overflow: hidden; flex-shrink: 0; box-shadow: 2px 4px 10px rgba(60,48,28,.28); background: #EDE7DA; }
+.cv { position: relative; border-radius: 2px 5px 5px 2px; overflow: hidden; flex-shrink: 0; box-shadow: 2px 4px 10px var(--shadow-strong); background: var(--cover-bg); }
 .cv img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .cv::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.18) 0, rgba(255,255,255,.14) 3.5%, rgba(255,255,255,0) 7%); pointer-events: none; }
 .cv.hover { cursor: pointer; transition: transform .18s; }
@@ -101,7 +190,7 @@ a:hover { color: var(--red-dark); }
     repeating-linear-gradient(90deg, rgba(120,84,48,.12) 0 3px, transparent 3px 26px),
     linear-gradient(180deg, var(--shelf-a), var(--shelf-b));
   border-bottom: 2px solid #7E5C3A;
-  box-shadow: 0 10px 16px -7px rgba(84,70,45,.45);
+  box-shadow: 0 10px 16px -7px var(--shadow-strong);
 }
 .shelf-grid { display: grid; gap: 22px; align-items: end; }
 
@@ -167,3 +256,34 @@ a:hover { color: var(--red-dark); }
   .table.stack-sm td.full { flex-basis: 100%; }
   .table.stack-sm td.end { margin-left: auto; }
 }
+
+/* ── 접근성 공통: 키보드 포커스 링 ───────── */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ── 색약 모드: 색 외 단서(기호). 뱃지는 텍스트 앞에 ✓ / ! / – 를 붙인다. ── */
+html[data-cvd="true"] .badge.ok::before { content: "✓ "; }
+html[data-cvd="true"] .badge.warn::before { content: "! "; }
+html[data-cvd="true"] .badge.no::before { content: "– "; }
+html[data-cvd="true"] .st.warn::before { content: "! "; }
+
+/* ── 단순 화면: 장식을 걷어내고 크고 또렷하게. 기본 화면 규칙은 건드리지 않고 덮어쓰기만 한다. ── */
+html[data-simple="true"] { --line: var(--line-strong); --sub: #5C5548; --muted: #7A7263; --shadow: transparent; --shadow-strong: transparent; }
+html[data-simple="true"][data-theme="dark"] { --sub: #C4BBA9; --muted: #A89F8E; }
+html[data-simple="true"] body { line-height: 1.7; }
+html[data-simple="true"] a { text-decoration: underline; text-underline-offset: 3px; }
+html[data-simple="true"] .nav-links a, html[data-simple="true"] .logo, html[data-simple="true"] .btn, html[data-simple="true"] .chip, html[data-simple="true"] .tab { text-decoration: none; }
+html[data-simple="true"] .eyebrow, html[data-simple="true"] .logo span { display: none; }
+html[data-simple="true"] .nav-links { font-size: 16px; }
+html[data-simple="true"] .nav-links .on { border-bottom-width: 3px; }
+html[data-simple="true"] .panel, html[data-simple="true"] .post, html[data-simple="true"] .tile, html[data-simple="true"] .notice, html[data-simple="true"] .place { box-shadow: none; border-width: 2px; }
+html[data-simple="true"] .btn, html[data-simple="true"] .chip, html[data-simple="true"] .input, html[data-simple="true"] .tab { min-height: 44px; font-size: 15px; border-width: 2px; }
+html[data-simple="true"] .btn, html[data-simple="true"] .chip { display: inline-flex; align-items: center; justify-content: center; }
+html[data-simple="true"] .tab.on { border-bottom-width: 3px; }
+html[data-simple="true"] .shelf { background: var(--shelf-b); border-bottom-color: var(--shelf-b); box-shadow: none; }
+html[data-simple="true"] .cv { box-shadow: none; border: 1px solid var(--line-strong); }
+html[data-simple="true"] .cv::after { display: none; }
+html[data-simple="true"] .cv.hover { transition: none; }
+html[data-simple="true"] .cv.hover:hover { transform: none; outline: 3px solid var(--focus); }
+html[data-simple="true"] .st, html[data-simple="true"] .badge { font-size: 13px; }
+html[data-simple="true"] .fab { border: 2px solid #fff; }
+html[data-simple="true"] :focus-visible { outline-width: 3px; }

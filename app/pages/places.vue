@@ -214,7 +214,7 @@ function formatDistance(m?: number): string {
             </div>
             <div class="meta">{{ place.address }}</div>
             <div v-if="place.reason" class="why">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5000E" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="stroke: var(--red-dark)" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
               {{ place.reason }}
             </div>
             <div v-if="hasCoords(place)" class="acts">
@@ -248,14 +248,14 @@ function formatDistance(m?: number): string {
 .loc-on { font-size: 12px; color: var(--sub); background: var(--red-tint); border-radius: 3px; padding: 4px 10px; }
 
 .plist { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; }
-.place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 13px 15px; box-shadow: 0 2px 10px rgba(84,70,45,.06); flex-shrink: 0; }
+.place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 13px 15px; box-shadow: 0 2px 10px var(--shadow); flex-shrink: 0; }
 .place .top { display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; }
 .place .no { font-family: var(--font-display); color: var(--red); font-weight: 700; font-size: 16px; }
 .place b { font-size: 15.5px; }
 .place .cat { font-size: 12px; color: var(--sub); }
 .place .dist { font-size: 12px; color: var(--red); font-weight: 700; }
 .place .meta { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; }
-.place .why { background: var(--red-tint); border-radius: 3px; padding: 8px 11px; font-size: 12.5px; line-height: 1.55; color: #6E3A34; display: flex; gap: 8px; }
+.place .why { background: var(--red-tint); border-radius: 3px; padding: 8px 11px; font-size: 12.5px; line-height: 1.55; color: var(--red-text); display: flex; gap: 8px; }
 .place .why svg { flex-shrink: 0; margin-top: 2px; }
 .place .acts { display: flex; gap: 14px; margin-top: 8px; }
 .place .acts a { font-size: 12.5px; font-weight: 700; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 1px; }

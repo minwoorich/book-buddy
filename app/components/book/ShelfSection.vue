@@ -71,7 +71,7 @@ const rows = computed(() =>
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #B9AE97;
+  color: var(--muted);
   font-size: 12px;
 }
 .empty-slot {

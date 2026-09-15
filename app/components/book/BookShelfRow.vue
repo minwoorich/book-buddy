@@ -67,7 +67,7 @@ onMounted(() => {
           <div class="t">{{ book.title }}</div>
           <div class="a">{{ book.author }}</div>
           <span v-if="book.avgRating !== null" class="stars">
-            <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }}
+            <svg viewBox="0 0 24 24" style="fill: var(--star)"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }}
           </span>
           <span v-else class="stars">리뷰 없음</span>
         </div>
@@ -88,7 +88,7 @@ onMounted(() => {
         <div class="t">{{ book.title }}</div>
         <div class="a">{{ book.author }}</div>
         <span v-if="book.avgRating !== null" class="stars">
-          <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }}
+          <svg viewBox="0 0 24 24" style="fill: var(--star)"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }}
         </span>
         <span v-else class="stars">리뷰 없음</span>
       </div>
@@ -121,8 +121,8 @@ onMounted(() => {
 
 .arrow {
   position: absolute; top: 34%; z-index: 2; width: 36px; height: 36px; border-radius: 50%;
-  border: 1px solid var(--line-strong); background: rgba(255,255,255,.95); color: var(--ink);
-  font-size: 22px; line-height: 1; cursor: pointer; box-shadow: 0 4px 12px rgba(60,48,28,.18);
+  border: 1px solid var(--line-strong); background: var(--card); color: var(--ink);
+  font-size: 22px; line-height: 1; cursor: pointer; box-shadow: 0 4px 12px var(--shadow-strong);
   display: flex; align-items: center; justify-content: center;
 }
 .arrow:hover { border-color: var(--red); color: var(--red); }

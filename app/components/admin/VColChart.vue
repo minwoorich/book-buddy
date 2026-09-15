@@ -30,8 +30,8 @@ function colHeight(value: number): number {
 .vcol-chart { display: flex; align-items: flex-end; gap: 26px; height: 170px; padding: 0 10px; border-bottom: 1px solid var(--line-strong); }
 .vcol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
 .vcol .num { font-size: 12.5px; color: var(--ink); }
-.vcol .col { width: 26px; background: var(--red); border-radius: 4px 4px 0 0; }
-.vcol:hover .col { background: var(--red-dark); }
+.vcol .col { width: 26px; background: var(--accent-data); border-radius: 4px 4px 0 0; }
+.vcol:hover .col { background: var(--accent-data-dark); }
 .vcol-cats { display: flex; gap: 26px; padding: 8px 10px 0; }
 .vcol-cats span { flex: 1; text-align: center; font-size: 12.5px; color: var(--sub); }
 

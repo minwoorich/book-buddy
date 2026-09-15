@@ -33,8 +33,8 @@ function barWidth(value: number): number {
 .hbar-chart .cat { font-size: 13px; color: var(--sub); text-align: right; padding-right: 14px; word-break: keep-all; line-height: 1.3; }
 .hbar-chart .track { position: relative; height: 18px; }
 .hbar-chart .grid-line { position: absolute; top: -6px; bottom: -6px; width: 1px; background: var(--line); }
-.hbar-chart .bar { position: absolute; top: 0; bottom: 0; left: 0; background: var(--red); border-radius: 0 4px 4px 0; }
-.hbar-chart .track:hover .bar { background: var(--red-dark); }
+.hbar-chart .bar { position: absolute; top: 0; bottom: 0; left: 0; background: var(--accent-data); border-radius: 0 4px 4px 0; }
+.hbar-chart .track:hover .bar { background: var(--accent-data-dark); }
 .hbar-chart .val { font-size: 13px; color: var(--ink); padding-left: 12px; }
 .hbar-chart .val span { color: var(--sub); font-size: 12px; }
 

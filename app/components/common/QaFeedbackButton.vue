@@ -207,7 +207,7 @@ onBeforeUnmount(revokePreviews)
   color: var(--sub); background: var(--card);
   border: 1px solid var(--line-strong); border-radius: 999px;
   padding: 8px 14px; cursor: pointer;
-  box-shadow: 0 4px 12px rgba(84, 70, 45, 0.15);
+  box-shadow: 0 4px 12px var(--shadow);
 }
 .qa-fab:hover { color: var(--red); border-color: var(--red); }
 .qa-panel {
@@ -215,7 +215,7 @@ onBeforeUnmount(revokePreviews)
   width: 372px; max-height: calc(100vh - 48px); overflow-y: auto;
   background: var(--card);
   border: 1px solid var(--line-strong); border-radius: 10px;
-  padding: 14px; box-shadow: 0 12px 32px rgba(60, 48, 28, 0.25);
+  padding: 14px; box-shadow: 0 12px 32px var(--shadow-strong);
   display: flex; flex-direction: column; gap: 12px;
 }
 .qa-head { display: flex; align-items: baseline; gap: 8px; }

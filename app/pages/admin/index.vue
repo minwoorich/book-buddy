@@ -190,7 +190,7 @@ function onBookRegistered() {
         </div>
         <div class="tile" :class="{ alert: overdueLoans.length > 0 }">
           <div class="lbl">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A05A00" stroke-width="2" stroke-linejoin="round"><path d="M12 3L2 21h20L12 3z"></path><line x1="12" y1="10" x2="12" y2="15"></line><circle cx="12" cy="18" r="0.5"></circle></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="stroke: var(--warn)" stroke-width="2" stroke-linejoin="round"><path d="M12 3L2 21h20L12 3z"></path><line x1="12" y1="10" x2="12" y2="15"></line><circle cx="12" cy="18" r="0.5"></circle></svg>
             연체
           </div>
           <b>{{ overdueLoans.length }}</b><span style="font-size:14px; color:var(--sub);"> 건</span>
@@ -314,7 +314,7 @@ function onBookRegistered() {
 
 <style scoped>
 .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 34px; }
-.tile { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; box-shadow: 0 2px 10px var(--shadow); }
 .tile .lbl { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .tile b { font-family: var(--font-display); font-size: 30px; font-weight: 600; }
 .tile .sub { font-size: 12px; color: var(--sub); margin-top: 4px; }

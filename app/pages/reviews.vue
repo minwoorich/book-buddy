@@ -119,8 +119,7 @@ function starFills(rating: number): boolean[] {
                   v-for="(filled, i) in starFills(review.rating)"
                   :key="i"
                   width="14" height="14" viewBox="0 0 24 24"
-                  :fill="filled ? '#C9A227' : 'none'"
-                  :stroke="filled ? '#C9A227' : '#C9BCA2'"
+                  :style="{ fill: filled ? 'var(--star)' : 'none', stroke: filled ? 'var(--star)' : 'var(--line-hover)' }"
                   stroke-width="1.5"
                 ><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z" /></svg>
                 <span class="stars-num">{{ review.rating.toFixed(1) }}</span>
@@ -177,9 +176,9 @@ function starFills(rating: number): boolean[] {
 .row-top .when { margin-left: auto; font-size: 12px; color: var(--sub); }
 
 .stars { display: flex; align-items: center; gap: 2px; margin-bottom: 9px; }
-.stars-num { margin-left: 4px; font-size: 12.5px; font-weight: 700; color: #A8841C; }
+.stars-num { margin-left: 4px; font-size: 12.5px; font-weight: 700; color: var(--star-text); }
 
-.content { margin: 0 0 12px; font-size: 15px; line-height: 1.7; color: #3E382D; }
+.content { margin: 0 0 12px; font-size: 15px; line-height: 1.7; color: var(--text-2); }
 
 .row-foot { display: flex; align-items: center; gap: 14px; }
 .book-tag {
@@ -196,7 +195,7 @@ function starFills(rating: number): boolean[] {
   background: transparent; border: 1px solid var(--line-strong); border-radius: 999px;
   padding: 5px 12px; cursor: pointer;
 }
-.vote:hover { background: #F1EADD; }
+.vote:hover { background: var(--hover); }
 .vote.on { border-color: var(--red); color: var(--red); background: var(--red-tint); }
 .vote:disabled { opacity: .6; cursor: default; }
 

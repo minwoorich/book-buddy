@@ -44,6 +44,7 @@ async function handleLogout() {
         <NuxtLink v-if="user?.role === 'admin'" :class="{ on: activeKey === 'admin' }" to="/admin">관리자</NuxtLink>
       </div>
       <div v-if="user" class="me-zone">
+        <CommonA11yMenu />
         <NuxtLink class="me" to="/my" title="마이페이지로 이동">
           <div class="avatar">{{ user.name.charAt(0) }}</div> <span class="me-name">{{ user.name }} 님</span>
         </NuxtLink>
@@ -52,6 +53,7 @@ async function handleLogout() {
         </button>
       </div>
       <div v-else class="guest-actions">
+        <CommonA11yMenu />
         <NuxtLink to="/signup" class="signup-link">회원가입</NuxtLink>
         <NuxtLink to="/login" class="btn primary sm">로그인</NuxtLink>
       </div>

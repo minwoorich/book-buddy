@@ -58,12 +58,12 @@ async function runAction(action: ChatAction) {
 </template>
 
 <style scoped>
-.msg-user { align-self: flex-end; max-width: 82%; background: var(--ink); color: #F6F1E7; border-radius: 14px 14px 3px 14px; padding: 9px 14px; font-size: 14px; line-height: 1.55; }
-.msg-ai { align-self: stretch; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px 14px 14px 3px; padding: 12px 14px; font-size: 14px; line-height: 1.65; color: #3E382D; }
+.msg-user { align-self: flex-end; max-width: 82%; background: var(--ink); color: var(--bg); border-radius: 14px 14px 3px 14px; padding: 9px 14px; font-size: 14px; line-height: 1.55; }
+.msg-ai { align-self: stretch; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px 14px 14px 3px; padding: 12px 14px; font-size: 14px; line-height: 1.65; color: var(--text-2); }
 .msg-ai .tag { font-size: 10.5px; letter-spacing: 2px; color: var(--red); font-weight: 700; display: block; margin-bottom: 6px; }
 .mini-books { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .mini-book { display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; cursor: pointer; color: inherit; }
-.mini-book:hover { border-color: #C9BCA2; }
+.mini-book:hover { border-color: var(--line-hover); }
 .mini-book :deep(.cv) { width: 34px; height: 48px; flex-shrink: 0; }
 .mini-book .t { font-size: 13px; font-weight: 700; }
 .mini-book .a { font-size: 11.5px; color: var(--sub); }

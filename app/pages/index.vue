@@ -275,7 +275,7 @@ function toggleExternal() {
 /* 토글 스위치(QA #66) */
 .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
-.switch .track { width: 34px; height: 20px; border-radius: 999px; background: #D8CEBC; position: relative; transition: background .18s; flex-shrink: 0; }
+.switch .track { width: 34px; height: 20px; border-radius: 999px; background: var(--line-strong); position: relative; transition: background .18s; flex-shrink: 0; }
 .switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s; }
 .switch input:checked + .track { background: var(--red); }
 .switch input:checked + .track .knob { transform: translateX(14px); }

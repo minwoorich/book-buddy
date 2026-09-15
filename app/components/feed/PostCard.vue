@@ -246,7 +246,7 @@ async function submitComment() {
 
 <style scoped>
 /* 인스타 무드(QA #40): 헤더 → 사진 → 아이콘 액션 → 좋아요 → 캡션 → 댓글, 여백 넉넉히. */
-.post { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(84, 70, 45, .06); }
+.post { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px var(--shadow); }
 
 .who { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
 .who-txt b { font-size: 13.5px; display: block; }
@@ -258,18 +258,18 @@ async function submitComment() {
 .more-zone.no-book { margin-left: auto; }
 .more { border: 0; background: none; padding: 4px; cursor: pointer; color: var(--sub); display: flex; }
 .more:hover { color: var(--ink); }
-.menu { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 96px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(60, 48, 28, .14); padding: 4px; display: flex; flex-direction: column; }
+.menu { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 96px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px var(--shadow-strong); padding: 4px; display: flex; flex-direction: column; }
 .menu button { border: 0; background: none; text-align: left; font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 4px; cursor: pointer; color: var(--ink); }
 .menu button:hover { background: var(--card-2); }
 .menu button.danger { color: var(--red); }
 .edit-zone { margin-bottom: 8px; }
 .edit-zone textarea { resize: vertical; font-size: 14px; line-height: 1.55; }
 .edit-acts { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
-.booktag :deep(.cv) { width: 18px; height: 26px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px rgba(60, 48, 28, .25); flex-shrink: 0; }
+.booktag :deep(.cv) { width: 18px; height: 26px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px var(--shadow-strong); flex-shrink: 0; }
 
 /* 사진 비율을 고정하지 않는다(QA #48) — 가로/세로/정방형 모두 원본 비율대로, 세로가
    너무 긴 사진만 640px에서 잘라낸다. */
-.post .photo { background: #EDE7DA; position: relative; overflow: hidden; }
+.post .photo { background: var(--cover-bg); position: relative; overflow: hidden; }
 .post .photo img { width: 100%; height: auto; max-height: 640px; object-fit: cover; display: block; }
 .post .photo .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0, 0, 0, .4); color: #fff; font-size: 17px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .post .photo .nav:hover:not(:disabled) { background: rgba(0, 0, 0, .6); }
@@ -286,7 +286,7 @@ async function submitComment() {
 .act-btn:hover { opacity: .6; }
 .act-btn.on { color: var(--red); }
 .likes { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
-.post .cap { font-size: 15px; line-height: 1.65; color: #3E382D; margin-bottom: 6px; }
+.post .cap { font-size: 15px; line-height: 1.65; color: var(--text-2); margin-bottom: 6px; }
 .post .cap b { margin-right: 5px; }
 .cmt-toggle { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--sub); cursor: pointer; margin-bottom: 6px; display: block; }
 .cmt-toggle:hover { color: var(--ink); }

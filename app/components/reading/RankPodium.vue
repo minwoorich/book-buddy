@@ -22,7 +22,7 @@ function initial(row: RankRow): string {
       <div class="base">2</div>
     </div>
     <div v-if="first" class="pod first">
-      <svg class="crown" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.6 10H4.6L3 8z"></path></svg>
+      <svg class="crown" width="26" height="26" viewBox="0 0 24 24" fill="none" style="stroke: var(--star)" stroke-width="2" stroke-linejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.6 10H4.6L3 8z"></path></svg>
       <span class="avatar">{{ initial(first) }}</span>
       <div class="nm">{{ first.label }}</div>
       <div v-if="first.sub" class="org">{{ first.sub }}</div>
@@ -46,7 +46,7 @@ function initial(row: RankRow): string {
 .pod .nm { font-weight: 700; font-size: 15px; }
 .pod .org { font-size: 12px; color: var(--sub); margin-bottom: 10px; }
 .pod .cnt { font-family: var(--font-display); font-size: 18px; margin-bottom: 10px; }
-.pod .base { background: var(--card); border: 1px solid var(--line); border-radius: 4px 4px 0 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 26px; color: var(--sub); box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+.pod .base { background: var(--card); border: 1px solid var(--line); border-radius: 4px 4px 0 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 26px; color: var(--sub); box-shadow: 0 2px 10px var(--shadow); }
 .pod.first .base { height: 110px; border-top: 3px solid var(--red); color: var(--red); font-weight: 700; }
 .pod.second .base { height: 78px; }
 .pod.third .base { height: 58px; }

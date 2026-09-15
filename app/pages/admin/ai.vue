@@ -257,7 +257,7 @@ const FEATURE_LABEL: Record<string, string> = { chat: '챗봇', search: 'AI 검�
   margin-bottom: 24px;
 }
 .stat-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 34px; }
-.tile { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; box-shadow: 0 2px 10px var(--shadow); }
 .tile .lbl { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; }
 .tile b { font-family: var(--font-display); font-size: 26px; font-weight: 600; }
 .tile .unit { font-size: 14px; color: var(--sub); margin-left: 4px; }

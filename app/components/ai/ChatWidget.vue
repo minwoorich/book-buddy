@@ -220,7 +220,7 @@ function resetSize() {
 
 <style scoped>
 .fab-glyph { font-family: var(--font-serif); font-size: 32px; font-weight: 600; color: #fff; line-height: 1; }
-.chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; max-width: calc(100vw - 60px); max-height: calc(100vh - 60px); background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
+.chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; max-width: calc(100vw - 60px); max-height: calc(100vh - 60px); background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px var(--shadow-strong); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
 /* 끄는 동안 본문 텍스트 선택·전환 애니메이션이 끼어들지 않게 */
 .chat.resizing { user-select: none; }
 /* 왼쪽 위 모서리 손잡이(QA #86): 대각선 그립, 커서는 ↖↘ */

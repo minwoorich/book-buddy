@@ -100,14 +100,14 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: .3px;
-  box-shadow: 0 2px 4px rgba(60, 48, 28, .25);
+  box-shadow: 0 2px 4px var(--shadow-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 0 6px;
   box-sizing: border-box;
 }
-.stack-base { height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-bottom: 4px; box-shadow: 0 6px 10px -6px rgba(84,70,45,.45); }
+.stack-base { height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-bottom: 4px; box-shadow: 0 6px 10px -6px var(--shadow); }
 .more { font-size: 11px; font-weight: 700; color: var(--sub); margin-bottom: 3px; }
 
 @media (max-width: 900px) {

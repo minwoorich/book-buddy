@@ -161,8 +161,8 @@ async function remove(notice: Notice) {
 .composer-acts { display: flex; justify-content: flex-end; gap: 8px; }
 
 .list { display: flex; flex-direction: column; gap: 10px; }
-.notice { background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 10px rgba(84,70,45,.06); overflow: hidden; }
-.notice.pinned { border-color: #F2C4C4; }
+.notice { background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 10px var(--shadow); overflow: hidden; }
+.notice.pinned { border-color: var(--red-soft); }
 .row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 15px 18px; border: 0; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
 .row:hover { background: var(--card-2); }
 .title { font-size: 15.5px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -30,6 +30,7 @@ async function submit() {
 
 <template>
   <div class="login-wrap">
+    <div class="a11y-corner"><CommonA11yMenu /></div>
     <div class="logo-big">
       <div class="logo-mark">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
@@ -62,7 +63,8 @@ async function submit() {
 </template>
 
 <style scoped>
-.login-wrap { max-width: 420px; margin: 0 auto; padding: 70px 24px 90px; text-align: center; }
+.login-wrap { max-width: 420px; margin: 0 auto; padding: 70px 24px 90px; text-align: center; position: relative; }
+.a11y-corner { position: absolute; top: 16px; right: 16px; }
 .logo-big { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 26px; }
 .logo-big .logo-mark { width: 44px; height: 44px; border-radius: 10px; }
 .logo-big b { font-family: var(--font-serif); font-size: 26px; display: block; text-align: left; }

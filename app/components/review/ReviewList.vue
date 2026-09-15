@@ -109,7 +109,7 @@ defineExpose({ refresh })
           <b>{{ review.userName }}</b>
           <span style="color:var(--sub);">{{ review.department }}</span>
           <span class="stars">
-            <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z" /></svg>{{ review.rating.toFixed(1) }}
+            <svg viewBox="0 0 24 24" style="fill: var(--star)"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z" /></svg>{{ review.rating.toFixed(1) }}
           </span>
           <template v-if="isMine(review) && editingId !== review.id">
             <button type="button" class="mini-act" @click="startEdit(review)">수정</button>
@@ -143,13 +143,13 @@ defineExpose({ refresh })
 .review .who { font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
 .review .who b { font-size: 13.5px; }
 .review .who .stars svg { width: 11px; height: 11px; }
-.review .txt { font-size: 14.5px; line-height: 1.6; color: #3E382D; }
+.review .txt { font-size: 14.5px; line-height: 1.6; color: var(--text-2); }
 .mini-act { border: 0; background: none; font: inherit; font-size: 12px; color: var(--sub); cursor: pointer; padding: 0 2px; text-decoration: underline; }
 .mini-act:hover { color: var(--red); }
 .edit-zone { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .edit-zone :deep(.star-rating) svg { width: 18px; height: 18px; }
 .edit-acts { display: flex; gap: 8px; }
 .vote { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid var(--line-strong); border-radius: 3px; padding: 7px 12px; cursor: pointer; background: transparent; font: inherit; color: var(--sub); font-size: 12px; }
-.vote:hover { background: #F1EADD; }
+.vote:hover { background: var(--hover); }
 .vote.on { border-color: var(--red); color: var(--red); background: var(--red-tint); font-weight: 700; }
 </style>

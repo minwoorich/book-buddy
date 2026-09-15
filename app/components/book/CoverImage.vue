@@ -25,6 +25,6 @@ defineProps<{
   font-size: 11px;
   line-height: 1.4;
   color: var(--sub);
-  background: #EDE7DA;
+  background: var(--cover-bg);
 }
 </style>

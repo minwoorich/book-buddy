@@ -23,7 +23,7 @@ function select(n: number) {
       v-for="n in stars"
       :key="n"
       viewBox="0 0 24 24"
-      :fill="isFilled(n) ? '#C9A227' : '#E4D9BE'"
+      :style="{ fill: isFilled(n) ? 'var(--star)' : 'var(--star-off)' }"
       @click="select(n)"
     ><path :d="STAR_PATH" /></svg>
   </span>

@@ -143,8 +143,8 @@ function isMine(row: RankRow): boolean {
 .rank-row .who b { font-size: 14.5px; display: block; }
 .rank-row .who span { font-size: 12px; color: var(--sub); }
 .rank-row .bar-zone { flex: 1; }
-.rank-row .bar { height: 8px; background: #EDE6D7; border-radius: 999px; overflow: hidden; }
-.rank-row .bar i { display: block; height: 100%; background: #C9BCA2; border-radius: 999px; }
+.rank-row .bar { height: 8px; background: var(--bar-track); border-radius: 999px; overflow: hidden; }
+.rank-row .bar i { display: block; height: 100%; background: var(--line-hover); border-radius: 999px; }
 .rank-row .cnt { width: 130px; text-align: right; font-size: 13.5px; color: var(--sub); }
 .rank-row .cnt b { color: var(--ink); font-size: 15px; }
 .rank-row.mine { background: var(--red-tint); border-radius: 4px; border-bottom: 0; }

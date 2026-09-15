@@ -18,7 +18,7 @@ defineProps<{
       <div class="t">{{ book.title }}</div>
       <div class="a">{{ book.author }}</div>
       <span v-if="book.avgRating !== null" class="stars">
-        <svg viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }}
+        <svg viewBox="0 0 24 24" style="fill: var(--star)"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>{{ book.avgRating.toFixed(1) }}
       </span>
       <span v-else class="stars">리뷰 없음</span>
       <div class="status">

@@ -224,7 +224,7 @@ function cancel() {
 .file-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .placeholder { font-size: 12px; color: var(--sub); }
 .thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.thumb { position: relative; width: 92px; height: 92px; flex-shrink: 0; border-radius: 3px; overflow: hidden; background: #EDE7DA; }
+.thumb { position: relative; width: 92px; height: 92px; flex-shrink: 0; border-radius: 3px; overflow: hidden; background: var(--cover-bg); }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb .badge { position: absolute; left: 4px; bottom: 4px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 999px; }
 .thumb .remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0, 0, 0, .55); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }

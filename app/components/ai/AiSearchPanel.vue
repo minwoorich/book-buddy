@@ -229,10 +229,10 @@ function goLogin() {
 .ai-head b { font-family: var(--font-display); font-size: 16.5px; }
 .ai-head i { font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; }
 .ai-q { font-size: 13px; color: var(--sub); }
-p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-width: 820px; }
+p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: var(--text-2); max-width: 820px; }
 .ai-books { display: flex; justify-content: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .ai-book { flex: 0 1 300px; min-width: 220px; display: flex; gap: 14px; align-items: center; border: 1px solid var(--line); background: var(--card-2); border-radius: 4px; padding: 13px 14px; cursor: pointer; color: inherit; }
-.ai-book:hover { border-color: #C9BCA2; }
+.ai-book:hover { border-color: var(--line-hover); }
 .ai-book :deep(.cv) { width: 54px; height: 78px; }
 .ai-book .t { font-weight: 700; font-size: 14.5px; margin-bottom: 2px; }
 .ai-book .a { font-size: 12.5px; color: var(--sub); }

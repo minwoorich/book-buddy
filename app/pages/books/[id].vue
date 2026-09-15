@@ -348,7 +348,7 @@ function askAi() {
 .rating { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
 .rating b { font-size: 20px; }
 .rating :deep(.star-rating) svg { width: 16px; height: 16px; }
-.desc { font-size: 15px; line-height: 1.8; color: #464034; margin: 0 0 24px; }
+.desc { font-size: 15px; line-height: 1.8; color: var(--text-2); margin: 0 0 24px; }
 .desc-more { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--sub); cursor: pointer; text-decoration: underline; }
 .desc-more:hover { color: var(--red); }
 .ai-mini { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; }
@@ -358,7 +358,7 @@ function askAi() {
 
 .toast {
   position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%);
-  background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 600;
+  background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 600;
   border-radius: 999px; padding: 11px 20px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 90;
   white-space: nowrap;
 }
@@ -366,13 +366,13 @@ function askAi() {
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 .modal-back {
-  position: fixed; inset: 0; background: rgba(40, 32, 18, .45); z-index: 95;
+  position: fixed; inset: 0; background: var(--overlay); z-index: 95;
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .modal {
   width: 380px; max-width: 100%; background: var(--card); border: 1px solid var(--line-strong);
   border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 24px 60px rgba(60,48,28,.35);
+  box-shadow: 0 24px 60px var(--shadow-strong);
 }
 .modal b { font-size: 15.5px; }
 .modal p { margin: 0; font-size: 13px; color: var(--sub); }

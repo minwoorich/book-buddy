@@ -461,7 +461,7 @@ function requestMeta(r: PurchaseRequest): string {
 .cal-head h3 { font-family: var(--font-display); font-size: 19px; font-weight: 700; margin: 0; }
 .cal-nav { display: flex; gap: 6px; }
 .cal-nav button { font: inherit; width: 30px; height: 30px; border-radius: 3px; border: 1px solid var(--line-strong); background: transparent; cursor: pointer; color: var(--sub); font-size: 14px; }
-.cal-nav button:hover { background: #F4F0E8; }
+.cal-nav button:hover { background: var(--hover); }
 .cal-head .chip { margin-left: auto; }
 .cal-head .chip:disabled { cursor: default; }
 
@@ -491,8 +491,8 @@ function requestMeta(r: PurchaseRequest): string {
 .my-review .rv-title { font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: none; }
 .my-review .rv-title:hover { color: var(--red); }
 .my-review .rv-meta { display: flex; gap: 10px; font-size: 12px; color: var(--sub); margin: 2px 0 4px; }
-.my-review .rv-stars { color: #C9A227; font-weight: 700; }
-.my-review .rv-text { font-size: 13.5px; line-height: 1.6; color: #3E382D; }
+.my-review .rv-stars { color: var(--star); font-weight: 700; }
+.my-review .rv-text { font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
 .my-review .btn { align-self: center; flex-shrink: 0; }
 
 @media (max-width: 900px) {

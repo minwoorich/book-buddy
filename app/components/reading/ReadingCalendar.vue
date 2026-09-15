@@ -106,14 +106,14 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
 .day:nth-child(7n) { border-right: 0; }
 .day .n { font-size: 12.5px; color: var(--sub); }
 .day.dim { background: transparent; }
-.day.dim .n { color: #C4BAA6; }
-.day.sun .n { color: #C97B72; }
+.day.dim .n { color: var(--muted); }
+.day.sun .n { color: var(--sun); }
 .day.today { outline: 2px solid var(--red); outline-offset: -2px; }
 .day.today .n { color: var(--red); font-weight: 800; }
 .day .cv-link { display: block; }
 .day :deep(.cv) { width: 58px; height: 84px; margin: 7px auto 0; display: block; }
 .day .done { position: absolute; top: 7px; right: 7px; font-size: 10px; color: var(--ok); font-weight: 700; }
-.day .more { position: absolute; bottom: 6px; right: 7px; font-size: 10px; font-weight: 700; color: var(--sub); background: #EDE7DA; border-radius: 8px; padding: 1px 5px; line-height: 1; }
+.day .more { position: absolute; bottom: 6px; right: 7px; font-size: 10px; font-weight: 700; color: var(--sub); background: var(--cover-bg); border-radius: 8px; padding: 1px 5px; line-height: 1; }
 .day .cv-nav {
   position: absolute; top: 58%; transform: translateY(-50%);
   width: 18px; height: 18px; border-radius: 50%; border: none;
@@ -124,7 +124,7 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
 .day .cv-nav.prev { left: 4px; }
 .day .cv-nav.next { right: 4px; }
 .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12.5px; color: var(--sub); align-items: center; }
-.legend .k { display: inline-block; width: 12px; height: 17px; border-radius: 1px 3px 3px 1px; background: #33465C; box-shadow: 1px 2px 4px rgba(60,48,28,.3); margin-right: 6px; vertical-align: -3px; }
+.legend .k { display: inline-block; width: 12px; height: 17px; border-radius: 1px 3px 3px 1px; background: #33465C; box-shadow: 1px 2px 4px var(--shadow-strong); margin-right: 6px; vertical-align: -3px; }
 
 @media (max-width: 640px) {
   .dow { font-size: 11px; letter-spacing: 0; }

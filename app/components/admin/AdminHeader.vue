@@ -31,6 +31,7 @@ const activeKey = computed(() => props.active)
         >{{ item.label }}</NuxtLink>
       </div>
       <div class="me">
+        <CommonA11yMenu />
         <span class="badge red">관리자</span>
         <div class="avatar">{{ user?.name?.charAt(0) ?? '관' }}</div> <span class="me-name">{{ user?.name ?? '관리자' }}</span>
         <NuxtLink to="/" class="to-user">사용자 화면 →</NuxtLink>
