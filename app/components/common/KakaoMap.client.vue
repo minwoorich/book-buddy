@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Place } from '#shared/types'
+import { VATECH_HQ } from '#shared/constants/company'
 
 // 카카오 지도 JS는 전역 스크립트로 로드되는 SDK라 별도 타입 패키지 없이 window.kakao를
 // any로 다룬다(브리프 허용 범위). 이 컴포넌트는 파일명 컨벤션(`.client.vue`)으로 서버에서는
@@ -65,14 +66,24 @@ function loadScript(src: string): Promise<void> {
   })
 }
 
-function centerOf(places: Place[]): { lat: number; lng: number } {
-  // 용인 수지 근방 기본 좌표(장소가 하나도 없을 때).
-  if (places.length === 0) return { lat: 37.3225, lng: 127.0983 }
-  const sum = places.reduce(
-    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
-    { lat: 0, lng: 0 }
+/** 두 좌표 사이 대략 거리(km) — 본사를 화면에 함께 담을지 판단하는 용도라 정밀할 필요는 없다. */
+function roughKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const dLat = (a.lat - b.lat) * 111
+  const dLng = (a.lng - b.lng) * 111 * Math.cos((a.lat * Math.PI) / 180)
+  return Math.sqrt(dLat * dLat + dLng * dLng)
+}
+
+/** 본사(HQ)를 화면에 같이 담을 만큼 가까운 장소가 하나라도 있는지 판단하는 반경. 먼 지역 키워드 검색이면 제외. */
+const HQ_INCLUDE_RADIUS_KM = 10
+
+function hqLabelHtml(): string {
+  return (
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+    '<div style="width:14px;height:14px;background:#221D15;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.3);"></div>' +
+    '<div style="font-size:11px;font-weight:700;background:#221D15;color:#fff;border-radius:3px;padding:2px 8px;white-space:nowrap;">' +
+    VATECH_HQ.shortName +
+    '</div></div>'
   )
-  return { lat: sum.lat / places.length, lng: sum.lng / places.length }
 }
 
 function pinLabelHtml(no: number): string {
@@ -90,6 +101,7 @@ let mapInstance: any = null
 let markers: any[] = []
 let overlays: any[] = []
 let myLocationOverlay: any = null
+let hqOverlay: any = null
 
 function clearMarkers() {
   markers.forEach((m) => m.setMap(null))
@@ -138,10 +150,17 @@ function renderMyLocation(pan = false) {
 function ensureMap(kakao: any): any {
   if (!mapEl.value || !kakao?.maps) return null
   if (!mapInstance) {
-    const c = centerOf(validPlaces.value)
+    // 지도는 항상 바텍네트웍스 본사를 기본 중심으로 연다. 장소가 오면 renderMarkers가 범위를 맞춘다.
     mapInstance = new kakao.maps.Map(mapEl.value, {
-      center: new kakao.maps.LatLng(c.lat, c.lng),
-      level: 5,
+      center: new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng),
+      level: 4,
+    })
+    hqOverlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng),
+      content: hqLabelHtml(),
+      yAnchor: 0.5,
+      map: mapInstance,
+      zIndex: 5,
     })
   }
   return mapInstance
@@ -154,10 +173,18 @@ function renderMarkers() {
   if (!map) return
 
   clearMarkers()
-  if (validPlaces.value.length === 0) return
+  if (validPlaces.value.length === 0) {
+    map.setCenter(new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng))
+    map.setLevel(4)
+    return
+  }
 
-  const c = centerOf(validPlaces.value)
-  map.setCenter(new kakao.maps.LatLng(c.lat, c.lng))
+  // 본사 근처 장소가 있으면 본사까지 한 화면에 담고, 먼 지역 검색이면 장소들만 담는다.
+  const bounds = new kakao.maps.LatLngBounds()
+  const nearHq = validPlaces.value.some((p) => roughKm(p, VATECH_HQ) <= HQ_INCLUDE_RADIUS_KM)
+  if (nearHq) bounds.extend(new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng))
+  validPlaces.value.forEach((p) => bounds.extend(new kakao.maps.LatLng(p.lat, p.lng)))
+  map.setBounds(bounds, 40)
 
   validPlaces.value.forEach((place, i) => {
     const position = new kakao.maps.LatLng(place.lat, place.lng)
@@ -225,6 +252,7 @@ watch(showFallback, (isFallback) => {
     markers = []
     overlays = []
     myLocationOverlay = null
+    hqOverlay = null
   }
 })
 
@@ -247,7 +275,7 @@ watch(
       <div class="park" />
       <div class="hq" style="left: 44%; top: 42%;">
         <div class="dot" />
-        <div class="lbl">바텍 본사</div>
+        <div class="lbl">{{ VATECH_HQ.shortName }}</div>
       </div>
       <div
         v-for="(place, i) in fallbackPlaces"

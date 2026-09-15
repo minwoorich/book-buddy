@@ -37,3 +37,9 @@
 - 패키지: `@langchain/anthropic`, `@langchain/core`, `@langchain/langgraph`
 - 에이전트: `createReactAgent` (LangGraph prebuilt) + `tool()` 헬퍼로 도구 정의 (zod 스키마)
 - 응답을 JSON 형식(`message`/`bookIds`/`actions`)으로 강제 → 서버에서 파싱, 실패 시 텍스트 폴백
+
+## 카카오맵 JS SDK — Web 도메인 등록 (2026-09-15 장애)
+
+- 증상: `/places`에서 실지도 대신 예시 지도, 콘솔 `[KakaoMap] SDK 로드 실패`.
+- 원인: `dapi.kakao.com/v2/maps/sdk.js`는 Referer 도메인이 카카오 앱의 Web 플랫폼에 등록돼 있어야 200을 준다. 컨테이너에서 확인한 결과 `https://www.vnlibrary.com`·`https://vnlibrary.com` Referer는 401 `domain mismatched`, `book-buddy-production-27b4.up.railway.app`·`localhost:3000`은 200. 즉 도메인을 vnlibrary.com으로 옮긴 뒤 카카오 콘솔에 새 도메인을 등록하지 않았다.
+- 조치: developers.kakao.com → 앱 → 플랫폼 → Web → 사이트 도메인에 `https://www.vnlibrary.com`과 `https://vnlibrary.com` 추가. 코드 변경 불필요(키·public-config는 정상).

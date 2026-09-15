@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Place } from '#shared/types'
+import { VATECH_HQ } from '#shared/constants/company'
 
 type PlaceWithReason = Place & { reason: string }
 
@@ -16,49 +17,52 @@ const { data: publicConfig } = await useAsyncData<{ kakaoJsKey: string }>(
 )
 const kakaoJsKey = computed(() => publicConfig.value.kakaoJsKey || config.public.kakaoJsKey || '')
 
-// places.html의 고정 예시 4곳. 카카오 로컬 검색 키가 없어 GET /api/places가 503을 내는
-// 상황(또는 로그인 전 SSR)에서 정적 폴백으로 그대로 보여준다. address 필드는 실제 API
-// 결과에선 도로명 주소가 들어가지만, 여기선 목업과 동일하게 운영시간/메모 텍스트를 담는다.
+// 카카오 로컬 검색 키가 없어 GET /api/places가 503을 내는 상황(또는 로그인 전)에 보여줄 예시 4곳.
+// 바텍네트웍스 본사(동탄) 반경의 실제 장소·좌표라 지도 키만 있으면 실지도에도 그대로 찍힌다.
 const FALLBACK_PLACES: PlaceWithReason[] = [
   {
-    name: '카페 온점',
-    category: '카페 · 도보 4분',
-    address: '평일 9:00–21:00 · 콘센트 좌석 많음',
-    mapx: 0,
-    mapy: 0,
-    lat: 0,
-    lng: 0,
-    reason: '창가 1인석이 많고 음악이 잔잔해서 점심시간 독서에 가장 좋아요.',
+    name: '카페인사이드',
+    category: '카페 · 도보 2분',
+    address: '경기 화성시 동탄구 삼성1로 209',
+    mapx: 1270749129,
+    mapy: 372218632,
+    lat: 37.22186318777907,
+    lng: 127.07491291181383,
+    distanceM: 105,
+    reason: '본사 바로 앞이라 점심시간에 잠깐 읽고 오기 좋아요.',
   },
   {
-    name: '수지도서관',
-    category: '도서관 · 차 7분',
-    address: '화–일 9:00–22:00 · 열람실 예약 가능',
-    mapx: 0,
-    mapy: 0,
-    lat: 0,
-    lng: 0,
-    reason: '집중해서 완독하고 싶은 날, 퇴근 후 2시간 몰입 코스로 추천해요.',
+    name: '동학산공원',
+    category: '공원 · 도보 5분',
+    address: '경기 화성시 동탄구 석우동 29-3',
+    mapx: 1270786769,
+    mapy: 372204227,
+    lat: 37.22042267391131,
+    lng: 127.07867694735596,
+    distanceM: 339,
+    reason: '벤치와 그늘이 많아 날씨 좋은 날 에세이·인문 책과 잘 어울려요.',
   },
   {
-    name: '동천 공원',
-    category: '공원 · 도보 9분',
-    address: '벤치 다수 · 그늘 많음',
-    mapx: 0,
-    mapy: 0,
-    lat: 0,
-    lng: 0,
-    reason: '요즘 날씨에 가볍게 읽기 좋아요. 에세이·인문 책과 잘 어울립니다.',
+    name: '하늘빛작은도서관',
+    category: '도서관 · 도보 13분',
+    address: '경기 화성시 동탄구 동탄반석로 277',
+    mapx: 1270752739,
+    mapy: 372121289,
+    lat: 37.21212892512761,
+    lng: 127.07527393360539,
+    distanceM: 975,
+    reason: '집중해서 완독하고 싶은 날, 퇴근 후 조용히 몰입하기 좋아요.',
   },
   {
-    name: '북카페 서재',
-    category: '북카페 · 차 5분',
-    address: '평일 11:00–23:00 · 조용한 룸 2개',
-    mapx: 0,
-    mapy: 0,
-    lat: 0,
-    lng: 0,
-    reason: '팀 북클럽 모임 장소로 좋아요. 룸 예약이 가능해서 토론하기 편합니다.',
+    name: '노노카페 노작홍사용문학관점',
+    category: '북카페 · 차 6분',
+    address: '경기 화성시 동탄구 노작로 206',
+    mapx: 1270754926,
+    mapy: 372054051,
+    lat: 37.20540514802074,
+    lng: 127.07549255235276,
+    distanceM: 1722,
+    reason: '문학관 안 북카페라 팀 북클럽 모임 장소로 좋아요.',
   },
 ]
 
@@ -178,7 +182,7 @@ async function requestAiRanking() {
         <div>
           <span class="eyebrow">READING SPOTS</span>
           <h1>책 읽기 좋은 장소</h1>
-          <p>회사 주변 카페·도서관·공원을 AI가 책 읽기 좋은 순으로 골라드려요</p>
+          <p>{{ VATECH_HQ.name }}(동탄) 주변 카페·도서관·공원을 AI가 책 읽기 좋은 순으로 골라드려요</p>
         </div>
         <button
           type="button"
@@ -199,7 +203,7 @@ async function requestAiRanking() {
         <input
           v-model="searchQuery"
           type="search"
-          placeholder="장소 검색 — 예: 판교 북카페, 광교 도서관"
+          placeholder="장소 검색 — 예: 동탄 북카페, 화성 도서관"
           :disabled="searching"
           @keyup.enter="fetchPlaces()"
         />
@@ -210,7 +214,7 @@ async function requestAiRanking() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="8" /></svg>
           {{ locating ? '위치 확인 중...' : '내 위치' }}
         </button>
-        <span v-if="myLocation" class="loc-on">내 위치 기준 거리순</span>
+        <span class="loc-on">{{ myLocation ? '내 위치 기준 거리순' : VATECH_HQ.shortName + ' 기준 거리순' }}</span>
       </div>
 
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
