@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AiAnswer, AiSearchStreamEvent, Book } from '#shared/types'
+import type { AiAnswer, AiSearchStreamEvent, Book, ChatAction } from '#shared/types'
 
 const props = defineProps<{ query: string }>()
 
@@ -142,9 +142,14 @@ onBeforeUnmount(() => {
   currentController?.abort()
 })
 
-async function runAction(to: string) {
-  await navigateTo(to)
+async function runAction(action: ChatAction) {
+  // 단발 검색에는 대화가 없어 reply(빠른 답장) 버튼은 의미가 없다 — navigate만 처리한다.
+  if (action.type !== 'navigate') return
+  await navigateTo(action.to)
 }
+
+/** 화면에 보여줄 액션: navigate만(서버가 reply를 섞어 보내도 단발 검색에선 숨긴다). */
+const visibleActions = computed(() => (answer.value?.actions ?? []).filter((a) => a.type === 'navigate'))
 
 function goLogin() {
   void navigateTo('/login')
@@ -198,14 +203,14 @@ function goLogin() {
           </div>
         </NuxtLink>
       </div>
-      <div v-if="answer.actions.length" class="ai-actions">
+      <div v-if="visibleActions.length" class="ai-actions">
         <button
-          v-for="(action, i) in answer.actions"
+          v-for="(action, i) in visibleActions"
           :key="i"
           type="button"
           class="btn"
           :class="{ primary: i === 0 }"
-          @click="runAction(action.to)"
+          @click="runAction(action)"
         >{{ action.label }}</button>
       </div>
     </template>

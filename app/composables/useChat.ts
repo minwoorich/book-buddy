@@ -66,7 +66,8 @@ export function useChat() {
     messages.value.push({ role: 'user', content: trimmed })
     sending.value = true
     try {
-      const history = messages.value.map(({ role, content }) => ({ role, content }))
+      // assistant 턴은 모델이 냈던 JSON 형태로 되돌려 보낸다(app/utils/chatHistory.ts 참고).
+      const history = toChatHistory(messages.value)
       const answer = await api<AiAnswer & { books: Book[] }>('/api/ai/chat', {
         method: 'POST',
         body: {

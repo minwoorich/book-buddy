@@ -5,6 +5,7 @@ import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { AiAnswer } from '../../shared/types'
 import { ApiError } from '../utils/errors'
 import { parseAiAnswer } from './parse'
+import { enrichAnswer, recentBookIdsFromHistory } from './enrich'
 import { resolveTemperature } from './defaults'
 import { createMessageExtractor } from './streamText'
 import { makeSearchBooks } from './tools/searchBooks'
@@ -182,7 +183,8 @@ export async function runAgent(
   // content가 블록 배열(thinking/text 등)로 오면 text 블록만 이어붙인다 — JSON.stringify를
   // 쓰면 thinking 블록의 raw JSON이 그대로 사용자에게 노출된다(QA #33·34·35).
   const content = typeof last?.content === 'string' ? last.content : extractDeltaText(last?.content)
-  const answer = parseAiAnswer(content)
+  // 모델이 버튼을 빠뜨리거나 평문으로 답한 경우 본문·문맥으로 빠진 버튼을 채운다(enrich.ts 참고).
+  const answer = enrichAnswer(parseAiAnswer(content), { recentBookIds: recentBookIdsFromHistory(messages) })
 
   return { answer, usage: { inputTokens, outputTokens, durationMs } }
 }
@@ -267,7 +269,7 @@ export async function streamAgent(
   }
 
   const durationMs = Date.now() - startedAt
-  const answer = parseAiAnswer(fullText)
+  const answer = enrichAnswer(parseAiAnswer(fullText), { recentBookIds: recentBookIdsFromHistory(messages) })
 
   return { answer, usage: { inputTokens, outputTokens, durationMs } }
 }

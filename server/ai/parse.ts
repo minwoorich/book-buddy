@@ -49,30 +49,59 @@ function toBookIds(value: unknown): number[] {
   return value.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
 }
 
-/** 액션이 이동할 수 있는 경로 화이트리스트. LLM이 임의 경로(외부 URL 등)를 만들어내는 걸 막는다. */
-const ALLOWED_ACTION_PATHS = [/^\/(my|calendar|rankings|feed|places)$/, /^\/books\/\d+(\?review=1)?$/]
+/**
+ * 액션이 이동할 수 있는 경로 화이트리스트 — 실제 앱 라우트 전부(관리자·로그인 제외).
+ * LLM이 임의 경로(외부 URL 등)를 만들어내는 걸 막는다.
+ */
+const ALLOWED_ACTION_PATHS = [
+  /^\/$/,
+  /^\/(my|calendar|rankings|reviews|feed|places|notices)$/,
+  /^\/books\/\d+(\?review=1)?$/,
+]
 
 function isAllowedActionPath(to: string): boolean {
   return ALLOWED_ACTION_PATHS.some((re) => re.test(to))
 }
 
-function isChatAction(value: unknown): value is ChatAction {
-  if (typeof value !== 'object' || value === null) return false
+/**
+ * 모델이 카탈로그와 조금 다르게 쓴 경로를 정규 형태로 맞춘다 — 걸러서 버튼을 잃느니 고쳐 쓴다.
+ * 예: `/books/12/review` · `/books/12?review=true` → `/books/12?review=1`, `/book/12` → `/books/12`,
+ * 끝의 `/`·공백 제거, `/reviews/` → `/reviews`. 정규화 후에도 화이트리스트에 없으면 드랍된다.
+ */
+export function normalizeActionPath(raw: string): string {
+  let to = raw.trim()
+  if (!to.startsWith('/')) return to
+  to = to.replace(/\/+$/, '') || '/'
+  const bookMatch = to.match(/^\/books?\/(\d+)(?:\/(review|reviews))?(?:\?(.*))?$/)
+  if (bookMatch) {
+    const id = bookMatch[1]
+    const wantsReview =
+      bookMatch[2] !== undefined || /(^|&)review=(1|true|yes)(&|$)/.test(bookMatch[3] ?? '')
+    return wantsReview ? `/books/${id}?review=1` : `/books/${id}`
+  }
+  return to
+}
+
+function toChatAction(value: unknown): ChatAction | null {
+  if (typeof value !== 'object' || value === null) return null
   const v = value as Record<string, unknown>
-  if (typeof v.label !== 'string' || v.label.length === 0 || v.label.length > 60) return false
+  if (typeof v.label !== 'string' || v.label.length === 0 || v.label.length > 60) return null
   if (v.type === 'navigate') {
-    return typeof v.to === 'string' && v.to.length > 0 && isAllowedActionPath(v.to)
+    if (typeof v.to !== 'string' || v.to.length === 0) return null
+    const to = normalizeActionPath(v.to)
+    return isAllowedActionPath(to) ? { type: 'navigate', label: v.label, to } : null
   }
   // reply: 클릭 시 send 텍스트를 사용자 메시지로 전송하는 빠른 답장(실행 확인 네/아니오 등).
   if (v.type === 'reply') {
-    return typeof v.send === 'string' && v.send.trim().length > 0 && v.send.length <= 200
+    if (typeof v.send !== 'string' || v.send.trim().length === 0 || v.send.length > 200) return null
+    return { type: 'reply', label: v.label, send: v.send }
   }
-  return false
+  return null
 }
 
 function toActions(value: unknown): ChatAction[] {
   if (!Array.isArray(value)) return []
-  return value.filter(isChatAction)
+  return value.map(toChatAction).filter((a): a is ChatAction => a !== null)
 }
 
 /**
