@@ -90,7 +90,7 @@ function isMine(row: RankRow): boolean {
       </div>
 
       <template v-if="(rows ?? []).length">
-        <RankPodium :top3="top3" />
+        <ReadingRankPodium :top3="top3" />
 
         <div v-if="rest.length" class="panel" style="padding: 6px 6px;">
           <div
