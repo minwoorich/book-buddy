@@ -53,25 +53,81 @@ watch(open, (isOpen) => {
   if (isOpen) void scrollToBottom()
 })
 
-// 크기 늘리기/줄이기(QA #78): 기본 400×620 ↔ 확장 640×(화면 높이 - 60). 선택은 브라우저에 기억.
-const EXPANDED_KEY = 'bb:chat:expanded'
-const expanded = ref(false)
+// ── 크기 조절(QA #78 → #86): 버튼 대신 패널 왼쪽 위 모서리의 손잡이를 끌어 자유롭게 늘리고 줄인다.
+// 패널은 오른쪽 아래에 고정돼 있으므로 손잡이(왼쪽 위)를 끌면 폭 = 오른쪽 끝 − 포인터 x,
+// 높이 = 아래 끝 − 포인터 y. 크기는 브라우저에 기억. 모바일은 전체 화면이라 손잡이를 쓰지 않는다.
+const SIZE_KEY = 'bb:chat:size'
+const DEFAULT_SIZE = { w: 400, h: 620 }
+const MIN_W = 320
+const MIN_H = 420
+const MARGIN = 30 // .chat의 right/bottom
+const isMobile = useIsMobile()
+const panelW = ref(DEFAULT_SIZE.w)
+const panelH = ref(DEFAULT_SIZE.h)
+const resizing = ref(false)
+
+function clampSize(w: number, h: number): { w: number; h: number } {
+  const maxW = Math.max(MIN_W, window.innerWidth - MARGIN * 2)
+  const maxH = Math.max(MIN_H, window.innerHeight - MARGIN * 2)
+  return { w: Math.round(Math.min(maxW, Math.max(MIN_W, w))), h: Math.round(Math.min(maxH, Math.max(MIN_H, h))) }
+}
+
 onMounted(() => {
   try {
-    expanded.value = localStorage.getItem(EXPANDED_KEY) === '1'
+    const saved = JSON.parse(localStorage.getItem(SIZE_KEY) ?? 'null') as { w?: number; h?: number } | null
+    if (saved && typeof saved.w === 'number' && typeof saved.h === 'number') {
+      const c = clampSize(saved.w, saved.h)
+      panelW.value = c.w
+      panelH.value = c.h
+    }
   } catch {
     // 저장소 접근 실패는 무시
   }
   if (open.value) void scrollToBottom()
 })
-function toggleExpanded() {
-  expanded.value = !expanded.value
+
+const panelStyle = computed(() => (isMobile.value ? undefined : { width: `${panelW.value}px`, height: `${panelH.value}px` }))
+
+function startResize(e: PointerEvent) {
+  if (isMobile.value) return
+  e.preventDefault()
+  const handle = e.currentTarget as HTMLElement
+  handle.setPointerCapture(e.pointerId)
+  resizing.value = true
+  const rightEdge = window.innerWidth - MARGIN
+  const bottomEdge = window.innerHeight - MARGIN
+
+  const onMove = (ev: PointerEvent) => {
+    const c = clampSize(rightEdge - ev.clientX, bottomEdge - ev.clientY)
+    panelW.value = c.w
+    panelH.value = c.h
+  }
+  const onUp = () => {
+    handle.removeEventListener('pointermove', onMove)
+    handle.removeEventListener('pointerup', onUp)
+    handle.removeEventListener('pointercancel', onUp)
+    resizing.value = false
+    try {
+      localStorage.setItem(SIZE_KEY, JSON.stringify({ w: panelW.value, h: panelH.value }))
+    } catch {
+      // 무시
+    }
+    void scrollToBottom()
+  }
+  handle.addEventListener('pointermove', onMove)
+  handle.addEventListener('pointerup', onUp)
+  handle.addEventListener('pointercancel', onUp)
+}
+
+/** 더블클릭하면 기본 크기로 되돌린다. */
+function resetSize() {
+  panelW.value = DEFAULT_SIZE.w
+  panelH.value = DEFAULT_SIZE.h
   try {
-    localStorage.setItem(EXPANDED_KEY, expanded.value ? '1' : '0')
+    localStorage.removeItem(SIZE_KEY)
   } catch {
     // 무시
   }
-  void scrollToBottom()
 }
 </script>
 
@@ -99,16 +155,23 @@ function toggleExpanded() {
       </div>
     </div>
 
-    <div v-else class="chat" :class="{ expanded }">
+    <div v-else class="chat" :class="{ resizing }" :style="panelStyle">
+      <div
+        v-if="!isMobile"
+        class="resize-handle"
+        title="끌어서 크기 조절 · 더블클릭하면 기본 크기"
+        aria-label="책벗 창 크기 조절"
+        role="separator"
+        @pointerdown="startResize"
+        @dblclick="resetSize"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 13L13 1M1 8l7-7M6 13l7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" /></svg>
+      </div>
       <div class="chat-head">
         <div class="logo-mark">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
         </div>
         <div><b>책벗</b><span>● 대출·예약·신청까지 대신해드려요</span></div>
-        <button type="button" class="resize" :title="expanded ? '작게 보기' : '크게 보기'" :aria-label="expanded ? '작게 보기' : '크게 보기'" @click="toggleExpanded">
-          <svg v-if="!expanded" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
-          <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
-        </button>
         <button type="button" class="x" title="닫기" @click="close">×</button>
       </div>
 
@@ -157,17 +220,17 @@ function toggleExpanded() {
 
 <style scoped>
 .fab-glyph { font-family: var(--font-serif); font-size: 32px; font-weight: 600; color: #fff; line-height: 1; }
-.chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; max-height: calc(100vh - 60px); background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; transition: width .2s ease, height .2s ease; }
-/* 크게 보기(QA #78): 폭 640, 높이는 화면에 맞춰 */
-.chat.expanded { width: 640px; height: calc(100vh - 60px); }
-.chat.expanded .chat-body { padding: 22px 24px; }
-.chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; max-width: calc(100vw - 60px); max-height: calc(100vh - 60px); background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
+/* 끄는 동안 본문 텍스트 선택·전환 애니메이션이 끼어들지 않게 */
+.chat.resizing { user-select: none; }
+/* 왼쪽 위 모서리 손잡이(QA #86): 대각선 그립, 커서는 ↖↘ */
+.resize-handle { position: absolute; top: 0; left: 0; width: 22px; height: 22px; z-index: 3; cursor: nwse-resize; color: var(--sub); display: flex; align-items: center; justify-content: center; border-radius: 10px 0 8px 0; background: var(--bg); touch-action: none; }
+.resize-handle:hover, .chat.resizing .resize-handle { color: var(--red); background: var(--red-tint); }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 14px 22px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .chat-head .logo-mark { width: 30px; height: 30px; }
 .chat-head b { font-family: var(--font-display); font-size: 15.5px; display: block; }
 .chat-head span { font-size: 12px; font-weight: 600; color: var(--ok); }
-.chat-head .resize { margin-left: auto; display: flex; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 6px; border-radius: 4px; }
-.chat-head .resize:hover { color: var(--ink); background: var(--card-2); }
-.chat-head .x { font-size: 20px; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 4px; }
+.chat-head .x { margin-left: auto; font-size: 20px; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 4px; }
 .chat-body { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
 .welcome { margin: 0; font-size: 13.5px; color: var(--sub); line-height: 1.6; }
 .onboarding { display: flex; flex-direction: column; gap: 10px; }
@@ -198,8 +261,7 @@ function toggleExpanded() {
 
 /* 모바일: 챗 패널을 화면 전체로 — 좁은 화면에서 400px 고정폭 카드가 넘치던 문제 */
 @media (max-width: 640px) {
-  .chat, .chat.expanded { inset: 0; width: auto; height: auto; max-height: none; border-radius: 0; border: 0; }
-  .chat-head .resize { display: none; }
+  .chat { inset: 0; width: auto; height: auto; max-width: none; max-height: none; border-radius: 0; border: 0; }
   .chat.guest-teaser { top: auto; }
   .chat-head { padding: 12px 14px; }
   .chat-foot { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
