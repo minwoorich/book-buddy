@@ -4,7 +4,8 @@
  * 순수 SVG — 길은 stroke-dash로 실제 선처럼 보이고, 점은 <animateMotion mpath>로 그 길을 정확히 따라간다.
  * 지나가는 서가의 책등이 잠깐 밝아져 "찾는 중" 느낌을 준다. 외부 라이브러리 없이 한 파일로 끝난다.
  */
-defineProps<{ label?: string; activity?: string }>()
+/** compact: 챗 말풍선용 작은 장면(QA #85). */
+defineProps<{ label?: string; activity?: string; compact?: boolean }>()
 
 /** 서가 한 줄의 책등 — 결정적 폭·색으로 12권 정도를 채운다. */
 const SPINE_COLORS = ['#33465C', '#8A6D3B', '#7A3B47', '#4A4E58', '#37655E', '#5C4A66', '#A0522D', '#556B2F']
@@ -25,7 +26,7 @@ const SHELVES = [0, 1, 2].map((row) => ({ row, y: 22 + row * 52, items: spines(r
 </script>
 
 <template>
-  <div class="loader" role="status" aria-live="polite">
+  <div class="loader" :class="{ compact }" role="status" aria-live="polite">
     <svg class="scene" viewBox="0 0 420 180" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <!-- 서가 3줄: 책등 → 선반 -->
       <g v-for="shelf in SHELVES" :key="shelf.row" :transform="`translate(45, ${shelf.y})`">
@@ -67,8 +68,13 @@ const SHELVES = [0, 1, 2].map((row) => ({ row, y: 22 + row * 52, items: spines(r
 </template>
 
 <style scoped>
-.loader { display: flex; align-items: center; gap: 22px; padding: 4px 0; }
-.scene { width: 300px; height: 128px; flex-shrink: 0; }
+/* 장면과 글씨를 세로로 쌓고 둘 다 가운데(QA #83). */
+.loader { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
+.scene { width: 320px; max-width: 100%; height: 137px; flex-shrink: 0; }
+/* 챗 말풍선용(QA #85): 작게, 글씨는 한 줄 */
+.loader.compact { gap: 6px; padding: 2px 0; }
+.loader.compact .scene { width: 220px; height: 94px; }
+.loader.compact .label { font-size: 13px; }
 .aisle {
   fill: none; stroke: var(--red); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   stroke-dasharray: 6 7; opacity: .55;
@@ -81,12 +87,11 @@ const SHELVES = [0, 1, 2].map((row) => ({ row, y: 22 + row * 52, items: spines(r
 .spine { animation: spine-glance 3s ease-in-out infinite; }
 @keyframes spine-glance { 0%, 82%, 100% { opacity: 1; } 90% { opacity: .55; } }
 
-.text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.text { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
 .label { font-size: 15px; font-weight: 700; color: var(--ink); }
 .activity { font-size: 12.5px; color: var(--sub); }
 
 @media (max-width: 640px) {
-  .loader { flex-direction: column; align-items: flex-start; gap: 10px; }
   .scene { width: 100%; max-width: 300px; height: auto; }
 }
 </style>

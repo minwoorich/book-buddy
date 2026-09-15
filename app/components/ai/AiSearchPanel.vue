@@ -150,6 +150,8 @@ async function runAction(action: ChatAction) {
 
 /** 화면에 보여줄 액션: navigate만(서버가 reply를 섞어 보내도 단발 검색에선 숨긴다). */
 const visibleActions = computed(() => (answer.value?.actions ?? []).filter((a) => a.type === 'navigate'))
+/** 여러 줄 답변(추천 목록)은 블록만 가운데 두고 글줄은 왼쪽 정렬(QA #84). */
+const multiLine = computed(() => (answer.value?.message ?? '').includes('\n'))
 
 function goLogin() {
   void navigateTo('/login')
@@ -188,7 +190,7 @@ function goLogin() {
         <b>책벗의 추천</b>
         <span class="ai-q">"{{ query }}"</span>
       </div>
-      <p class="ai-message">{{ answer.message }}</p>
+      <p class="ai-message" :class="{ multi: multiLine }">{{ answer.message }}</p>
       <div v-if="answer.books.length" class="ai-books">
         <NuxtLink v-for="book in answer.books" :key="book.id" :to="`/books/${book.id}`" class="ai-book">
           <BookCoverImage :src="book.coverUrl" :alt="book.title" />
@@ -222,23 +224,26 @@ function goLogin() {
 </template>
 
 <style scoped>
-.ai-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+/* 결과 블록은 가운데 정렬(QA #84): 헤더·본문·책 카드·버튼 모두 중앙. */
+.ai-head { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; text-align: center; }
 .ai-head b { font-family: var(--font-display); font-size: 16.5px; }
 .ai-head i { font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; }
-.ai-q { font-size: 13px; color: var(--sub); margin-left: auto; }
+.ai-q { font-size: 13px; color: var(--sub); }
 p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-width: 820px; }
-.ai-books { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.ai-book { flex: 1; min-width: 220px; display: flex; gap: 14px; align-items: center; border: 1px solid var(--line); background: var(--card-2); border-radius: 4px; padding: 13px 14px; cursor: pointer; color: inherit; }
+.ai-books { display: flex; justify-content: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.ai-book { flex: 0 1 300px; min-width: 220px; display: flex; gap: 14px; align-items: center; border: 1px solid var(--line); background: var(--card-2); border-radius: 4px; padding: 13px 14px; cursor: pointer; color: inherit; }
 .ai-book:hover { border-color: #C9BCA2; }
 .ai-book :deep(.cv) { width: 54px; height: 78px; }
 .ai-book .t { font-weight: 700; font-size: 14.5px; margin-bottom: 2px; }
 .ai-book .a { font-size: 12.5px; color: var(--sub); }
-.ai-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.ai-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 
 .ai-loading { padding: 2px 0; min-height: 132px; }
 
 .ai-fallback { margin: 0; font-size: 14px; color: var(--sub); }
-.ai-message { white-space: pre-line; }
+.ai-message { white-space: pre-line; text-align: center; max-width: 720px; margin: 0 auto 18px; }
+/* 여러 줄(추천 목록)은 블록만 가운데 두고 글줄은 왼쪽 정렬해 읽기 쉽게 */
+.ai-message.multi { text-align: left; display: table; }
 
 @media (max-width: 640px) {
   .ai-head { flex-wrap: wrap; gap: 6px 10px; }

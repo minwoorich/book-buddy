@@ -141,7 +141,7 @@ function toggleExpanded() {
 
         <div v-if="sending" class="thinking">
           <span class="tag">책벗</span>
-          생각 중...
+          <AiLibrarySearchLoader compact label="책벗이 서가를 걷는 중..." />
         </div>
       </div>
 
@@ -182,8 +182,8 @@ function toggleExpanded() {
 }
 .example-chip:hover { border-color: var(--red); color: var(--red); background: var(--red-tint); }
 .example-chip:disabled { opacity: .5; cursor: not-allowed; }
-.thinking { align-self: stretch; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px 14px 14px 3px; padding: 12px 14px; font-size: 14px; color: var(--sub); font-style: italic; }
-.thinking .tag { font-size: 10.5px; letter-spacing: 2px; color: var(--red); font-weight: 700; display: block; margin-bottom: 6px; font-style: normal; }
+.thinking { align-self: stretch; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px 14px 14px 3px; padding: 12px 14px 8px; }
+.thinking .tag { font-size: 10.5px; letter-spacing: 2px; color: var(--red); font-weight: 700; display: block; margin-bottom: 4px; }
 .chat-foot { border-top: 1px solid var(--line); padding: 12px 14px; display: flex; align-items: center; gap: 10px; background: var(--bg); }
 .chat-foot input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 14px; background: transparent; color: var(--ink); }
 .chat-foot .send { width: 36px; height: 36px; border-radius: 50%; background: var(--red); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
