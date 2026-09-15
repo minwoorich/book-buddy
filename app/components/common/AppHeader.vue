@@ -62,7 +62,8 @@ async function handleLogout() {
 </template>
 
 <style scoped>
-.guest-actions { display: flex; align-items: center; gap: 14px; }
+/* 게스트 영역도 로그인 영역처럼 헤더 오른쪽 끝에 — 접근성 버튼이 붙으면서 메뉴 옆에 뭉쳐 보이던 것 정리 */
+.guest-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
 .signup-link { font-size: 13px; color: var(--sub); }
 /* 이름·로그아웃은 항상 헤더 오른쪽 끝(QA #61) — 예전엔 안쪽 .me에만 auto 마진이 있어 메뉴 바로 옆에 붙었다. */
 .me-zone { display: flex; align-items: center; gap: 10px; margin-left: auto; }
