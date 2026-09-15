@@ -69,6 +69,7 @@ function resetAll(): void {
     'posts',
     'purchase_requests',
     'wishlists',
+    'place_reviews',
     'review_votes',
     'reviews',
     'reservations',

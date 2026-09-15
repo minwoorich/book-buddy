@@ -77,6 +77,14 @@ export function migrate(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT, author_id INTEGER NOT NULL REFERENCES users(id),
       title TEXT NOT NULL, content TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+    -- 장소 후기: 카카오 장소 id를 키로 태그 칩(JSON 코드 배열) + 선택적 한 줄. 1인 1후기(upsert).
+    CREATE TABLE IF NOT EXISTS place_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kakao_place_id TEXT NOT NULL, place_name TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      tags TEXT NOT NULL, comment TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(kakao_place_id, user_id));
     CREATE TABLE IF NOT EXISTS home_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT, section_key TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL);

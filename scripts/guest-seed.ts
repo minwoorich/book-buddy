@@ -20,6 +20,7 @@ if (args.includes('--remove')) {
   const list = ids.join(',')
   db.exec(`
     DELETE FROM guest_claims WHERE user_id IN (${list});
+    DELETE FROM place_reviews WHERE user_id IN (${list});
     DELETE FROM review_votes WHERE user_id IN (${list});
     DELETE FROM reviews WHERE user_id IN (${list});
     DELETE FROM post_comments WHERE user_id IN (${list});
