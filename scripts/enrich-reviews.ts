@@ -57,7 +57,12 @@ function main(): void {
     newUserIds.push(Number(result.lastInsertRowid))
   }
 
-  const allUserIds = [...existingUsers.map((u) => u.id), ...newUserIds]
+  // 리뷰 작성자·추천인은 이 스크립트가 방금 만든 합성 인물(newUserIds)로만 제한한다.
+  // existingUsers에는 실제로 가입한 팀원 계정이 섞여 있어서, 그들을 리뷰어 풀에 넣으면
+  // 그 사람이 쓴 적 없는 한줄평이 실명 계정에 달리는 문제가 생긴다(실제로 한 번 겪음 —
+  // 유자선 등 실사용자 계정에 합성 리뷰가 붙었다). 늘리고 싶은 건 "리뷰 볼륨"이지 "실사용자가
+  // 안 쓴 말을 쓴 것처럼 보이는 것"이 아니다.
+  const reviewerPoolIds = newUserIds
 
   console.log('책마다 리뷰 채우는 중...')
   const insReview = db.prepare(
@@ -79,7 +84,7 @@ function main(): void {
   let reviewCount = 0
   for (const book of shuffle(books)) {
     const already = reviewedByBook.get(book.id) ?? new Set<number>()
-    const candidates = shuffle(allUserIds.filter((id) => !already.has(id)))
+    const candidates = shuffle(reviewerPoolIds.filter((id) => !already.has(id)))
     const target = Math.min(targetReviewCount(), candidates.length)
     for (let i = 0; i < target; i++) {
       const userId = candidates[i]
@@ -92,6 +97,9 @@ function main(): void {
   }
 
   console.log('추천(review_votes) 채우는 중...')
+  // 추천을 누르는 사람도 합성 인물(reviewerPoolIds)로만 제한한다 — 이유는 위 리뷰어 풀과
+  // 같다. 다만 추천 "대상"은 기존 리뷰(실사용자가 쓴 것 포함)여도 괜찮다 — 가짜 인물이
+  // 실제 사람의 진짜 리뷰를 추천하는 건 그 사람이 안 한 말을 한 것처럼 만드는 문제가 아니다.
   const insVote = db.prepare('INSERT INTO review_votes (review_id, user_id) VALUES (?, ?)')
   const allReviews = db.prepare('SELECT id, user_id FROM reviews').all() as { id: number; user_id: number }[]
   const existingVotes = db.prepare('SELECT review_id, user_id FROM review_votes').all() as {
@@ -105,7 +113,7 @@ function main(): void {
   while (voteCount < voteTarget && guard < voteTarget * 20) {
     guard++
     const review = allReviews[randomInt(0, allReviews.length - 1)]
-    const voterId = allUserIds[randomInt(0, allUserIds.length - 1)]
+    const voterId = reviewerPoolIds[randomInt(0, reviewerPoolIds.length - 1)]
     if (voterId === review.user_id) continue // 자기 리뷰에 스스로 추천을 누르는 건 부자연스럽다.
     const key = `${review.id}:${voterId}`
     if (votedSet.has(key)) continue

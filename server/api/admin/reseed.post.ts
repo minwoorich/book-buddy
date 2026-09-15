@@ -4,13 +4,14 @@ import { handleApi, requireAdmin } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 
 const execAsync = promisify(exec)
-const MODES = ['demo', 'real', 'enrich-reviews'] as const
+const MODES = ['demo', 'real', 'enrich-reviews', 'fix-review-misattribution'] as const
 type Mode = (typeof MODES)[number]
 
 const SCRIPT_BY_MODE: Record<Mode, string> = {
   demo: 'scripts/demo-seed.ts',
   real: 'scripts/seed.ts',
   'enrich-reviews': 'scripts/enrich-reviews.ts',
+  'fix-review-misattribution': 'scripts/fix-review-misattribution.ts',
 }
 
 let running = false
