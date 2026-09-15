@@ -74,6 +74,14 @@ export const loanRepo = {
     return row ? toLoan(row) : undefined
   },
 
+  /** 이 사람이 지금 빌린 채로 가지고 있는 권수 — 1인 동시 대출 한도 검사용(QA #90). */
+  countActiveByUser(userId: number): number {
+    const row = getDb()
+      .prepare('SELECT COUNT(*) as cnt FROM loans WHERE user_id = ? AND returned_at IS NULL')
+      .get(userId) as { cnt: number }
+    return row.cnt
+  },
+
   findByUser(
     userId: number,
     opts?: { active?: boolean; returnedFrom?: string; returnedTo?: string }

@@ -14,6 +14,7 @@ interface UserRankRow {
   department: string
   position: string
   cnt: number
+  reached_at: string | null
 }
 
 interface GroupRankRow {
@@ -21,6 +22,7 @@ interface GroupRankRow {
   company?: string
   department?: string
   cnt: number
+  reached_at: string | null
 }
 
 /**
@@ -92,7 +94,13 @@ export const rankingService = {
     snapshotCache.clear()
   },
 
-  /** 반납 완료(loans.returned_at IS NOT NULL) 기준 랭킹. count DESC 정렬, 0권인 대상은 제외. */
+  /**
+   * 반납 완료(loans.returned_at IS NOT NULL) 기준 랭킹. count DESC 정렬, 0권인 대상은 제외.
+   *
+   * 권수가 같을 때는 "그 권수를 먼저 채운 쪽"이 앞선다(QA #93). 집계 구간 안에서
+   * n권째 완독 시각 = 그 n건의 returned_at 중 가장 늦은 값이므로 MAX(returned_at)을
+   * 두 번째 정렬키(오름차순)로 쓴다. 화면에는 reachedAt으로 내려보낸다.
+   */
   rank(by: RankBy, period: Period): RankRow[] {
     const db = getDb()
     const where = `l.returned_at IS NOT NULL ${periodClause(period)}`
@@ -101,11 +109,11 @@ export const rankingService = {
       const rows = db
         .prepare(
           `SELECT u.id as id, u.name as label, u.company as company, u.department as department,
-                  u.position as position, COUNT(l.id) as cnt
+                  u.position as position, COUNT(l.id) as cnt, MAX(l.returned_at) as reached_at
            FROM loans l JOIN users u ON u.id = l.user_id
            WHERE ${where}
            GROUP BY u.id
-           ORDER BY cnt DESC`
+           ORDER BY cnt DESC, reached_at ASC`
         )
         .all() as UserRankRow[]
 
@@ -114,6 +122,7 @@ export const rankingService = {
         label: r.label,
         sub: `${r.company} · ${r.department} · ${r.position}`,
         count: r.cnt,
+        reachedAt: r.reached_at,
         userId: r.id,
       }))
     }
@@ -121,11 +130,11 @@ export const rankingService = {
     const { groupBy, select } = GROUP_CONFIG[by]
     const rows = db
       .prepare(
-        `SELECT ${select}, COUNT(l.id) as cnt
+        `SELECT ${select}, COUNT(l.id) as cnt, MAX(l.returned_at) as reached_at
          FROM loans l JOIN users u ON u.id = l.user_id
          WHERE ${where}
          GROUP BY ${groupBy}
-         ORDER BY cnt DESC`
+         ORDER BY cnt DESC, reached_at ASC`
       )
       .all() as GroupRankRow[]
 
@@ -136,6 +145,7 @@ export const rankingService = {
           label: r.label,
           sub: `${r.company} · ${r.department}`,
           count: r.cnt,
+          reachedAt: r.reached_at,
         }
       }
       if (by === 'department') {
@@ -144,9 +154,10 @@ export const rankingService = {
           label: r.label,
           sub: r.company,
           count: r.cnt,
+          reachedAt: r.reached_at,
         }
       }
-      return { key: r.label, label: r.label, count: r.cnt }
+      return { key: r.label, label: r.label, count: r.cnt, reachedAt: r.reached_at }
     })
   },
 }

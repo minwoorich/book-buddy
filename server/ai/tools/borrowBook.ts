@@ -1,5 +1,6 @@
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
+import { MAX_ACTIVE_LOANS } from '../../../shared/constants/loan'
 import { loanService } from '../../services/loanService'
 import { ApiError } from '../../utils/errors'
 
@@ -22,7 +23,7 @@ export const makeBorrowBook = (userId: number) =>
     {
       name: 'borrow_book',
       description:
-        '사내 서가 도서를 대출한다. 이미 대출 중이거나 다른 사람의 예약이 있으면 실패할 수 있으니, 실패 시 결과의 error 메시지를 사용자에게 그대로 설명하라.',
+        `사내 서가 도서를 대출한다. 이미 대출 중이거나 다른 사람의 예약이 있거나, 한 사람이 동시에 빌릴 수 있는 ${MAX_ACTIVE_LOANS}권을 이미 채우면 실패한다. 실패 시 결과의 error 메시지를 사용자에게 그대로 설명하라.`,
       schema: z.object({ bookId: z.number().describe('대출할 사내 서가 도서 id') }),
     }
   )

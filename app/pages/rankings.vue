@@ -47,17 +47,42 @@ const rest = computed(() => (rows.value ?? []).slice(3))
 // 4위 이하 막대 폭 기준은 1위 권수(전체 목록의 최댓값) 대비 비율.
 const topCount = computed(() => rows.value?.[0]?.count ?? 0)
 
-// 표준 경쟁 순위(1224식): count가 같으면 같은 순위, 다음 순위는 동률 인원수만큼 건너뛴다.
-// 전체 rows 기준으로 계산해야 top3와 이어지는 순위가 맞는다(포디움 자체는 배치 그대로 — 동률이
-// 3위에 걸쳐도 단순화 허용).
+// 권수가 같으면 그 권수를 먼저 채운 쪽이 앞선다(QA #93) — 서버가 count DESC, reachedAt ASC로
+// 이미 정렬해 내려준다. 그래서 공동 순위는 권수와 달성 시각이 모두 같을 때만 남는다.
+// 전체 rows 기준으로 계산해야 top3와 이어지는 순위가 맞는다(포디움 자체는 배치 그대로).
+function sameRank(a: RankRow, b: RankRow): boolean {
+  return a.count === b.count && (a.reachedAt ?? null) === (b.reachedAt ?? null)
+}
+
 function competitionRanks(list: RankRow[]): number[] {
   const ranks: number[] = []
   for (let i = 0; i < list.length; i++) {
-    ranks.push(i > 0 && list[i].count === list[i - 1].count ? ranks[i - 1] : i + 1)
+    ranks.push(i > 0 && sameRank(list[i], list[i - 1]) ? ranks[i - 1] : i + 1)
   }
   return ranks
 }
 const restRanks = computed(() => competitionRanks(rows.value ?? []).slice(3))
+
+// 권수가 같은 이웃이 있는 줄에만 "언제 n권을 채웠는지"를 보여준다 — 순위가 갈린 근거.
+const tiedKeys = computed(() => {
+  const list = rows.value ?? []
+  const keys = new Set<string>()
+  for (let i = 1; i < list.length; i++) {
+    if (list[i].count === list[i - 1].count) {
+      keys.add(list[i].key)
+      keys.add(list[i - 1].key)
+    }
+  }
+  return keys
+})
+
+/** returned_at은 SQLite datetime('now') — UTC 'YYYY-MM-DD HH:MM:SS'라 UTC로 파싱한다. */
+function reachedLabel(row: RankRow): string {
+  if (!row.reachedAt || !tiedKeys.value.has(row.key)) return ''
+  const ms = new Date(row.reachedAt.replace(' ', 'T') + 'Z').getTime()
+  if (!Number.isFinite(ms)) return ''
+  return `${new Date(ms).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} 달성`
+}
 
 function barWidth(row: RankRow): number {
   if (!topCount.value) return 0
@@ -78,6 +103,7 @@ function isMine(row: RankRow): boolean {
           <span class="eyebrow">READING LEADERBOARD</span>
           <h1>독서 랭킹</h1>
           <p>대출-반납 기록(완독 권수) 기준으로 집계해요</p>
+          <p class="tiebreak">권수가 같으면 <b>그 권수를 먼저 채운 쪽</b>이 앞 순위예요</p>
           <p v-if="updatedLabel" class="updated">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
             마지막 업데이트 <b>{{ updatedLabel }}</b> · 다음 업데이트 {{ nextUpdateLabel }} (30분마다 갱신)
@@ -121,7 +147,10 @@ function isMine(row: RankRow): boolean {
               <span v-if="row.sub">{{ row.sub }}</span>
             </div>
             <div class="bar-zone"><div class="bar"><i :style="{ width: barWidth(row) + '%' }" /></div></div>
-            <div class="cnt"><b>{{ row.count }}권</b></div>
+            <div class="cnt">
+              <b>{{ row.count }}권</b>
+              <span v-if="reachedLabel(row)" class="reached">{{ reachedLabel(row) }}</span>
+            </div>
           </div>
         </div>
       </template>
@@ -133,6 +162,8 @@ function isMine(row: RankRow): boolean {
 <style scoped>
 .head-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 8px; }
 .period { margin-left: auto; display: flex; gap: 8px; }
+.tiebreak { margin-top: 5px !important; font-size: 12.5px !important; color: var(--sub); }
+.tiebreak b { color: var(--ink); font-weight: 700; }
 .updated { display: flex; align-items: center; gap: 5px; margin-top: 8px !important; font-size: 12.5px !important; color: var(--sub); }
 .updated b { color: var(--ink); }
 
@@ -147,6 +178,7 @@ function isMine(row: RankRow): boolean {
 .rank-row .bar i { display: block; height: 100%; background: var(--line-hover); border-radius: 999px; }
 .rank-row .cnt { width: 130px; text-align: right; font-size: 13.5px; color: var(--sub); }
 .rank-row .cnt b { color: var(--ink); font-size: 15px; }
+.rank-row .cnt .reached { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .rank-row.mine { background: var(--red-tint); border-radius: 4px; border-bottom: 0; }
 .rank-row.mine .bar i { background: var(--red); }
 .rank-row.mine .no { color: var(--red); font-weight: 700; }

@@ -193,6 +193,8 @@ export interface RankRow {
   label: string
   sub?: string
   count: number
+  /** 집계 구간 안에서 count권째를 채운 시각(returned_at). 권수 동률 판정용(QA #93). */
+  reachedAt?: string | null
   userId?: number
 }
 

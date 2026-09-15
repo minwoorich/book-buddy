@@ -1,3 +1,4 @@
+import { MAX_ACTIVE_LOANS } from '../../shared/constants/loan'
 import { bookRepo } from '../repositories/bookRepo'
 import { loanRepo } from '../repositories/loanRepo'
 import { reservationRepo } from '../repositories/reservationRepo'
@@ -16,6 +17,16 @@ export const loanService = {
   borrow(userId: number, bookId: number): Loan {
     const book = bookRepo.findById(bookId)
     if (!book) throw new ApiError(404, '없는 책이에요')
+
+    // 1인 동시 대출 한도(QA #90) — 책 상태보다 먼저 알려줘야 "왜 안 되는지"가 분명하고,
+    // 아래 예약 fulfilled 처리가 일어나기 전에 막혀야 예약 상태가 상하지 않는다.
+    if (loanRepo.countActiveByUser(userId) >= MAX_ACTIVE_LOANS) {
+      throw new ApiError(
+        409,
+        `한 번에 ${MAX_ACTIVE_LOANS}권까지 대출할 수 있어요. 빌린 책을 먼저 반납해주세요`
+      )
+    }
+
     if (loanRepo.activeByBook(bookId)) throw new ApiError(409, '이미 대출 중인 책이에요')
 
     const first = reservationRepo.firstWaiting(bookId)

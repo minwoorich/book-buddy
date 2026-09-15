@@ -4,6 +4,7 @@ import { bookRepo } from '../server/repositories/bookRepo'
 import { loanRepo } from '../server/repositories/loanRepo'
 import { reservationRepo } from '../server/repositories/reservationRepo'
 import { loanService } from '../server/services/loanService'
+import { MAX_ACTIVE_LOANS } from '../shared/constants/loan'
 
 function insertUser(name: string): number {
   const result = getDb()
@@ -65,6 +66,71 @@ describe('loanService.borrow', () => {
     } catch (e: any) {
       expect(e.statusCode).toBe(409)
     }
+  })
+})
+
+describe(`loanService.borrow — 1인 동시 대출 ${MAX_ACTIVE_LOANS}권 한도(QA #90)`, () => {
+  function insertBook(title: string): number {
+    return bookRepo.insert({
+      isbn13: null,
+      title,
+      author: '저자',
+      publisher: null,
+      category: '인문',
+      description: null,
+      coverUrl: null,
+      pubDate: null,
+      pageCount: null,
+    })
+  }
+
+  it(`${MAX_ACTIVE_LOANS}권까지는 대출되고, 그 다음 대출은 409로 막힌다`, () => {
+    const books = Array.from({ length: MAX_ACTIVE_LOANS + 1 }, (_, i) => insertBook(`책${i}`))
+    for (let i = 0; i < MAX_ACTIVE_LOANS; i++) {
+      expect(loanService.borrow(u1, books[i]).bookId).toBe(books[i])
+    }
+
+    expect(() => loanService.borrow(u1, books[MAX_ACTIVE_LOANS])).toThrowError(
+      new RegExp(`한 번에 ${MAX_ACTIVE_LOANS}권까지`)
+    )
+    try {
+      loanService.borrow(u1, books[MAX_ACTIVE_LOANS])
+    } catch (e: any) {
+      expect(e.statusCode).toBe(409)
+    }
+  })
+
+  it('한도는 사람별로 센다 — 다른 사람은 그대로 대출할 수 있다', () => {
+    const books = Array.from({ length: MAX_ACTIVE_LOANS + 1 }, (_, i) => insertBook(`책${i}`))
+    for (let i = 0; i < MAX_ACTIVE_LOANS; i++) loanService.borrow(u1, books[i])
+
+    expect(loanService.borrow(u2, books[MAX_ACTIVE_LOANS]).userId).toBe(u2)
+  })
+
+  it('반납하면 한도가 다시 열린다(반납된 책은 세지 않음)', () => {
+    const books = Array.from({ length: MAX_ACTIVE_LOANS + 1 }, (_, i) => insertBook(`책${i}`))
+    const loans = []
+    for (let i = 0; i < MAX_ACTIVE_LOANS; i++) loans.push(loanService.borrow(u1, books[i]))
+
+    expect(() => loanService.borrow(u1, books[MAX_ACTIVE_LOANS])).toThrowError()
+    loanService.return_(u1, loans[0].id)
+    expect(loanService.borrow(u1, books[MAX_ACTIVE_LOANS]).userId).toBe(u1)
+  })
+
+  it('한도에 걸리면 내 예약이 fulfilled로 소비되지 않는다', () => {
+    // u2가 b1을 빌리고 u1이 예약 → u2 반납 → u1은 한도가 차 있어 대출 실패.
+    // 이때 예약이 사라져 버리면 다른 사람에게 책을 빼앙기므로 waiting으로 남아야 한다.
+    const l = loanService.borrow(u2, b1)
+    loanService.reserve(u1, b1)
+    loanService.return_(u2, l.id)
+
+    const others = Array.from({ length: MAX_ACTIVE_LOANS }, (_, i) => insertBook(`다른책${i}`))
+    for (const bookId of others) loanService.borrow(u1, bookId)
+
+    expect(() => loanService.borrow(u1, b1)).toThrowError(
+      new RegExp(`한 번에 ${MAX_ACTIVE_LOANS}권까지`)
+    )
+    expect(reservationRepo.firstWaiting(b1)?.userId).toBe(u1)
   })
 })
 

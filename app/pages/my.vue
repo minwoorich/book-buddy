@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { MAX_ACTIVE_LOANS } from '#shared/constants/loan'
 import type { Book, Loan, PurchaseRequest, RankRow, RankSnapshot, Reservation, Review, Wishlist } from '#shared/types'
 
 type LoanWithBook = Loan & { book: Book }
@@ -55,11 +56,17 @@ const { data: myReviews, refresh: refreshMyReviews } = await useAsyncData<MyRevi
   { default: () => [] }
 )
 
-// 표준 경쟁 순위(1224식): count가 같으면 같은 순위, 다음 순위는 동률 인원수만큼 건너뛴다.
-// rankings.vue와 동일한 규칙(스펙: '동률은 공동 순위').
+// rankings.vue와 동일한 규칙: 권수가 같으면 그 권수를 먼저 채운 쪽이 앞서고(QA #93),
+// 권수와 달성 시각이 모두 같을 때만 공동 순위로 묶인다.
 function competitionRankAt(list: RankRow[], idx: number): number {
   let rank = idx + 1
-  while (rank > 1 && list[rank - 2].count === list[idx].count) rank--
+  while (
+    rank > 1 &&
+    list[rank - 2].count === list[idx].count &&
+    (list[rank - 2].reachedAt ?? null) === (list[idx].reachedAt ?? null)
+  ) {
+    rank--
+  }
   return rank
 }
 
@@ -314,6 +321,9 @@ function requestMeta(r: PurchaseRequest): string {
       <div class="sec-head" style="margin-top:0;">
         <h2>읽고 있는 책</h2>
         <div class="rule" />
+        <span class="loan-cap" :class="{ full: readingRows.length >= MAX_ACTIVE_LOANS }">
+          <b>{{ readingRows.length }}</b> / {{ MAX_ACTIVE_LOANS }}권 대출 중
+        </span>
       </div>
       <div class="panel" style="padding: 6px 22px;">
         <div v-if="!readingRows.length" class="hint">지금 읽고 있는 책이 없어요.</div>
@@ -338,6 +348,7 @@ function requestMeta(r: PurchaseRequest): string {
       </div>
 
       <BookShelfSection
+        class="shelf-sec"
         title="읽은 책"
         :books="readBooks"
         :meta-texts="readMetaTexts"
@@ -345,6 +356,7 @@ function requestMeta(r: PurchaseRequest): string {
       />
 
       <BookShelfSection
+        class="shelf-sec"
         title="찜한 책"
         :books="wishBooks"
         action-label="찜 해제"
@@ -452,6 +464,15 @@ function requestMeta(r: PurchaseRequest): string {
 .profile .info span { font-size: 13.5px; color: var(--sub); }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+/* 내 서재 섹션끼리 붙어 있어 술통했던 것(QA #91) — 서가 섹션 위에 숨 틀 여백을 둔다. */
+.shelf-sec { margin-top: 24px; }
+
+/* 1인 동시 대출 한도 표시(QA #90) */
+.loan-cap { font-size: 12.5px; color: var(--sub); white-space: nowrap; }
+.loan-cap b { color: var(--ink); }
+.loan-cap.full { color: var(--red); }
+.loan-cap.full b { color: var(--red); }
 
 /* 도서 달력 섹션(QA #72) */
 .cal-count { font-size: 13px; color: var(--sub); white-space: nowrap; }
