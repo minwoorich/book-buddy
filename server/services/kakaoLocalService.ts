@@ -98,7 +98,8 @@ export const kakaoLocalService = {
     restKey: string,
     query: string,
     display = 5,
-    origin?: { lat: number; lng: number }
+    origin?: { lat: number; lng: number },
+    radiusM = 5000
   ): Promise<Place[]> {
     const url = new URL(BASE_URL)
     url.searchParams.set('query', query)
@@ -106,7 +107,8 @@ export const kakaoLocalService = {
     if (origin) {
       url.searchParams.set('x', String(origin.lng))
       url.searchParams.set('y', String(origin.lat))
-      url.searchParams.set('radius', '5000')
+      // 카카오 허용 범위 0~20000m
+      url.searchParams.set('radius', String(Math.min(Math.max(Math.round(radiusM), 0), 20000)))
       url.searchParams.set('sort', 'distance')
     }
 

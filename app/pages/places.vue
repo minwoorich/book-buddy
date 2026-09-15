@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Place } from '#shared/types'
-import { VATECH_HQ } from '#shared/constants/company'
+import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
 
 type PlaceWithReason = Place & { reason: string }
 
@@ -72,6 +72,18 @@ const searching = ref(false)
 const myLocation = ref<{ lat: number; lng: number } | null>(null)
 const locating = ref(false)
 
+// ── 기준 사업장 드롭다운: 바텍네트웍스 본사(기본)·바텍엠시스·바텍이엠엑스. 고르면 그 사업장
+// 주변으로 다시 검색하고 지도도 그리로 옮긴다. 내 위치를 잡아둔 상태였다면 사업장 선택이 우선.
+const officeKey = ref(VATECH_OFFICES[0].key)
+const office = computed(() => findOffice(officeKey.value))
+/** 검색 원점: 내 위치가 있으면 내 위치, 없으면 선택한 사업장. */
+const origin = computed(() => myLocation.value ?? { lat: office.value.lat, lng: office.value.lng })
+
+watch(officeKey, () => {
+  myLocation.value = null
+  void fetchPlaces()
+})
+
 /**
  * 장소 목록을 (재)조회한다. 검색어가 있으면 그 키워드로, 내 위치가 있으면 그 좌표 반경에서
  * 거리순으로 찾는다. 초기 로드(silent)의 실패는 예시 폴백으로 조용히 흡수하고,
@@ -84,13 +96,9 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
   }
   searching.value = true
   try {
-    const query: Record<string, string | number> = {}
+    const query: Record<string, string | number> = { lat: origin.value.lat, lng: origin.value.lng }
     const keyword = searchQuery.value.trim()
     if (keyword) query.query = keyword
-    if (myLocation.value) {
-      query.lat = myLocation.value.lat
-      query.lng = myLocation.value.lng
-    }
     fetchedPlaces.value = await api<Place[]>('/api/places', { query })
     ranked.value = null
   } catch (e) {
@@ -182,7 +190,7 @@ async function requestAiRanking() {
         <div>
           <span class="eyebrow">READING SPOTS</span>
           <h1>책 읽기 좋은 장소</h1>
-          <p>{{ VATECH_HQ.name }}(동탄) 주변 카페·도서관·공원을 AI가 책 읽기 좋은 순으로 골라드려요</p>
+          <p>{{ office.name }} 주변 카페·도서관·공원을 AI가 책 읽기 좋은 순으로 골라드려요</p>
         </div>
         <button
           type="button"
@@ -200,6 +208,12 @@ async function requestAiRanking() {
       </div>
 
       <div class="search-bar">
+        <label class="office-pick">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 21h18M5 21V5l7-3 7 3v16M9 9h2M13 9h2M9 13h2M13 13h2M9 17h2M13 17h2" /></svg>
+          <select v-model="officeKey" :disabled="searching" aria-label="기준 사업장">
+            <option v-for="o in VATECH_OFFICES" :key="o.key" :value="o.key">{{ o.name }}</option>
+          </select>
+        </label>
         <input
           v-model="searchQuery"
           type="search"
@@ -214,13 +228,13 @@ async function requestAiRanking() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="8" /></svg>
           {{ locating ? '위치 확인 중...' : '내 위치' }}
         </button>
-        <span class="loc-on">{{ myLocation ? '내 위치 기준 거리순' : VATECH_HQ.shortName + ' 기준 거리순' }}</span>
+        <span class="loc-on">{{ myLocation ? '내 위치 기준 거리순' : office.shortName + ' 기준 거리순' }}</span>
       </div>
 
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
 
       <div class="pl-layout">
-        <CommonKakaoMap :places="displayList" :app-key="kakaoJsKey" :my-location="myLocation" />
+        <CommonKakaoMap :places="displayList" :app-key="kakaoJsKey" :my-location="myLocation" :base="office" />
 
         <div class="plist">
           <div v-for="(place, i) in displayList" :key="place.name" class="place">
@@ -260,6 +274,10 @@ async function requestAiRanking() {
   background: var(--card); border: 1px solid var(--line); border-radius: 4px; color: var(--ink);
 }
 .search-bar input:focus { outline: none; border-color: var(--red); }
+/* 기준 사업장 드롭다운 — 검색창 왼쪽, 건물 아이콘 + select */
+.office-pick { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 10px; color: var(--ink); }
+.office-pick svg { color: var(--red); flex-shrink: 0; }
+.office-pick select { border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); padding: 9px 0; cursor: pointer; }
 .loc-on { font-size: 12px; color: var(--sub); background: var(--red-tint); border-radius: 3px; padding: 4px 10px; }
 
 .plist { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; }
@@ -287,6 +305,8 @@ async function requestAiRanking() {
   .place-head { flex-wrap: wrap; }
   .place-head .btn { width: 100%; margin-left: 0 !important; }
   .search-bar { flex-wrap: wrap; margin-top: -4px; }
+  .office-pick { flex: 1 1 100%; }
+  .office-pick select { width: 100%; }
   .search-bar input { flex: 1 1 100%; }
   .pl-layout :deep(.map) { min-height: 300px; height: 300px; }
   .place .top { flex-wrap: wrap; row-gap: 2px; }

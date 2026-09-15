@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Place } from '#shared/types'
-import { VATECH_HQ } from '#shared/constants/company'
+import { VATECH_HQ, type VatechOffice } from '#shared/constants/company'
 
 // 카카오 지도 JS는 전역 스크립트로 로드되는 SDK라 별도 타입 패키지 없이 window.kakao를
 // any로 다룬다(브리프 허용 범위). 이 컴포넌트는 파일명 컨벤션(`.client.vue`)으로 서버에서는
@@ -11,7 +11,11 @@ const props = defineProps<{
   appKey: string
   /** 사용자의 현재 위치(브라우저 geolocation). 오면 파란 점으로 표시하고 지도를 이동한다. */
   myLocation?: { lat: number; lng: number } | null
+  /** 기준 사업장(드롭다운 선택). 지도 기본 중심이자 상시 마커. 없으면 바텍네트웍스 본사. */
+  base?: VatechOffice
 }>()
+
+const base = computed<VatechOffice>(() => props.base ?? VATECH_HQ)
 
 /** 목업(places.html)의 4개 고정 핀 좌표. 폴백 렌더링에서 최대 4곳까지만 그대로 사용한다. */
 const FALLBACK_PIN_POSITIONS = [
@@ -76,12 +80,20 @@ function roughKm(a: { lat: number; lng: number }, b: { lat: number; lng: number 
 /** 본사(HQ)를 화면에 같이 담을 만큼 가까운 장소가 하나라도 있는지 판단하는 반경. 먼 지역 키워드 검색이면 제외. */
 const HQ_INCLUDE_RADIUS_KM = 10
 
-function hqLabelHtml(): string {
+/**
+ * 기준 사업장 마커 — 장소 핀(파란 마커+붉은 번호)과 확실히 구분되도록 크게: 붉은 펄스 링 위에
+ * 검정 사각 코어, 그 아래 흰 바탕·붉은 테두리의 이름 라벨. 지도 어디서든 눈에 띈다.
+ */
+function officeLabelHtml(office: VatechOffice): string {
   return (
-    '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-    '<div style="width:14px;height:14px;background:#221D15;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.3);"></div>' +
-    '<div style="font-size:11px;font-weight:700;background:#221D15;color:#fff;border-radius:3px;padding:2px 8px;white-space:nowrap;">' +
-    VATECH_HQ.shortName +
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;">' +
+    '<div style="position:relative;width:44px;height:44px;">' +
+    '<div style="position:absolute;inset:0;border-radius:50%;background:rgba(230,0,18,.22);animation:bb-pulse 2s ease-out infinite;"></div>' +
+    '<div style="position:absolute;inset:8px;border-radius:50%;background:#fff;border:3px solid #E60012;box-shadow:0 3px 10px rgba(181,0,14,.45);display:flex;align-items:center;justify-content:center;">' +
+    '<div style="width:12px;height:12px;background:#221D15;border-radius:2px;"></div>' +
+    '</div></div>' +
+    '<div style="font-size:13px;font-weight:800;letter-spacing:-0.2px;background:#fff;color:#221D15;border:2px solid #E60012;border-radius:999px;padding:4px 12px;white-space:nowrap;box-shadow:0 4px 12px rgba(60,48,28,.25);">' +
+    office.name +
     '</div></div>'
   )
 }
@@ -150,20 +162,26 @@ function renderMyLocation(pan = false) {
 function ensureMap(kakao: any): any {
   if (!mapEl.value || !kakao?.maps) return null
   if (!mapInstance) {
-    // 지도는 항상 바텍네트웍스 본사를 기본 중심으로 연다. 장소가 오면 renderMarkers가 범위를 맞춘다.
+    // 지도는 선택된 사업장(기본: 바텍네트웍스 본사)을 중심으로 연다. 장소가 오면 renderMarkers가 범위를 맞춘다.
     mapInstance = new kakao.maps.Map(mapEl.value, {
-      center: new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng),
+      center: new kakao.maps.LatLng(base.value.lat, base.value.lng),
       level: 4,
     })
-    hqOverlay = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng),
-      content: hqLabelHtml(),
-      yAnchor: 0.5,
-      map: mapInstance,
-      zIndex: 5,
-    })
+    renderOfficeMarker(kakao, mapInstance)
   }
   return mapInstance
+}
+
+/** 기준 사업장 마커를 (재)배치한다 — 사업장이 바뀌면 라벨·위치를 갈아 끼운다. */
+function renderOfficeMarker(kakao: any, map: any) {
+  if (hqOverlay) hqOverlay.setMap(null)
+  hqOverlay = new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(base.value.lat, base.value.lng),
+    content: officeLabelHtml(base.value),
+    yAnchor: 0.35,
+    map,
+    zIndex: 20,
+  })
 }
 
 /** 현재 validPlaces 기준으로 마커를 전부 지우고 다시 배치한다(순번 = 현재 순서). */
@@ -174,15 +192,15 @@ function renderMarkers() {
 
   clearMarkers()
   if (validPlaces.value.length === 0) {
-    map.setCenter(new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng))
+    map.setCenter(new kakao.maps.LatLng(base.value.lat, base.value.lng))
     map.setLevel(4)
     return
   }
 
-  // 본사 근처 장소가 있으면 본사까지 한 화면에 담고, 먼 지역 검색이면 장소들만 담는다.
+  // 사업장 근처 장소가 있으면 사업장까지 한 화면에 담고, 먼 지역 검색이면 장소들만 담는다.
   const bounds = new kakao.maps.LatLngBounds()
-  const nearHq = validPlaces.value.some((p) => roughKm(p, VATECH_HQ) <= HQ_INCLUDE_RADIUS_KM)
-  if (nearHq) bounds.extend(new kakao.maps.LatLng(VATECH_HQ.lat, VATECH_HQ.lng))
+  const nearHq = validPlaces.value.some((p) => roughKm(p, base.value) <= HQ_INCLUDE_RADIUS_KM)
+  if (nearHq) bounds.extend(new kakao.maps.LatLng(base.value.lat, base.value.lng))
   validPlaces.value.forEach((p) => bounds.extend(new kakao.maps.LatLng(p.lat, p.lng)))
   map.setBounds(bounds, 40)
 
@@ -256,6 +274,17 @@ watch(showFallback, (isFallback) => {
   }
 })
 
+// 기준 사업장이 바뀌면 마커를 옮기고 그 사업장으로 이동한다(장소 목록은 places.vue가 다시 조회해 온다).
+watch(base, () => {
+  if (showFallback.value) return
+  const kakao = (window as any).kakao
+  const map = ensureMap(kakao)
+  if (!map) return
+  renderOfficeMarker(kakao, map)
+  map.setCenter(new kakao.maps.LatLng(base.value.lat, base.value.lng))
+  map.setLevel(4)
+})
+
 // 내 위치가 도착/갱신되면 파란 점을 다시 그리고 그 지점으로 이동한다.
 watch(
   () => props.myLocation,
@@ -275,7 +304,7 @@ watch(
       <div class="park" />
       <div class="hq" style="left: 44%; top: 42%;">
         <div class="dot" />
-        <div class="lbl">{{ VATECH_HQ.shortName }}</div>
+        <div class="lbl">{{ base.shortName }}</div>
       </div>
       <div
         v-for="(place, i) in fallbackPlaces"
