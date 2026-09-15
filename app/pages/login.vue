@@ -34,7 +34,7 @@ async function submit() {
       <div class="logo-mark">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
       </div>
-      <div><b>道서관</b><span>VATECH LIBRARY</span></div>
+      <div><b>道, 서관</b><span>VATECH LIBRARY</span></div>
     </div>
 
     <div class="panel login-panel">
