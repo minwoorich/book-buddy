@@ -90,6 +90,60 @@ export const reviewRepo = {
     return rows.map((row) => ({ ...toReview(row), bookTitle: row.book_title, bookCoverUrl: row.book_cover_url }))
   },
 
+  /**
+   * 전체 리뷰 모아보기(왓챠피디아식 코멘트 피드). 작성자·책·추천 수 포함.
+   * sort: popular=추천순, latest=최신순, rating=별점 높은 순(동률은 최신순).
+   */
+  listAllWithMeta(
+    meId: number,
+    sort: 'popular' | 'latest' | 'rating',
+    limit = 60
+  ): (Review & {
+    userName: string
+    department: string
+    voteCount: number
+    votedByMe: boolean
+    bookTitle: string
+    bookAuthor: string
+    bookCoverUrl: string | null
+  })[] {
+    const orderBy =
+      sort === 'popular'
+        ? 'vote_count DESC, r.created_at DESC'
+        : sort === 'rating'
+          ? 'r.rating DESC, r.created_at DESC'
+          : 'r.created_at DESC, r.id DESC'
+    const rows = getDb()
+      .prepare(
+        `SELECT r.id, r.book_id, r.user_id, r.rating, r.content, r.created_at,
+                u.name AS user_name, u.department AS department,
+                b.title AS book_title, b.author AS book_author, b.cover_url AS book_cover_url,
+                (SELECT COUNT(*) FROM review_votes rv WHERE rv.review_id = r.id) AS vote_count,
+                EXISTS(SELECT 1 FROM review_votes rv2 WHERE rv2.review_id = r.id AND rv2.user_id = ?) AS voted_by_me
+         FROM reviews r
+         JOIN users u ON u.id = r.user_id
+         JOIN books b ON b.id = r.book_id
+         ORDER BY ${orderBy}
+         LIMIT ?`
+      )
+      .all(meId, limit) as (ReviewJoinRow & { book_title: string; book_author: string; book_cover_url: string | null })[]
+    return rows.map((row) => ({
+      ...toReviewWithMeta(row),
+      bookTitle: row.book_title,
+      bookAuthor: row.book_author,
+      bookCoverUrl: row.book_cover_url,
+    }))
+  },
+
+  /** 전체 리뷰 수·평균 별점 — 모아보기 페이지 헤더 요약용. */
+  globalStats(): { count: number; avg: number | null } {
+    const row = getDb().prepare('SELECT COUNT(*) AS count, AVG(rating) AS avg FROM reviews').get() as {
+      count: number
+      avg: number | null
+    }
+    return row
+  },
+
   /** 한 사용자가 이 책에 이미 남긴 리뷰(1인 1리뷰 규칙 검사용 — QA #18). */
   findByBookAndUser(bookId: number, userId: number): Review | undefined {
     const row = getDb()
