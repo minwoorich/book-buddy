@@ -174,7 +174,7 @@ async function requestAiRanking() {
   <div>
     <CommonAppHeader active="places" />
     <div class="wrap">
-      <div class="page-head" style="display:flex; align-items:flex-end; gap: 20px;">
+      <div class="page-head place-head">
         <div>
           <span class="eyebrow">READING SPOTS</span>
           <h1>책 읽기 좋은 장소</h1>
@@ -245,6 +245,7 @@ async function requestAiRanking() {
 
 <style scoped>
 .pl-layout { display: flex; gap: 26px; align-items: stretch; }
+.place-head { display: flex; align-items: flex-end; gap: 20px; }
 
 .search-bar { display: flex; gap: 10px; align-items: center; margin: -14px 0 20px; }
 .search-bar input {
@@ -269,4 +270,19 @@ async function requestAiRanking() {
 .place .acts a:hover { color: var(--red); border-color: var(--red); }
 
 .hint { color: var(--sub); font-size: 14px; margin: -18px 0 20px; }
+
+@media (max-width: 900px) {
+  .pl-layout { flex-direction: column; }
+  .pl-layout :deep(.map) { min-height: 380px; width: 100%; }
+  .plist { width: 100%; }
+}
+@media (max-width: 640px) {
+  .place-head { flex-wrap: wrap; }
+  .place-head .btn { width: 100%; margin-left: 0 !important; }
+  .search-bar { flex-wrap: wrap; margin-top: -4px; }
+  .search-bar input { flex: 1 1 100%; }
+  .pl-layout :deep(.map) { min-height: 300px; }
+  .place .top { flex-wrap: wrap; row-gap: 2px; }
+  .hint { margin-top: -8px; }
+}
 </style>

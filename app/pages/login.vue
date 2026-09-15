@@ -81,4 +81,9 @@ h1 { font-family: "Noto Serif KR", serif; font-size: 24px; font-weight: 600; mar
 .switch a { color: var(--red); font-weight: 600; }
 
 .hint { margin-top: 22px; padding: 12px 16px; border-radius: 4px; font-size: 12.5px; color: var(--sub); background: var(--card-2); border: 1px solid var(--line); }
+
+@media (max-width: 640px) {
+  .login-wrap { padding: 40px 16px 80px; }
+  .login-panel { padding: 24px 18px 22px; }
+}
 </style>

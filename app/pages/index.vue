@@ -223,4 +223,11 @@ function toggleExternal() {
 .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 26px 22px; }
 .ext-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 26px 22px; }
 .ext-toggle { margin: 16px 0 0; font-size: 13.5px; }
+
+@media (max-width: 640px) {
+  .hero { margin-bottom: 26px; }
+  .hero h1 { font-size: 23px; margin: 8px 0 16px; }
+  .list-options { flex-wrap: wrap; justify-content: center; }
+  .results-grid, .ext-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 20px 12px; }
+}
 </style>

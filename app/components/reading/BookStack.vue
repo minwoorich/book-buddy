@@ -66,7 +66,7 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
 .stack-widget { margin-left: auto; display: flex; align-items: flex-end; gap: 22px; }
 .stack-nums { text-align: right; }
 .stack-nums .eyebrow { display: block; margin-bottom: 6px; }
-.stack-nums b { font-family: "Noto Serif KR", serif; font-size: 24px; }
+.stack-nums b { font-family: "Noto Serif KR", serif; font-size: 24px; white-space: nowrap; }
 .stack-nums b i { font-style: normal; color: var(--red); }
 .stack-nums span { font-size: 12.5px; color: var(--sub); display: block; margin-top: 2px; }
 .bookstack { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; }
@@ -88,4 +88,11 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
   box-sizing: border-box;
 }
 .stack-base { width: 130px; height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-top: 4px; }
+
+@media (max-width: 900px) {
+  .stack-widget { margin-left: 0; flex-basis: 100%; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }
+  .stack-nums { text-align: left; }
+  .stack-nums b { font-size: 20px; }
+  .stack-base { width: 110px; }
+}
 </style>

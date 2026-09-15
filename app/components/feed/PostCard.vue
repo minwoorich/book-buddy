@@ -228,4 +228,9 @@ async function submitComment() {
 .cmt-form input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--ink); }
 .post-btn { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--red); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .post-btn:disabled { opacity: .4; cursor: default; }
+
+@media (max-width: 640px) {
+  .booktag { max-width: 50%; }
+  .post .photo img { max-height: 480px; }
+}
 </style>

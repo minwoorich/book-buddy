@@ -36,4 +36,11 @@ function colHeight(value: number): number {
 .vcol-cats span { flex: 1; text-align: center; font-size: 12.5px; color: var(--sub); }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+@media (max-width: 640px) {
+  .vcol-chart { gap: 10px; height: 140px; padding: 0 4px; }
+  .vcol .col { width: 20px; }
+  .vcol-cats { gap: 10px; padding: 8px 4px 0; }
+  .vcol-cats span { font-size: 11.5px; }
+}
 </style>

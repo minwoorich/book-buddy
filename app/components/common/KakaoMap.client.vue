@@ -298,4 +298,12 @@ watch(
 .pin .head { width: 26px; height: 26px; background: var(--red); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(181,0,14,.4); }
 .pin .head span { transform: rotate(45deg); color: #fff; font-size: 12px; font-weight: 800; }
 .pin .lbl { margin-top: 5px; font-size: 11.5px; font-weight: 700; background: rgba(255,253,249,.95); border: 1px solid var(--line); border-radius: 3px; padding: 2px 8px; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .map { min-height: 380px; }
+}
+@media (max-width: 640px) {
+  .map { min-height: 300px; }
+  .note { font-size: 10.5px; right: 8px; bottom: 8px; }
+}
 </style>

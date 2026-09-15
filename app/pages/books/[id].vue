@@ -382,4 +382,26 @@ function askAi() {
 }
 .modal textarea:focus { border-color: var(--red); }
 .modal-acts { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 900px) {
+  .layout { gap: 28px; }
+  .left { width: 200px; }
+  .left :deep(.cv) { width: 200px; }
+}
+@media (max-width: 640px) {
+  .crumb { margin-bottom: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layout { flex-direction: column; gap: 24px; }
+  .left { width: 100%; align-items: center; }
+  .left :deep(.cv) { width: 170px; }
+  .left .btn { width: 100%; max-width: 320px; }
+  .left :deep(.st) { text-align: center; }
+  .reserved-hint { text-align: center; }
+  .aux { width: 100%; max-width: 320px; }
+  .right h1 { font-size: 24px; }
+  .rating { flex-wrap: wrap; }
+  .desc { font-size: 14.5px; }
+  .ai-mini { flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+  .ai-mini .btn { width: 100%; }
+  .toast { white-space: normal; max-width: calc(100% - 32px); text-align: center; bottom: 88px; }
+}
 </style>

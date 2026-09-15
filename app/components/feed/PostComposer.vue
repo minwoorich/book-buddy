@@ -164,7 +164,14 @@ function cancel() {
 <template>
   <div class="panel composer">
     <div class="fields">
-      <input ref="fileInput" type="file" accept="image/*" multiple @change="handleFileChange">
+      <div class="photo-row">
+        <label class="btn sm file-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+          사진 추가
+          <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="handleFileChange">
+        </label>
+        <span class="placeholder">{{ images.length ? `${images.length}장 선택 · 첫 장이 대표 사진` : '사진을 선택해주세요 (최대 5장)' }}</span>
+      </div>
       <div v-if="images.length" class="thumbs">
         <div v-for="(img, i) in images" :key="img.url" class="thumb">
           <img :src="img.url" alt="선택한 사진">
@@ -172,7 +179,6 @@ function cancel() {
           <button type="button" class="remove" aria-label="사진 제거" @click="removeImage(i)">×</button>
         </div>
       </div>
-      <span v-else class="placeholder">사진을 선택해주세요 (최대 5장)</span>
       <textarea v-model="caption" class="input" rows="3" placeholder="오늘의 독서 순간을 기록해보세요" />
 
       <div v-if="selectedBook" class="picked">
@@ -213,6 +219,9 @@ function cancel() {
 .composer { margin-bottom: 26px; }
 .fields { display: flex; flex-direction: column; gap: 10px; }
 .fields textarea { resize: vertical; font-family: inherit; }
+/* 브라우저 기본 파일 입력("파일 선택 | 선택된 파일 없음")은 모바일에서 특히 어수선해 버튼으로 감싼다. */
+.photo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.file-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .placeholder { font-size: 12px; color: var(--sub); }
 .thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .thumb { position: relative; width: 92px; height: 92px; flex-shrink: 0; border-radius: 3px; overflow: hidden; background: #EDE7DA; }

@@ -161,4 +161,12 @@ const avgPerHead = computed(() => (totalHead.value > 0 ? totalDone.value / total
 .period-label { font-family: Pretendard, sans-serif; font-size: 12.5px; color: var(--sub); font-weight: 500; }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+@media (max-width: 900px) {
+  .cols2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .filters { flex-wrap: wrap; }
+  .filters select { flex-basis: 100%; }
+}
 </style>

@@ -114,3 +114,52 @@ a:hover { color: var(--red-dark); }
 /* ── 플로팅 챗봇 버튼 ──────────────────── */
 .fab { position: fixed; right: 30px; bottom: 30px; width: 58px; height: 58px; border-radius: 50%; background: var(--red); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 8px 22px rgba(181,0,14,.35); z-index: 50; }
 .fab:hover { background: var(--red-dark); }
+
+/* ── 반응형 공통 ───────────────────────── */
+/* 브레이크포인트는 app/composables/useShelfColumns.ts의 BP_TABLET(900)/BP_MOBILE(640)과 맞춘다. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 900px) {
+  .wrap { padding: 28px 20px 80px; }
+  .nav-in { gap: 18px; }
+  .nav-links { gap: 16px; }
+}
+
+@media (max-width: 640px) {
+  .wrap { padding: 20px 16px 96px; }
+
+  /* 네비: 로고 + 사용자 영역을 첫 줄에, 메뉴는 가로 스크롤되는 둘째 줄로 */
+  .nav-in { flex-wrap: wrap; gap: 10px 12px; padding: 12px 16px 0; }
+  .nav-links {
+    order: 3; flex-basis: 100%; gap: 18px; font-size: 13.5px;
+    overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 4px 16px 0;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a { padding-bottom: 10px; flex-shrink: 0; }
+  .nav-links .on { padding-bottom: 8px; }
+  .logo span { display: none; }
+  .logo b { font-size: 17px; }
+  .logo-mark { width: 28px; height: 28px; }
+  .me { font-size: 13px; }
+
+  .page-head { margin-bottom: 20px; }
+  .page-head h1 { font-size: 23px; }
+  .sec-head { margin: 28px 0 14px; gap: 10px; }
+  .sec-head h2 { font-size: 17px; }
+  .panel { padding: 16px; }
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tab { padding: 10px 14px; white-space: nowrap; }
+  .table th, .table td { padding: 8px 6px; }
+  .table th { white-space: nowrap; }
+
+  .fab { right: 16px; bottom: 16px; width: 52px; height: 52px; }
+
+  /* 관리자 목록: 열이 많은 표는 모바일에서 행을 카드처럼 세로로 쌓는다 */
+  .table.stack-sm, .table.stack-sm tbody { display: block; }
+  .table.stack-sm tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .table.stack-sm tr:last-child { border-bottom: 0; }
+  .table.stack-sm tr:has(th) { display: none; }
+  .table.stack-sm td { display: block; padding: 0; border: 0; }
+  .table.stack-sm td.full { flex-basis: 100%; }
+  .table.stack-sm td.end { margin-left: auto; }
+}

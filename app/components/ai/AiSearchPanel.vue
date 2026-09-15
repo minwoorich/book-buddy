@@ -256,4 +256,13 @@ p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-wi
 
 .ai-fallback { margin: 0; font-size: 14px; color: var(--sub); }
 .ai-message { white-space: pre-line; }
+
+@media (max-width: 640px) {
+  .ai-head { flex-wrap: wrap; gap: 6px 10px; }
+  .ai-q { margin-left: 0; flex-basis: 100%; }
+  .ai-book { min-width: 100%; }
+  .ai-loading-row { flex-wrap: wrap; gap: 10px; }
+  .wander-path { width: 100%; max-width: 230px; }
+  p { font-size: 14.5px; }
+}
 </style>

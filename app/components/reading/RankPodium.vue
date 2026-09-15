@@ -54,4 +54,15 @@ function initial(row: RankRow): string {
 .pod.second .avatar { width: 52px; height: 52px; font-size: 20px; }
 .pod.third .avatar { width: 48px; height: 48px; font-size: 18px; }
 .crown { display: block; margin: 0 auto 6px; }
+
+@media (max-width: 640px) {
+  .podium { gap: 8px; margin: 26px 0 28px; }
+  .pod { flex: 1; width: auto; min-width: 0; }
+  .pod .nm { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pod .org { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pod .cnt { font-size: 16px; }
+  .pod.first .avatar { width: 52px; height: 52px; font-size: 20px; }
+  .pod.second .avatar { width: 44px; height: 44px; font-size: 17px; }
+  .pod.third .avatar { width: 40px; height: 40px; font-size: 16px; }
+}
 </style>

@@ -135,4 +135,15 @@ function isMine(row: RankRow): boolean {
 .rank-row.mine .no { color: var(--red); font-weight: 700; }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+@media (max-width: 640px) {
+  .head-row { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .period { margin-left: 0; flex-wrap: wrap; }
+  .rank-row { flex-wrap: wrap; gap: 10px 12px; padding: 12px 10px; }
+  .rank-row .no { width: 22px; font-size: 15px; }
+  .rank-row .who { flex: 1; width: auto; min-width: 0; }
+  .rank-row .who b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-row .cnt { width: auto; }
+  .rank-row .bar-zone { flex-basis: 100%; order: 5; }
+}
 </style>

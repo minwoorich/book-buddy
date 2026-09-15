@@ -32,9 +32,21 @@ const activeKey = computed(() => props.active)
       </div>
       <div class="me">
         <span class="badge red">관리자</span>
-        <div class="avatar">{{ user?.name?.charAt(0) ?? '관' }}</div> {{ user?.name ?? '관리자' }}
-        <NuxtLink to="/" style="font-size:12.5px; margin-left:10px;">사용자 화면 →</NuxtLink>
+        <div class="avatar">{{ user?.name?.charAt(0) ?? '관' }}</div> <span class="me-name">{{ user?.name ?? '관리자' }}</span>
+        <NuxtLink to="/" class="to-user">사용자 화면 →</NuxtLink>
       </div>
     </div>
   </nav>
 </template>
+
+<style scoped>
+.to-user { font-size: 12.5px; margin-left: 10px; }
+
+@media (max-width: 640px) {
+  .me { gap: 6px; }
+  .to-user { display: none; }
+}
+@media (max-width: 420px) {
+  .me-name { display: none; }
+}
+</style>

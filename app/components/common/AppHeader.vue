@@ -45,7 +45,7 @@ async function handleLogout() {
       </div>
       <div v-if="user" class="me-zone">
         <NuxtLink class="me" to="/my" title="마이페이지로 이동">
-          <div class="avatar">{{ user.name.charAt(0) }}</div> {{ user.name }} 님
+          <div class="avatar">{{ user.name.charAt(0) }}</div> <span class="me-name">{{ user.name }} 님</span>
         </NuxtLink>
         <button type="button" class="logout" title="로그아웃" @click="handleLogout">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
@@ -70,4 +70,12 @@ async function handleLogout() {
   color: var(--sub);
 }
 .logout:hover { color: var(--red); }
+
+@media (max-width: 640px) {
+  .me-zone, .guest-actions { margin-left: auto; gap: 8px; }
+  .signup-link { display: none; }
+}
+@media (max-width: 420px) {
+  .me-name { display: none; }
+}
 </style>

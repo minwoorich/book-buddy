@@ -82,7 +82,7 @@ const SEVERITY_LABELS: Record<QaFeedback['severity'], string> = {
       </div>
 
       <div class="panel" style="padding: 8px 14px;">
-        <table v-if="rows.length" class="table">
+        <table v-if="rows.length" class="table stack-sm qa-table">
           <tbody>
             <tr>
               <th style="width: 90px;">시간</th>
@@ -102,7 +102,7 @@ const SEVERITY_LABELS: Record<QaFeedback['severity'], string> = {
                 <NuxtLink :to="row.path" style="font-size: 12.5px;">{{ row.path }}</NuxtLink>
                 <div v-if="row.viewport" style="font-size: 11.5px; color: var(--sub);">{{ row.viewport }}</div>
               </td>
-              <td style="font-size: 14px;">
+              <td class="c-content full" style="font-size: 14px;">
                 <div class="tags">
                   <span class="tag">{{ CATEGORY_LABELS[row.category] }}</span>
                   <span class="tag" :class="{ hot: row.severity === 'blocker' }">{{ SEVERITY_LABELS[row.severity] }}</span>
@@ -120,7 +120,7 @@ const SEVERITY_LABELS: Record<QaFeedback['severity'], string> = {
                   {{ row.status === 'open' ? '미해결' : '해결됨' }}
                 </span>
               </td>
-              <td style="text-align: right;">
+              <td class="end" style="text-align: right;">
                 <button
                   v-if="row.status === 'open'"
                   class="btn primary sm"
@@ -163,4 +163,11 @@ const SEVERITY_LABELS: Record<QaFeedback['severity'], string> = {
   border: 1px solid var(--line-strong); border-radius: 5px;
 }
 .shots img:hover { border-color: var(--red); }
+
+@media (max-width: 640px) {
+  .head-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .filters { margin-left: 0; flex-wrap: wrap; }
+  .qa-table th { width: auto !important; }
+  .qa-table td.c-content { font-size: 13.5px; }
+}
 </style>

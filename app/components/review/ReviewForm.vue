@@ -54,4 +54,10 @@ async function submit() {
 .review-form { display: flex; align-items: center; gap: 12px; }
 .review-form .input { flex: 1; }
 .review-form :deep(.star-rating) svg { width: 22px; height: 22px; }
+
+@media (max-width: 640px) {
+  .review-form { flex-wrap: wrap; gap: 10px; }
+  .review-form .input { flex-basis: 100%; }
+  .review-form .btn { margin-left: auto; }
+}
 </style>

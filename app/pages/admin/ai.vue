@@ -220,7 +220,7 @@ const FEATURE_LABEL: Record<string, string> = { chat: '챗봇', search: 'AI 검�
         <div class="rule" />
       </div>
       <div class="panel" style="padding: 8px 14px;">
-        <table v-if="usage?.recent.length" class="table">
+        <div v-if="usage?.recent.length" class="table-scroll"><table class="usage-table table">
           <tbody>
             <tr>
               <th style="width: 90px;">시간</th>
@@ -239,7 +239,7 @@ const FEATURE_LABEL: Record<string, string> = { chat: '챗봇', search: 'AI 검�
               <td>{{ row.durationMs }}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
         <div v-else class="hint">아직 호출 기록이 없어요</div>
       </div>
     </div>
@@ -272,5 +272,12 @@ const FEATURE_LABEL: Record<string, string> = { chat: '챗봇', search: 'AI 검�
 
 @media (max-width: 760px) {
   .field-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .stat-tiles { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
+  .prompt-area { font-size: 11.5px; }
+  .field-grid { gap: 10px; }
+  .feature-panel .sec-head { flex-wrap: wrap; }
+  .usage-table { min-width: 620px; }
 }
 </style>

@@ -158,4 +158,12 @@ watch([() => messages.value.length, sending], async () => {
 .guest-glyph { font-family: "Noto Serif KR", serif; font-size: 34px; font-weight: 600; color: var(--red); line-height: 1; }
 .guest-body p { margin: 0; font-size: 14px; color: var(--sub); line-height: 1.6; }
 .guest-actions { display: flex; gap: 10px; }
+
+/* 모바일: 챗 패널을 화면 전체로 — 좁은 화면에서 400px 고정폭 카드가 넘치던 문제 */
+@media (max-width: 640px) {
+  .chat { inset: 0; width: auto; height: auto; border-radius: 0; border: 0; }
+  .chat.guest-teaser { top: auto; }
+  .chat-head { padding: 12px 14px; }
+  .chat-foot { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+}
 </style>

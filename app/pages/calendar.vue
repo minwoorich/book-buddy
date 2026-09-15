@@ -158,4 +158,16 @@ const doneRows = computed(() =>
 .month-sum b { font-family: "Noto Serif KR", serif; font-size: 30px; }
 .month-sum b i { font-style: normal; color: var(--red); }
 .month-sum span { display: block; font-size: 12.5px; color: var(--sub); margin-top: 4px; }
+
+@media (max-width: 900px) {
+  .cal-layout { flex-direction: column; }
+  .cal { width: 100%; }
+  .aside { width: 100%; }
+}
+@media (max-width: 640px) {
+  .cal.panel { padding: 14px 12px !important; }
+  .cal-head { gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .cal-head h1 { font-size: 20px; }
+  .cal-nav button { width: 30px; height: 30px; }
+}
 </style>

@@ -118,4 +118,11 @@ async function register(item: ExternalBookItem, idx: number) {
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
 .reg-result { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; margin-top: 12px; }
 .reg-result :deep(.cv) { width: 38px; height: 54px; }
+
+@media (max-width: 640px) {
+  .reg-result { flex-wrap: wrap; }
+  .reg-result > div { flex: 1 1 60%; min-width: 0; }
+  .reg-result select { flex: 1 1 auto; }
+  .reg-result .btn { flex: 1 1 auto; }
+}
 </style>

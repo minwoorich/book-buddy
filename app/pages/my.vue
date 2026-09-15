@@ -369,7 +369,7 @@ function requestMeta(r: PurchaseRequest): string {
         <div v-if="!myReviews?.length" class="hint">아직 남긴 리뷰가 없어요.</div>
         <div v-for="review in myReviews" :key="review.id" class="my-review">
           <BookCoverImage :src="review.bookCoverUrl" :alt="review.bookTitle" />
-          <div style="flex:1; min-width:0;">
+          <div class="rv-body">
             <NuxtLink :to="`/books/${review.bookId}`" class="rv-title">{{ review.bookTitle }}</NuxtLink>
             <div class="rv-meta">
               <span class="rv-stars">★ {{ review.rating.toFixed(1) }}</span>
@@ -413,10 +413,33 @@ function requestMeta(r: PurchaseRequest): string {
 .my-review { display: flex; align-items: flex-start; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .my-review:last-child { border-bottom: 0; }
 .my-review :deep(.cv) { width: 38px; height: 54px; flex-shrink: 0; }
+.my-review .rv-body { flex: 1; min-width: 0; }
 .my-review .rv-title { font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: none; }
 .my-review .rv-title:hover { color: var(--red); }
 .my-review .rv-meta { display: flex; gap: 10px; font-size: 12px; color: var(--sub); margin: 2px 0 4px; }
 .my-review .rv-stars { color: #C9A227; font-weight: 700; }
 .my-review .rv-text { font-size: 13.5px; line-height: 1.6; color: #3E382D; }
 .my-review .btn { align-self: center; flex-shrink: 0; }
+
+@media (max-width: 900px) {
+  .cols2 { grid-template-columns: 1fr; }
+  /* 640~900px에서 프로필 텍스트와 책쌓기 위젯이 한 줄에 눌려 낱말이 세로로 쪼개지던 문제 —
+     위젯을 아래 줄로 내리고 뱃지·숫자는 줄바꿈 금지 */
+  .profile { flex-wrap: wrap; }
+  .profile .info { flex: 1; min-width: 0; }
+  .fav-cats { flex-wrap: wrap; }
+  .fav-cats .badge, .fav-label { white-space: nowrap; }
+}
+@media (max-width: 640px) {
+  .profile { gap: 14px; }
+  .profile .info b { font-size: 19px; }
+  .reading-row { flex-wrap: wrap; gap: 12px; }
+  .reading-row > div:nth-child(2) { flex: 1 1 200px; min-width: 0; }
+  .reading-row .due { flex: 1 1 calc(100% - 140px); margin-left: 58px; white-space: normal; }
+  .request-form { flex-direction: column; }
+  .my-review { flex-wrap: wrap; }
+  /* 인라인 flex:1 이 클래스 규칙을 이기던 문제 — 클래스로 옮긴 뒤 기준 폭을 줘서 버튼을 아래 줄로 */
+  .my-review .rv-body { flex: 1 1 200px; }
+  .my-review .btn { margin-left: 52px; }
+}
 </style>

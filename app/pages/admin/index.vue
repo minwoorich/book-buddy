@@ -214,14 +214,14 @@ function onBookRegistered() {
           </div>
           <div class="panel" style="padding: 8px 14px;">
             <p v-if="!recentLoanRows.length" class="hint">최근 대출 기록이 없어요.</p>
-            <table v-else class="table">
+            <table v-else class="table stack-sm">
               <tr><th>도서</th><th>대출자</th><th>대출일</th><th>상태</th><th /></tr>
               <tr v-for="row in recentLoanRows" :key="row.loan.id">
-                <td><b>{{ row.loan.book.title }}</b></td>
+                <td class="full"><b>{{ row.loan.book.title }}</b></td>
                 <td>{{ row.borrowerName }} <span style="color:var(--sub); font-size:12px;">{{ row.borrowerTeam }}</span></td>
                 <td>{{ row.loanedLabel }}</td>
                 <td><span class="badge" :class="row.badge.cls">{{ row.badge.label }}</span></td>
-                <td class="row-actions">
+                <td class="row-actions end">
                   <button
                     v-if="!row.loan.returnedAt"
                     type="button"
@@ -324,4 +324,14 @@ function onBookRegistered() {
 .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: start; }
 .row-actions { display: flex; gap: 6px; }
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+@media (max-width: 900px) {
+  .stat-tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .tile { padding: 14px 16px; }
+  .tile b { font-size: 26px; }
+  .row-actions { flex-wrap: wrap; }
+}
 </style>

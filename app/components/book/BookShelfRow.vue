@@ -9,18 +9,14 @@ const props = withDefaults(
   { columns: 6 }
 )
 
-const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(${props.columns}, minmax(0, 1fr))` }))
+// columns는 데스크톱 기준 칸 수 — 태블릿 4칸, 모바일 3칸으로 줄여 줄을 다시 나눈다.
+const columns = useShelfColumns(props.columns, Math.min(props.columns, 4), Math.min(props.columns, 3))
+
+const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(${columns.value}, minmax(0, 1fr))` }))
 
 // books를 columns개씩 줄 단위로 나눈다 — 각 줄마다 covers-row → .shelf → meta-row를 반복 렌더해
 // 7권 이상일 때도 줄바꿈이 서가(선반) 단위로 깔끔하게 떨어지게 한다.
-const rows = computed(() => {
-  const size = props.columns
-  const chunks: typeof props.books[] = []
-  for (let i = 0; i < props.books.length; i += size) {
-    chunks.push(props.books.slice(i, i + size))
-  }
-  return chunks
-})
+const rows = computed(() => chunk(props.books, columns.value))
 </script>
 
 <template>
@@ -52,4 +48,12 @@ const rows = computed(() => {
 .meta { text-align: center; padding-top: 16px; }
 .meta .t { font-size: 14.5px; font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meta .a { font-size: 13px; color: var(--sub); margin-bottom: 4px; }
+
+@media (max-width: 640px) {
+  .shelf-row + .shelf-row { margin-top: 22px; }
+  .shelf-grid, .meta-row { gap: 12px; }
+  .meta { padding-top: 12px; }
+  .meta .t { font-size: 13px; }
+  .meta .a { font-size: 12px; }
+}
 </style>

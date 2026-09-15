@@ -133,4 +133,9 @@ h1 { font-family: "Noto Serif KR", serif; font-size: 24px; font-weight: 600; mar
 
 .switch { margin-top: 20px; font-size: 13px; color: var(--sub); }
 .switch a { color: var(--red); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .signup-wrap { padding: 40px 16px 80px; }
+  .signup-panel { padding: 24px 18px 22px; }
+}
 </style>

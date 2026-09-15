@@ -45,4 +45,11 @@ onBeforeUnmount(() => {
 .search input { border: 0; outline: 0; flex: 1; font: inherit; font-size: 15.5px; background: transparent; color: var(--ink); }
 .search .go { background: var(--red); color: #fff; border: 0; border-radius: 999px; padding: 8px 20px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .search .go:hover { background: var(--red-dark); }
+
+@media (max-width: 640px) {
+  .search { padding: 10px 14px; gap: 8px; }
+  .search svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .search input { font-size: 14.5px; min-width: 0; }
+  .search .go { padding: 7px 14px; font-size: 13px; flex-shrink: 0; }
+}
 </style>

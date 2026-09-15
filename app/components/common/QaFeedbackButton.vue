@@ -269,4 +269,10 @@ textarea::placeholder { font-size: 12.5px; }
 .qa-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .auto-note { margin-right: auto; font-size: 11px; color: var(--sub); opacity: 0.85; }
 .qa-done { font-size: 14px; color: var(--ok); padding: 8px 0; text-align: center; }
+
+@media (max-width: 640px) {
+  .qa-fab { left: 16px; bottom: 16px; padding: 7px 12px; }
+  /* 열린 패널이 챗봇 FAB(z-index 50) 아래 깔려 보내기 버튼이 가려지지 않게 */
+  .qa-panel { left: 12px; right: 12px; bottom: 12px; width: auto; max-height: calc(100vh - 24px); z-index: 51; }
+}
 </style>
