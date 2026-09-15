@@ -36,7 +36,6 @@ const { data, refresh } = await useAsyncData<{ stats: { count: number; avg: numb
 )
 
 const reviews = computed(() => data.value.reviews)
-const stats = computed(() => data.value.stats)
 
 const voteBusyId = ref<number | null>(null)
 
@@ -85,14 +84,7 @@ function starFills(rating: number): boolean[] {
         <div class="page-head" style="margin-bottom:0;">
           <span class="eyebrow">EVERYONE'S COMMENTS</span>
           <h1>리뷰 모아보기</h1>
-          <p>동료들이 남긴 한줄 평을 한곳에서 — 마음에 들면 👍 추천을 눌러주세요</p>
-        </div>
-        <div class="summary">
-          <div class="avg">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="#C9A227"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8-5.1-4.7 6.9-.8z" /></svg>
-            <b>{{ stats.avg !== null ? stats.avg.toFixed(1) : '-' }}</b>
-          </div>
-          <span>리뷰 {{ stats.count }}개의 평균 별점</span>
+          <p>동료들이 남긴 한줄 평을 한곳에서 — 마음에 들면 추천을 눌러주세요</p>
         </div>
       </div>
 
@@ -161,17 +153,14 @@ function starFills(rating: number): boolean[] {
 </template>
 
 <style scoped>
-.head-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 22px; }
-
-.summary { margin-left: auto; text-align: right; }
-.summary .avg { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.summary .avg b { font-family: var(--font-display); font-size: 26px; }
-.summary > span { font-size: 12.5px; color: var(--sub); }
+/* 제목과 목록 사이를 넉넉히 띄우고(QA #63·#67), 평균 별점 요약은 뺐다(QA #63·#67). */
+.head-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 36px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 
 /* 왓챠피디아 코멘트 피드처럼 카드 그리드 대신 가운데 정렬된 단일 목록으로 쌓는다 —
    격자에서 카드 높이가 제각각이라 줄이 삐뚤빼뚤해지는 문제를 원천적으로 없앤다. */
 .feed-shell { max-width: 760px; margin: 0 auto; }
-.sorts { display: flex; justify-content: center; gap: 8px; margin-bottom: 6px; }
+/* 정렬 칩은 오른쪽으로 몰아 목록 첫 줄과 맞춘다(QA #67). */
+.sorts { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px; }
 
 .feed { display: flex; flex-direction: column; }
 .row { display: flex; gap: 16px; padding: 22px 4px; border-bottom: 1px solid var(--line); }
@@ -215,8 +204,8 @@ function starFills(rating: number): boolean[] {
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; text-align: center; }
 
 @media (max-width: 700px) {
-  .head-row { flex-direction: column; align-items: flex-start; }
-  .summary { margin-left: 0; text-align: left; }
+  .head-row { flex-direction: column; align-items: flex-start; margin-bottom: 26px; padding-bottom: 14px; }
+  .sorts { justify-content: flex-start; }
   .row-top .when { margin-left: 0; width: 100%; order: 1; }
 }
 </style>

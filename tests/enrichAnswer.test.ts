@@ -24,9 +24,9 @@ describe('enrichAnswer — 모델이 버튼을 빠뜨린 답변 보정', () => {
     expect(out.actions).toEqual([])
   })
 
-  it('페이지 키워드로 목적지를 채운다 (내 서재·캘린더·랭킹·공지)', () => {
+  it('페이지 키워드로 목적지를 채운다 (내 서재·랭킹·공지) — 달력은 내 서재로 합쳐져 /my 하나로 묶인다', () => {
     const out = enrichAnswer(answer('내 서재에서 반납일을 확인하세요. 랭킹도 오르셨어요! 공지도 보세요.'), { recentBookIds: [] })
-    expect(out.actions.map((a) => (a.type === 'navigate' ? a.to : ''))).toEqual(['/my', '/calendar', '/rankings'])
+    expect(out.actions.map((a) => (a.type === 'navigate' ? a.to : ''))).toEqual(['/my', '/rankings', '/notices'])
   })
 
   it('이미 같은 목적지 버튼이 있으면 중복 추가하지 않고, 기존 버튼 순서를 유지한다', () => {

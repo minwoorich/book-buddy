@@ -22,7 +22,7 @@ export const VATECH_OFFICES: readonly VatechOffice[] = [
   },
   {
     key: 'msys',
-    name: '바텍엠시스 본사',
+    name: '바텍엠시스',
     shortName: '바텍엠시스',
     address: '경기 수원시 권선구 산업로155번길 38',
     lat: 37.243961964964,

@@ -31,7 +31,7 @@ interface PageRule {
 }
 const PAGE_RULES: PageRule[] = [
   { re: /내 서재|서재에서|대출 (현황|목록|이력)|반납 (예정|기한)|찜 목록|희망도서|신청 (내역|현황|결과)/, to: '/my', label: '내 서재에서 확인하기' },
-  { re: /캘린더|달력|반납일/, to: '/calendar', label: '반납일 캘린더 보기' },
+  { re: /캘린더|달력|반납일/, to: '/my', label: '내 서재 달력 보기' },
   { re: /랭킹|순위/, to: '/rankings', label: '랭킹 보러 가기' },
   { re: /피드|게시물|독서 순간/, to: '/feed', label: '피드 보러 가기' },
   { re: /읽기 좋은 장소|장소 (추천|페이지)|근처 카페|카페·도서관|카페, 도서관/, to: '/places', label: '책 읽기 좋은 장소 보기' },

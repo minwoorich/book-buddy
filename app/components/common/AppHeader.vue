@@ -7,7 +7,6 @@ const ALL_NAV_ITEMS = [
   { key: 'home', label: '홈', to: '/' },
   { key: 'notices', label: '공지사항', to: '/notices' },
   { key: 'my', label: '내 서재', to: '/my' },
-  { key: 'calendar', label: '도서 달력', to: '/calendar' },
   { key: 'rankings', label: '랭킹', to: '/rankings' },
   { key: 'reviews', label: '리뷰', to: '/reviews' },
   { key: 'feed', label: '피드', to: '/feed' },

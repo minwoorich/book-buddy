@@ -43,31 +43,50 @@ const HERO_TITLES = [
   '실천이 없는 지식, 성찰이 없는 사유는 허구다',
 ] as const
 const HERO_ROTATE_MS = 10_000
-const HERO_FADE_MS = 700
+/** 타자기 효과(QA #74): 한 글자씩 나타나고, 문구가 바뀔 땐 지운 뒤 다시 친다. */
+const HERO_TYPE_MS = 55
+const HERO_ERASE_MS = 18
 
 const heroIndex = ref(0)
-const heroVisible = ref(true)
+const heroTyped = ref(HERO_TITLES[0].length) // 첫 화면은 완성된 문구로 시작(깜빡임 방지)
 const heroTitle = computed(() => HERO_TITLES[heroIndex.value] ?? HERO_TITLES[0])
+const heroText = computed(() => heroTitle.value.slice(0, heroTyped.value))
+const heroTyping = computed(() => heroTyped.value < heroTitle.value.length)
 
 let heroTimer: ReturnType<typeof setInterval> | undefined
-let heroFadeTimer: ReturnType<typeof setTimeout> | undefined
+let heroStepTimer: ReturnType<typeof setTimeout> | undefined
+
+function typeNext() {
+  if (heroTyped.value >= heroTitle.value.length) return
+  heroTyped.value++
+  heroStepTimer = setTimeout(typeNext, HERO_TYPE_MS)
+}
+
+function eraseThenType() {
+  if (heroTyped.value > 0) {
+    heroTyped.value--
+    heroStepTimer = setTimeout(eraseThenType, HERO_ERASE_MS)
+    return
+  }
+  heroIndex.value = (heroIndex.value + 1) % HERO_TITLES.length
+  heroStepTimer = setTimeout(typeNext, 200)
+}
+
 onMounted(() => {
   heroTimer = setInterval(() => {
-    heroVisible.value = false
-    heroFadeTimer = setTimeout(() => {
-      heroIndex.value = (heroIndex.value + 1) % HERO_TITLES.length
-      heroVisible.value = true
-    }, HERO_FADE_MS)
+    if (heroStepTimer) clearTimeout(heroStepTimer)
+    eraseThenType()
   }, HERO_ROTATE_MS)
 })
 onBeforeUnmount(() => {
   if (heroTimer) clearInterval(heroTimer)
-  if (heroFadeTimer) clearTimeout(heroFadeTimer)
+  if (heroStepTimer) clearTimeout(heroStepTimer)
 })
 
-// ── 배열 옵션(QA #15): 대출 가능한 책만 / 인기순(대출 빈도) ─────────────
+// ── 배열 옵션(QA #15 → #66·#73): "대출 가능만" 토글 스위치 + 정렬 세그먼트(기본순/인기순) ──
 const availableOnly = ref(false)
-const sortPopular = ref(false)
+const sortMode = ref<'default' | 'popular'>('default')
+const sortPopular = computed(() => sortMode.value === 'popular')
 /** '전체' 카테고리에서도 옵션이 켜지면 섹션 대신 평면 목록으로 전환한다. */
 const listOptionsActive = computed(() => availableOnly.value || sortPopular.value)
 
@@ -162,16 +181,19 @@ function toggleExternal() {
       <template v-if="!activeQuery">
         <div class="hero">
           <div class="eyebrow">VATECH PEOPLE&rsquo;S BOOKSHELF</div>
-          <h1 class="hero-title" :class="{ hidden: !heroVisible }" aria-live="polite">{{ heroTitle }}</h1>
+          <h1 class="hero-title" :aria-label="heroTitle"><span aria-hidden="true">{{ heroText }}</span><span class="caret" :class="{ typing: heroTyping }" aria-hidden="true" /></h1>
           <CommonSearchBar v-model="searchInput" @submit="submitSearch" />
           <CommonCategoryChips v-model="selectedCategory" />
           <div class="list-options">
-            <button type="button" class="opt-chip" :class="{ on: availableOnly }" @click="availableOnly = !availableOnly">
-              대출 가능만
-            </button>
-            <button type="button" class="opt-chip" :class="{ on: sortPopular }" @click="sortPopular = !sortPopular">
-              인기순 (대출 많은 책)
-            </button>
+            <label class="switch">
+              <input v-model="availableOnly" type="checkbox">
+              <span class="track"><span class="knob" /></span>
+              <span class="switch-label">대출 가능만</span>
+            </label>
+            <div class="seg" role="radiogroup" aria-label="정렬">
+              <button type="button" role="radio" :aria-checked="sortMode === 'default'" :class="{ on: sortMode === 'default' }" @click="sortMode = 'default'">기본순</button>
+              <button type="button" role="radio" :aria-checked="sortMode === 'popular'" :class="{ on: sortMode === 'popular' }" @click="sortMode = 'popular'">인기순</button>
+            </div>
           </div>
         </div>
 
@@ -240,20 +262,30 @@ function toggleExternal() {
 <style scoped>
 .hero { text-align: center; margin-bottom: 34px; }
 .hero h1 { font-family: var(--font-display); font-size: 31px; font-weight: 600; letter-spacing: -0.4px; margin: 10px 0 22px; }
-/* 문구 교체 시 은은한 페이드(QA #52). 긴 명언이 두 줄로 접혀도 검색창이 크게 튀지 않게 최소 높이. */
-.hero-title { min-height: 1.35em; transition: opacity .7s ease; opacity: 1; word-break: keep-all; }
-.hero-title.hidden { opacity: 0; }
+/* 타자기 효과(QA #74). 긴 명언이 두 줄로 접혀도 검색창이 크게 튀지 않게 최소 높이. */
+.hero-title { min-height: 1.35em; word-break: keep-all; }
+.caret { display: inline-block; width: 2px; height: .95em; margin-left: 3px; vertical-align: -0.12em; background: var(--red); opacity: 0; }
+.caret.typing { opacity: 1; animation: hero-caret 1s steps(1) infinite; }
+@keyframes hero-caret { 50% { opacity: 0; } }
 
 .count { font-size: 13px; color: var(--sub); white-space: nowrap; }
 
-/* 옵션 칩은 서가(책 목록) 시작점과 나란히 오른쪽 정렬(QA #41). */
-.list-options { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.opt-chip {
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sub);
-  background: var(--card); border: 1px solid var(--line-strong); border-radius: 999px;
-  padding: 6px 14px; cursor: pointer;
-}
-.opt-chip.on { color: var(--red); border-color: var(--red); background: var(--red-tint); }
+/* 옵션은 얇은 한 줄(QA #73)로 오른쪽 정렬(QA #41), 카테고리 칩과는 간격을 둔다(QA #66). */
+.list-options { display: flex; justify-content: flex-end; align-items: center; gap: 18px; margin-top: 22px; height: 26px; }
+/* 토글 스위치(QA #66) */
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { width: 34px; height: 20px; border-radius: 999px; background: #D8CEBC; position: relative; transition: background .18s; flex-shrink: 0; }
+.switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s; }
+.switch input:checked + .track { background: var(--red); }
+.switch input:checked + .track .knob { transform: translateX(14px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--red); outline-offset: 2px; }
+.switch-label { font-size: 12.5px; font-weight: 600; color: var(--sub); }
+.switch input:checked ~ .switch-label { color: var(--ink); }
+/* 정렬 세그먼트(기본순/인기순, QA #66) */
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px; background: var(--card); }
+.seg button { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sub); background: transparent; border: 0; border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+.seg button.on { background: var(--red); color: #fff; }
 .hint { color: var(--sub); font-size: 14px; padding: 20px 0; }
 
 .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 26px 22px; }
@@ -263,7 +295,7 @@ function toggleExternal() {
 @media (max-width: 640px) {
   .hero { margin-bottom: 26px; }
   .hero h1 { font-size: 23px; margin: 8px 0 16px; }
-  .list-options { flex-wrap: wrap; justify-content: center; }
+  .list-options { flex-wrap: wrap; justify-content: center; height: auto; gap: 12px; margin-top: 16px; }
   .results-grid, .ext-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 20px 12px; }
 }
 </style>

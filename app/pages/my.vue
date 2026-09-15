@@ -87,6 +87,48 @@ async function refreshAll() {
   ])
 }
 
+// ── 도서 달력(QA #72): 별도 페이지 대신 내 서재 안 섹션. 완독 목록(doneLoans)을 그대로 넘기면
+// ReadingCalendar가 날짜별로 알아서 꽂는다. ─────────────────────────────
+const calNow = new Date()
+const calYear = ref(calNow.getFullYear())
+const calMonth = ref(calNow.getMonth() + 1) // 1~12
+
+function prevMonth() {
+  if (calMonth.value === 1) {
+    calYear.value--
+    calMonth.value = 12
+  } else {
+    calMonth.value--
+  }
+}
+
+function nextMonth() {
+  if (calMonth.value === 12) {
+    calYear.value++
+    calMonth.value = 1
+  } else {
+    calMonth.value++
+  }
+}
+
+const isCurrentMonth = computed(
+  () => calYear.value === calNow.getFullYear() && calMonth.value === calNow.getMonth() + 1
+)
+
+function goThisMonth() {
+  calYear.value = calNow.getFullYear()
+  calMonth.value = calNow.getMonth() + 1
+}
+
+const monthDoneCount = computed(
+  () =>
+    (doneLoans.value ?? []).filter((l) => {
+      if (!l.returnedAt) return false
+      const d = parseDbDate(l.returnedAt)
+      return d.getFullYear() === calYear.value && d.getMonth() + 1 === calMonth.value
+    }).length
+)
+
 // ── 많이 읽은 분야(완독 기준 상위 3개) — QA #25의 "분야 정리" 축소판 ────────
 const topCategories = computed(() => {
   const counts = new Map<string, number>()
@@ -364,6 +406,23 @@ function requestMeta(r: PurchaseRequest): string {
         </div>
       </div>
 
+      <div class="sec-head" id="calendar">
+        <h2>도서 달력</h2>
+        <div class="rule" />
+        <span class="cal-count">{{ calYear }}년 {{ calMonth }}월 완독 <b>{{ monthDoneCount }}권</b></span>
+      </div>
+      <div class="panel cal-panel">
+        <div class="cal-head">
+          <h3>{{ calYear }}년 {{ calMonth }}월</h3>
+          <div class="cal-nav">
+            <button type="button" aria-label="이전 달" @click="prevMonth">&#8249;</button>
+            <button type="button" aria-label="다음 달" @click="nextMonth">&#8250;</button>
+          </div>
+          <button type="button" class="chip" :class="{ on: isCurrentMonth }" :disabled="isCurrentMonth" @click="goThisMonth">이달</button>
+        </div>
+        <ReadingCalendar :year="calYear" :month="calMonth" :loans="doneLoans ?? []" />
+      </div>
+
       <div class="sec-head">
         <h2>내가 남긴 리뷰</h2>
         <div class="rule" />
@@ -393,6 +452,18 @@ function requestMeta(r: PurchaseRequest): string {
 .profile .info span { font-size: 13.5px; color: var(--sub); }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
+
+/* 도서 달력 섹션(QA #72) */
+.cal-count { font-size: 13px; color: var(--sub); white-space: nowrap; }
+.cal-count b { color: var(--ink); }
+.cal-panel { padding: 20px 22px; }
+.cal-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.cal-head h3 { font-family: var(--font-display); font-size: 19px; font-weight: 700; margin: 0; }
+.cal-nav { display: flex; gap: 6px; }
+.cal-nav button { font: inherit; width: 30px; height: 30px; border-radius: 3px; border: 1px solid var(--line-strong); background: transparent; cursor: pointer; color: var(--sub); font-size: 14px; }
+.cal-nav button:hover { background: #F4F0E8; }
+.cal-head .chip { margin-left: auto; }
+.cal-head .chip:disabled { cursor: default; }
 
 .reading-row { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .reading-row:last-child { border-bottom: 0; }

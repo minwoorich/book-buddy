@@ -7,8 +7,7 @@
 export const ROUTE_CATALOG = `
 - /books/:id — 도서 상세 페이지
 - /books/:id?review=1 — 도서 상세 페이지(리뷰 작성 폼이 자동으로 열림)
-- /my — 내 대출/서재 현황
-- /calendar — 반납일 캘린더
+- /my — 내 서재(대출 현황·읽은 책·찜·도서 달력)
 - /rankings — 랭킹(대출/완독 등)
 - /feed — 독서 피드
 - /places — 책 읽기 좋은 장소(회사 주변 카페·도서관·공원)

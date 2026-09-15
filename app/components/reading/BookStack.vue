@@ -50,6 +50,8 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
       <span>이달 {{ monthCount }}권 · 대출-반납 기록 기준</span>
     </div>
     <div class="bookstack">
+      <!-- column-reverse라 DOM 첫 요소가 맨 아래에 온다 — 받침대를 먼저 둬야 바닥에 깔린다(QA #76). -->
+      <div class="stack-base" />
       <div
         v-for="loan in recentDone"
         :key="loan.id"
@@ -57,7 +59,6 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
         :style="{ width: `${spineWidth(loan.book.id)}px`, background: spineColor(loan.book.id) }"
         :title="loan.book.title"
       >{{ loan.book.title }}</div>
-      <div class="stack-base" />
     </div>
   </div>
 </template>
@@ -87,7 +88,7 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
   padding: 0 6px;
   box-sizing: border-box;
 }
-.stack-base { width: 130px; height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-top: 4px; }
+.stack-base { width: 130px; height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-bottom: 4px; }
 
 @media (max-width: 900px) {
   .stack-widget { margin-left: 0; flex-basis: 100%; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }

@@ -100,7 +100,6 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
     const keyword = searchQuery.value.trim()
     if (keyword) query.query = keyword
     fetchedPlaces.value = await api<Place[]>('/api/places', { query })
-    ranked.value = null
   } catch (e) {
     if (opts.silent) {
       fetchedPlaces.value = []
@@ -139,14 +138,11 @@ function locateMe() {
 // 실제 검색 결과가 하나도 없으면(키 미설정으로 503이거나, 로그인 전) 예시로 대체한다.
 const isFallback = computed(() => fetchedPlaces.value.length === 0)
 
-/** AI 추천 요청에 보낼 원본 장소 목록. */
+/** 실제 목록(검색 결과 또는 예시). */
 const basePlaces = computed<Place[]>(() => (isFallback.value ? FALLBACK_PLACES : fetchedPlaces.value))
 
-const ranked = ref<PlaceWithReason[] | null>(null)
-const aiLoading = ref(false)
-
+// AI 추천받기 버튼은 뺐다(QA #70) — 장소는 사업장 기준 거리순으로만 보여준다.
 const displayList = computed<PlaceWithReason[]>(() => {
-  if (ranked.value) return ranked.value
   if (isFallback.value) return FALLBACK_PLACES
   return basePlaces.value.map((p) => ({ ...p, reason: '' }))
 })
@@ -164,22 +160,6 @@ function formatDistance(m?: number): string {
   if (!m) return ''
   return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`
 }
-
-async function requestAiRanking() {
-  if (aiLoading.value || basePlaces.value.length === 0) return
-  aiLoading.value = true
-  try {
-    const res = await api<{ ranked: PlaceWithReason[] }>('/api/ai/places', {
-      method: 'POST',
-      body: { places: basePlaces.value },
-    })
-    ranked.value = res.ranked
-  } catch (e) {
-    alert(apiErrorMessage(e))
-  } finally {
-    aiLoading.value = false
-  }
-}
 </script>
 
 <template>
@@ -190,21 +170,8 @@ async function requestAiRanking() {
         <div>
           <span class="eyebrow">READING SPOTS</span>
           <h1>책 읽기 좋은 장소</h1>
-          <p>{{ office.name }} 주변 카페·도서관·공원을 AI가 책 읽기 좋은 순으로 골라드려요</p>
+          <p>{{ office.name }} 주변 카페·도서관·공원을 가까운 순으로 모았어요</p>
         </div>
-        <button
-          type="button"
-          class="btn primary"
-          style="margin-left:auto;"
-          :disabled="aiLoading || basePlaces.length === 0"
-          @click="requestAiRanking"
-        >
-          <template v-if="aiLoading">고르는 중...</template>
-          <template v-else>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px;"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
-            AI 추천받기
-          </template>
-        </button>
       </div>
 
       <div class="search-bar">
