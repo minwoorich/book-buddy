@@ -65,6 +65,7 @@ function resetAll(): void {
     'reports',
     'post_comments',
     'post_likes',
+    'post_tags',
     'post_images',
     'posts',
     'purchase_requests',
@@ -362,6 +363,7 @@ function seedPurchaseRequests(userIds: number[]): number {
 function seedPosts(userIds: number[], books: Book[]): number {
   const captions = ['오늘 드디어 완독했어요! 📚', '점심시간에 틈틈이 읽고 있습니다.', '표지부터 마음에 들었던 책이에요.']
   const moods = ['점심시간 옥상 독서', '퇴근 후 한 챕터', '주말 카페 독서']
+  const tagSets = [['완독', '추천'], ['점심독서', '옥상'], ['표지맛집', '주말독서']]
   for (let i = 0; i < captions.length; i++) {
     const userId = pick(userIds)
     const book = pick(books)
@@ -370,6 +372,9 @@ function seedPosts(userIds: number[], books: Book[]): number {
       .prepare(`INSERT INTO posts (user_id, book_id, image_path, caption) VALUES (?, ?, ?, ?)`)
       .run(userId, book.id, imagePath, captions[i])
     const postId = Number(result.lastInsertRowid)
+
+    const insTag = getDb().prepare(`INSERT INTO post_tags (post_id, tag, sort_order) VALUES (?, ?, ?)`)
+    ;(tagSets[i] ?? []).forEach((tag, sortOrder) => insTag.run(postId, tag, sortOrder))
 
     // 첫 게시물은 사진 3장으로 캐러셀 데모가 되게 post_images에 추가로 넣는다.
     if (i === 0) {

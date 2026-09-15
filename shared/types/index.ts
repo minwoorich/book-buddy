@@ -149,6 +149,8 @@ export interface Post {
   imagePath: string
   caption: string | null
   createdAt: string
+  /** 해시태그(# 없이). 캡션 안의 #태그도 서버가 뽑아 여기에 합쳐 준다. */
+  tags: string[]
 }
 
 export interface PostComment {

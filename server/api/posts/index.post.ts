@@ -1,6 +1,8 @@
 import { bookRepo } from '../../repositories/bookRepo'
 import { postImageRepo } from '../../repositories/postImageRepo'
 import { postRepo } from '../../repositories/postRepo'
+import { postTagRepo } from '../../repositories/postTagRepo'
+import { mergeTags, parseTagsField } from '../../../shared/utils/hashtags'
 import { uploadService } from '../../services/uploadService'
 import { handleApi, requireUser } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
@@ -16,6 +18,7 @@ export default defineEventHandler(
     const images: { data: Buffer; filename?: string; type?: string }[] = []
     let caption: string | null = null
     let bookIdRaw: string | undefined
+    let tagsRaw: string | undefined
 
     for (const part of parts) {
       if (part.name === 'image' && part.data.length > 0) {
@@ -25,6 +28,8 @@ export default defineEventHandler(
         caption = text || null
       } else if (part.name === 'bookId') {
         bookIdRaw = part.data.toString('utf-8').trim()
+      } else if (part.name === 'tags') {
+        tagsRaw = part.data.toString('utf-8')
       }
     }
 
@@ -44,8 +49,11 @@ export default defineEventHandler(
     const savedPaths = images.map((image) => uploadService.save(image))
     const post = postRepo.insert(me.id, savedPaths[0], caption, bookId)
     postImageRepo.insertMany(post.id, savedPaths)
+    // 해시태그: 칩으로 고른 것 + 캡션 안의 #태그를 합쳐 저장한다(인스타처럼 둘 다 인정).
+    const tags = mergeTags(parseTagsField(tagsRaw), caption)
+    postTagRepo.replace(post.id, tags)
 
     setResponseStatus(event, 201)
-    return { ...post, images: savedPaths }
+    return { ...post, tags, images: savedPaths }
   })
 )

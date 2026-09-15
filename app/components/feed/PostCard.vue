@@ -14,7 +14,7 @@ type PostWithMeta = Post & {
 type CommentWithUser = PostComment & { userName: string }
 
 const props = defineProps<{ post: PostWithMeta }>()
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: []; 'tag-click': [string] }>()
 
 const api = useApi()
 const { user } = useCurrentUser()
@@ -46,6 +46,27 @@ function prevPhoto() {
 function nextPhoto() {
   if (activeIndex.value < photos.value.length - 1) activeIndex.value++
 }
+
+/** 캡션을 조각으로 나눈다 — #태그는 클릭 가능한 칩으로, 나머지는 그대로 텍스트로. */
+const captionParts = computed(() => {
+  const text = props.post.caption ?? ''
+  const parts: { text: string; tag: string | null }[] = []
+  let last = 0
+  for (const m of text.matchAll(/#([\p{L}\p{N}_]+)/gu)) {
+    const start = m.index ?? 0
+    if (start > last) parts.push({ text: text.slice(last, start), tag: null })
+    parts.push({ text: m[0], tag: m[1] as string })
+    last = start + m[0].length
+  }
+  if (last < text.length) parts.push({ text: text.slice(last), tag: null })
+  return parts
+})
+
+/** 칩으로 붙은 태그 중 캡션에 이미 적혀 있지 않은 것만 아래 줄에 따로 보여준다(중복 방지). */
+const extraTags = computed(() => {
+  const inCaption = new Set(captionParts.value.filter((p) => p.tag).map((p) => (p.tag as string).toLowerCase()))
+  return props.post.tags.filter((t) => !inCaption.has(t.toLowerCase()))
+})
 
 const likeBusy = ref(false)
 
@@ -81,11 +102,13 @@ const canDelete = computed(() => isMine.value || user.value?.role === 'admin')
 const menuOpen = ref(false)
 const editing = ref(false)
 const editCaption = ref('')
+const editTags = ref<string[]>([])
 const editBusy = ref(false)
 
 function startEdit() {
   menuOpen.value = false
   editCaption.value = props.post.caption ?? ''
+  editTags.value = [...props.post.tags]
   editing.value = true
 }
 
@@ -97,7 +120,10 @@ async function saveEdit() {
   if (editBusy.value) return
   editBusy.value = true
   try {
-    await api(`/api/posts/${props.post.id}`, { method: 'PATCH', body: { caption: editCaption.value } })
+    await api(`/api/posts/${props.post.id}`, {
+      method: 'PATCH',
+      body: { caption: editCaption.value, tags: editTags.value },
+    })
     editing.value = false
     emit('changed')
   } catch (e) {
@@ -217,12 +243,22 @@ async function submitComment() {
       <div v-if="post.likeCount" class="likes">좋아요 {{ post.likeCount }}개</div>
       <div v-if="editing" class="edit-zone">
         <textarea v-model="editCaption" class="input" rows="3" placeholder="캡션을 입력하세요" />
+        <FeedTagInput v-model="editTags" compact placeholder="태그 수정 (Enter로 추가)" />
         <div class="edit-acts">
           <button type="button" class="btn sm" :disabled="editBusy" @click="cancelEdit">취소</button>
           <button type="button" class="btn primary sm" :disabled="editBusy" @click="saveEdit">저장</button>
         </div>
       </div>
-      <div v-else-if="post.caption" class="cap"><b>{{ post.userName }}</b> {{ post.caption }}</div>
+      <div v-else-if="post.caption" class="cap">
+        <b>{{ post.userName }}</b>
+        <template v-for="(part, i) in captionParts" :key="i">
+          <button v-if="part.tag" type="button" class="intag" @click="emit('tag-click', part.tag)">{{ part.text }}</button>
+          <span v-else>{{ part.text }}</span>
+        </template>
+      </div>
+      <div v-if="!editing && extraTags.length" class="taglist">
+        <button v-for="t in extraTags" :key="t" type="button" class="tagchip" @click="emit('tag-click', t)">#{{ t }}</button>
+      </div>
       <button v-if="!commentsOpen && post.commentCount" type="button" class="cmt-toggle" @click="toggleComments">
         댓글 {{ post.commentCount }}개 모두 보기
       </button>
@@ -262,7 +298,7 @@ async function submitComment() {
 .menu button { border: 0; background: none; text-align: left; font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 4px; cursor: pointer; color: var(--ink); }
 .menu button:hover { background: var(--card-2); }
 .menu button.danger { color: var(--red); }
-.edit-zone { margin-bottom: 8px; }
+.edit-zone { margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
 .edit-zone textarea { resize: vertical; font-size: 14px; line-height: 1.55; }
 .edit-acts { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
 .booktag :deep(.cv) { width: 18px; height: 26px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px var(--shadow-strong); flex-shrink: 0; }
@@ -288,6 +324,12 @@ async function submitComment() {
 .likes { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
 .post .cap { font-size: 15px; line-height: 1.65; color: var(--text-2); margin-bottom: 6px; }
 .post .cap b { margin-right: 5px; }
+/* 해시태그: 캡션 안에 쓴 것은 인라인 링크처럼, 칩으로만 단 것은 아래 한 줄로. 둘 다 눌러 필터. */
+.intag { border: 0; background: none; padding: 0; font: inherit; font-size: inherit; color: var(--red); font-weight: 600; cursor: pointer; }
+.intag:hover { text-decoration: underline; }
+.taglist { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.tagchip { border: 1px solid var(--line); background: transparent; color: var(--red); font: inherit; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; cursor: pointer; }
+.tagchip:hover { background: var(--red-tint); border-color: var(--red); }
 .cmt-toggle { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--sub); cursor: pointer; margin-bottom: 6px; display: block; }
 .cmt-toggle:hover { color: var(--ink); }
 .comments { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }

@@ -1,5 +1,6 @@
 import { getDb } from '../db/connection'
 import { postImageRepo } from './postImageRepo'
+import { postTagRepo } from './postTagRepo'
 import type { Book, Post } from '../../shared/types'
 
 interface PostRow {
@@ -39,7 +40,7 @@ export type PostWithMeta = Post & {
   images: string[]
 }
 
-function toPost(row: PostRow): Post {
+function toPost(row: PostRow, tags: string[] = []): Post {
   return {
     id: row.id,
     userId: row.user_id,
@@ -47,6 +48,7 @@ function toPost(row: PostRow): Post {
     imagePath: row.image_path,
     caption: row.caption,
     createdAt: row.created_at,
+    tags,
   }
 }
 
@@ -79,11 +81,21 @@ export const postRepo = {
   /**
    * 최신순 피드. meId가 있으면 likedByMe도 채운다.
    * mine=true면 내가 올린 게시물만(QA #60) — meId가 없으면 빈 목록.
+   * tag가 있으면 그 해시태그가 달린 게시물만(대소문자 무시).
    */
-  listAll(meId?: number, opts: { mine?: boolean } = {}): PostWithMeta[] {
+  listAll(meId?: number, opts: { mine?: boolean; tag?: string } = {}): PostWithMeta[] {
     if (opts.mine && !meId) return []
-    const mineClause = opts.mine ? 'WHERE p.user_id = ?' : ''
-    const params: number[] = opts.mine ? [meId ?? 0, meId ?? 0] : [meId ?? 0]
+    const where: string[] = []
+    const params: (number | string)[] = [meId ?? 0]
+    if (opts.mine) {
+      where.push('p.user_id = ?')
+      params.push(meId ?? 0)
+    }
+    if (opts.tag) {
+      where.push('EXISTS(SELECT 1 FROM post_tags pt WHERE pt.post_id = p.id AND pt.tag = ? COLLATE NOCASE)')
+      params.push(opts.tag)
+    }
+    const mineClause = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const rows = getDb()
       .prepare(
         `SELECT p.*, u.name AS user_name, u.department AS department,
@@ -100,16 +112,22 @@ export const postRepo = {
          ORDER BY p.created_at DESC, p.id DESC`
       )
       .all(...params) as PostJoinRow[]
-    const imagesByPost = postImageRepo.listByPosts(rows.map((row) => row.id))
+    const ids = rows.map((row) => row.id)
+    const imagesByPost = postImageRepo.listByPosts(ids)
+    const tagsByPost = postTagRepo.listByPosts(ids)
     return rows.map((row) => {
       const images = imagesByPost.get(row.id)
-      return { ...toPostWithMeta(row), images: images && images.length > 0 ? images : [row.image_path] }
+      return {
+        ...toPostWithMeta(row),
+        tags: tagsByPost.get(row.id) ?? [],
+        images: images && images.length > 0 ? images : [row.image_path],
+      }
     })
   },
 
   findById(id: number): Post | undefined {
     const row = getDb().prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostRow | undefined
-    return row ? toPost(row) : undefined
+    return row ? toPost(row, postTagRepo.listByPost(row.id)) : undefined
   },
 
   insert(userId: number, imagePath: string, caption: string | null, bookId: number | null): Post {
@@ -144,6 +162,7 @@ export const postRepo = {
       db.prepare('DELETE FROM post_comments WHERE post_id = ?').run(postId)
       db.prepare('DELETE FROM post_likes WHERE post_id = ?').run(postId)
       db.prepare('DELETE FROM post_images WHERE post_id = ?').run(postId)
+      db.prepare('DELETE FROM post_tags WHERE post_id = ?').run(postId)
       db.prepare('DELETE FROM posts WHERE id = ?').run(postId)
       return [...paths]
     })

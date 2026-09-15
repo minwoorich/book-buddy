@@ -16,9 +16,12 @@ if (process.argv.includes('--if-empty')) {
   }
 }
 
+// users를 마지막에 지우므로 users를 참조하는 테이블은 모두 앞에 와야 한다
+// (notices·place_reviews·guest_claims가 빠져 있어 재시드가 FK로 막히던 것을 채웠다).
 const TABLES = [
-  'qa_feedback', 'review_votes', 'reviews', 'post_comments', 'post_likes', 'post_images', 'posts',
-  'reports', 'wishlists', 'purchase_requests', 'reservations', 'loans', 'books', 'users',
+  'qa_feedback', 'review_votes', 'reviews', 'post_comments', 'post_likes', 'post_images', 'post_tags', 'posts',
+  'reports', 'wishlists', 'purchase_requests', 'reservations', 'loans', 'notices', 'place_reviews',
+  'guest_claims', 'books', 'users',
 ]
 for (const t of TABLES) db.prepare(`DELETE FROM ${t}`).run()
 
@@ -173,6 +176,13 @@ const insPostImage = db.prepare(
 )
 ;[p1Photo, makeSeedPhoto('#F0E4D8', '도시락 먹고 책 한 장'), makeSeedPhoto('#D9E3EA', '옥상 벤치 독서')]
   .forEach((path, i) => insPostImage.run(p1, path, i))
+
+// 해시태그 — 피드 태그 바와 태그 필터 시연용.
+const insPostTag = db.prepare(
+  `INSERT INTO post_tags (post_id, tag, sort_order) VALUES (?, ?, ?)`,
+)
+;['점심독서', '옥상', '함께자라기'].forEach((tag, i) => insPostTag.run(p1, tag, i))
+;['완독', '퇴근후한챕터'].forEach((tag, i) => insPostTag.run(p2, tag, i))
 
 const insLike = db.prepare(`INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`)
 insLike.run(p1, uid['한상우'], ts('2026-09-12', '13:00:00'))

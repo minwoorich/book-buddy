@@ -52,6 +52,11 @@ export function migrate(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id INTEGER NOT NULL REFERENCES posts(id), image_path TEXT NOT NULL,
       sort_order INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS post_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER NOT NULL REFERENCES posts(id), tag TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0);
+    CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag COLLATE NOCASE);
     CREATE TABLE IF NOT EXISTS post_likes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id INTEGER NOT NULL REFERENCES posts(id), user_id INTEGER NOT NULL REFERENCES users(id),
