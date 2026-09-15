@@ -50,6 +50,25 @@ const totals = computed(() => {
   }
 })
 
+// 시연용 게스트 일괄 해제 — 게스트 계정이 있을 때만 버튼을 노출한다.
+const hasGuests = computed(() => (members.value ?? []).some((m) => m.isGuest))
+const releasing = ref(false)
+const releasedNote = ref('')
+
+async function releaseGuests() {
+  if (releasing.value || !confirm('접속 중인 게스트가 모두 로그아웃됩니다. 게스트 자리를 전부 해제할까요?')) return
+  releasing.value = true
+  releasedNote.value = ''
+  try {
+    await api('/api/admin/guests/release-all', { method: 'POST' })
+    releasedNote.value = '게스트 자리를 모두 해제했어요'
+  } catch (e) {
+    releasedNote.value = apiErrorMessage(e)
+  } finally {
+    releasing.value = false
+  }
+}
+
 function formatWhen(iso: string | null): string {
   if (!iso) return '—'
   const d = parseDbDate(iso)
@@ -71,6 +90,12 @@ function formatWhen(iso: string | null): string {
           </p>
         </div>
         <div class="tools">
+          <div v-if="hasGuests" class="guest-tools">
+            <button type="button" class="btn sm" :disabled="releasing" @click="releaseGuests">
+              {{ releasing ? '해제 중...' : '게스트 전체 해제' }}
+            </button>
+            <span v-if="releasedNote" class="guest-note">{{ releasedNote }}</span>
+          </div>
           <input v-model="query" class="input search" type="search" placeholder="이름·회사·부서·팀 검색">
           <div class="filters">
             <span v-for="f in FILTERS" :key="f.key" class="chip" :class="{ on: filter === f.key }" @click="filter = f.key">{{ f.label }}</span>
@@ -97,6 +122,7 @@ function formatWhen(iso: string | null): string {
                   <span class="avatar">{{ m.name.charAt(0) }}</span>
                   <b>{{ m.name }}</b>
                   <span v-if="m.role === 'admin'" class="badge red">관리자</span>
+                  <span v-else-if="m.isGuest" class="badge">게스트</span>
                 </NuxtLink>
               </td>
               <td class="org">{{ m.company }} · {{ m.department }} · {{ m.team }} · {{ m.position }}</td>
@@ -122,6 +148,8 @@ function formatWhen(iso: string | null): string {
 .warn-txt { color: var(--warn); }
 .tools { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .tools .search { width: 240px; padding: 8px 12px; font-size: 13.5px; }
+.guest-tools { display: flex; align-items: center; gap: 8px; }
+.guest-note { font-size: 12.5px; color: var(--sub); }
 .filters { display: flex; gap: 8px; }
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
 

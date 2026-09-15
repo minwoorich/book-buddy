@@ -1,15 +1,18 @@
 import type { H3Event } from 'h3'
-import { userRepo } from '../repositories/userRepo'
+import { guestRepo } from '../repositories/guestRepo'
 import { ApiError, toHttpError } from './errors'
 import type { User } from '../../shared/types'
 
-/** `x-user-id` 헤더로 로그인 사용자를 조회한다. 헤더가 없거나 존재하지 않는 유저면 undefined. */
+/**
+ * `x-user-id` 헤더로 로그인 사용자를 조회한다. 헤더가 없거나 존재하지 않는 유저면 undefined.
+ * 시연용 게스트 계정은 `x-guest-token`이 선점 토큰과 일치해야 통과한다(guestRepo.resolveUser).
+ */
 export function optionalUser(event: H3Event): User | undefined {
   const header = getHeader(event, 'x-user-id')
   if (!header) return undefined
   const userId = Number(header)
   if (!Number.isFinite(userId)) return undefined
-  return userRepo.findById(userId)
+  return guestRepo.resolveUser(userId, getHeader(event, 'x-guest-token'))
 }
 
 /** `x-user-id` 헤더로 로그인 사용자를 조회한다. 없거나 존재하지 않는 유저면 401. */

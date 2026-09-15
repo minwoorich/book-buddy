@@ -22,6 +22,7 @@ interface SummaryRow {
   gender: 'M' | 'F'
   birth_year: number
   role: 'member' | 'admin'
+  is_guest: number
   active_loans: number
   overdue_loans: number
   completed_loans: number
@@ -40,6 +41,7 @@ function toSummary(row: SummaryRow): MemberSummary {
     gender: row.gender,
     birthYear: row.birth_year,
     role: row.role,
+    isGuest: row.is_guest === 1,
     activeLoans: row.active_loans,
     overdueLoans: row.overdue_loans,
     completedLoans: row.completed_loans,

@@ -108,6 +108,19 @@ export function migrate(db: Database.Database): void {
     db.prepare(`UPDATE users SET password = 'admin1234' WHERE role = 'admin'`).run()
   }
 
+  // 시연용 게스트 계정(QR 접속 심사위원용): users.is_guest 플래그 + 선점 테이블.
+  // 선점은 user_id PK 한 줄 INSERT로 원자적으로 판정되고, token은 x-guest-token 헤더로
+  // 다시 제출돼야 인증이 통과한다(전체 해제 → 기존 토큰 무효 → 401 → 클라이언트 자동 로그아웃).
+  if (!userColumns.some((c) => c.name === 'is_guest')) {
+    db.exec(`ALTER TABLE users ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0`)
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS guest_claims (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id),
+      token TEXT NOT NULL,
+      claimed_at TEXT NOT NULL DEFAULT (datetime('now')));
+  `)
+
   // 기존 DB 호환: qa_feedback의 구조화 필드(유형/심각도/상세/스크린샷)가 없으면 추가한다.
   const qaColumns = db.prepare('PRAGMA table_info(qa_feedback)').all() as { name: string }[]
   const qaColumnNames = new Set(qaColumns.map((c) => c.name))

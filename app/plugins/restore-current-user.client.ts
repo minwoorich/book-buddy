@@ -1,5 +1,5 @@
 import type { User } from '#shared/types'
-import { CURRENT_USER_STORAGE_KEY, useCurrentUser } from '../composables/useCurrentUser'
+import { CURRENT_USER_STORAGE_KEY, GUEST_TOKEN_STORAGE_KEY, useCurrentUser } from '../composables/useCurrentUser'
 
 /**
  * 앱 시작 시 localStorage(`bb:user`)에 저장된 로그인 사용자를 useState로 복원한다.
@@ -8,13 +8,14 @@ import { CURRENT_USER_STORAGE_KEY, useCurrentUser } from '../composables/useCurr
  * 기본(defineNuxtPlugin) 플러그인으로 둔다.
  */
 export default defineNuxtPlugin(() => {
-  const { user } = useCurrentUser()
+  const { user, guestToken } = useCurrentUser()
   if (user.value) return
 
   try {
     const raw = localStorage.getItem(CURRENT_USER_STORAGE_KEY)
     if (raw) {
       user.value = JSON.parse(raw) as User
+      guestToken.value = localStorage.getItem(GUEST_TOKEN_STORAGE_KEY)
     }
   } catch {
     // localStorage 접근 실패(프라이빗 모드 등)는 무시한다.

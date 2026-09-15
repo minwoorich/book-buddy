@@ -2,6 +2,7 @@
 const props = defineProps<{ active: string }>()
 
 const { user, logout } = useCurrentUser()
+const api = useApi()
 
 const ALL_NAV_ITEMS = [
   { key: 'home', label: '홈', to: '/' },
@@ -20,6 +21,14 @@ const navItems = computed(() => (user.value ? ALL_NAV_ITEMS : ALL_NAV_ITEMS.filt
 const activeKey = computed(() => props.active)
 
 async function handleLogout() {
+  // 게스트는 선점을 먼저 풀어야 다음 사람이 그 자리를 고를 수 있다. 실패해도 로그아웃은 진행.
+  if (user.value?.isGuest) {
+    try {
+      await api('/api/guests/claim', { method: 'DELETE' })
+    } catch {
+      // 이미 해제됐거나(401) 네트워크 문제 — 로컬 로그아웃은 그대로 진행한다.
+    }
+  }
   logout()
   await navigateTo('/login')
 }

@@ -11,6 +11,7 @@ interface UserRow {
   gender: 'M' | 'F'
   birth_year: number
   role: 'member' | 'admin'
+  is_guest: number
 }
 
 // findByName 전용: password 컬럼까지 포함한 행. 공개 User 타입에는 절대 섞이지 않는다
@@ -30,6 +31,7 @@ function toUser(row: UserRow): User {
     gender: row.gender,
     birthYear: row.birth_year,
     role: row.role,
+    isGuest: row.is_guest === 1,
   }
 }
 

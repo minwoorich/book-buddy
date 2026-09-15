@@ -1,6 +1,8 @@
 import type { User } from '#shared/types'
 
 export const CURRENT_USER_STORAGE_KEY = 'bb:user'
+/** 시연용 게스트 선점 토큰 — 게스트로 들어온 경우에만 존재하며 모든 API 요청에 x-guest-token으로 실린다. */
+export const GUEST_TOKEN_STORAGE_KEY = 'bb:guest-token'
 
 /**
  * 로그인 상태를 SSR 안전하게 다루는 컴포저블.
@@ -13,8 +15,9 @@ export const CURRENT_USER_STORAGE_KEY = 'bb:user'
  */
 export function useCurrentUser() {
   const user = useState<User | null>('bb:user', () => null)
+  const guestToken = useState<string | null>('bb:guest-token', () => null)
 
-  function persist(u: User | null) {
+  function persist(u: User | null, token: string | null) {
     if (!import.meta.client) return
     try {
       if (u) {
@@ -22,20 +25,28 @@ export function useCurrentUser() {
       } else {
         localStorage.removeItem(CURRENT_USER_STORAGE_KEY)
       }
+      if (token) {
+        localStorage.setItem(GUEST_TOKEN_STORAGE_KEY, token)
+      } else {
+        localStorage.removeItem(GUEST_TOKEN_STORAGE_KEY)
+      }
     } catch {
       // localStorage 접근 실패(프라이빗 모드 등)는 무시한다.
     }
   }
 
-  function login(u: User) {
+  /** 게스트 선점으로 들어올 때는 서버가 발급한 토큰을 함께 넘긴다. */
+  function login(u: User, token: string | null = null) {
     user.value = u
-    persist(u)
+    guestToken.value = token
+    persist(u, token)
   }
 
   function logout() {
     user.value = null
-    persist(null)
+    guestToken.value = null
+    persist(null, null)
   }
 
-  return { user, login, logout }
+  return { user, guestToken, login, logout }
 }

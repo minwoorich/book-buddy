@@ -8,6 +8,8 @@ export interface User {
   gender: 'M' | 'F'
   birthYear: number
   role: 'member' | 'admin'
+  /** 시연용 게스트 계정 — x-guest-token 없이는 인증이 통과하지 않는다. */
+  isGuest: boolean
 }
 
 export interface Book {
