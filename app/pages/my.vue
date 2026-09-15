@@ -59,6 +59,12 @@ const myRank = computed(() => {
   return idx === -1 ? null : competitionRankAt(list, idx)
 })
 
+// useAsyncData는 같은 키의 데이터를 세션 내내 캐시하므로, 다른 페이지에서 찜/대출을 바꾸고
+// 돌아오면 새로고침 전까지 옛 데이터가 보였다(QA #17). 마이페이지 진입 시마다 다시 불러온다.
+onMounted(() => {
+  void refreshAll()
+})
+
 async function refreshAll() {
   await Promise.all([
     refreshActive(),

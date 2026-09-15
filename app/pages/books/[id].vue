@@ -52,6 +52,14 @@ const loanAction = computed<LoanAction>(() => {
   return 'reserve'
 })
 
+// 카카오 책 API의 contents는 원문에서 일정 길이로 잘려 온다(전문 미제공). 문장이 중간에
+// 끊긴 채 그대로 보이면 버그처럼 읽히므로(QA #14), 끝맺음 문장부호 없이 끝나면 말줄임표를 붙인다.
+const descriptionLabel = computed(() => {
+  const raw = book.value?.description?.trim()
+  if (!raw) return ''
+  return /[.!?"'」』)\]…]$/.test(raw) ? raw : `${raw}…`
+})
+
 const pubDateLabel = computed(() => {
   const raw = book.value?.pubDate
   if (!raw) return null
@@ -220,7 +228,7 @@ function askAi() {
             </template>
             <span v-else style="font-size:13px; color:var(--sub);">아직 리뷰가 없어요</span>
           </div>
-          <p v-if="book.description" class="desc">{{ book.description }}</p>
+          <p v-if="descriptionLabel" class="desc">{{ descriptionLabel }}</p>
 
           <div class="panel accent ai-mini">
             <i>책벗 · AI</i>
@@ -234,7 +242,7 @@ function askAi() {
 
           <p v-if="!user" class="guest-review-hint">로그인 후 리뷰를 남길 수 있어요</p>
           <ReviewForm v-else :book-id="bookId" :autofocus="focusReview" @created="onReviewCreated" />
-          <ReviewList ref="reviewListRef" :book-id="bookId" />
+          <ReviewList ref="reviewListRef" :book-id="bookId" @changed="refreshBook" />
         </div>
       </div>
     </div>

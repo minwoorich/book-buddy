@@ -52,6 +52,32 @@ export const bookRepo = {
     return row ? toBook(row) : undefined
   },
 
+  /** 도서 메타데이터 부분 수정(외부 API 데이터 오류 교정용). 넘긴 필드만 갱신한다. */
+  update(
+    id: number,
+    fields: Partial<Pick<Book, 'title' | 'author' | 'publisher' | 'category' | 'description' | 'coverUrl'>>
+  ): void {
+    const sets: string[] = []
+    const params: unknown[] = []
+    const columnByField: Record<string, string> = {
+      title: 'title',
+      author: 'author',
+      publisher: 'publisher',
+      category: 'category',
+      description: 'description',
+      coverUrl: 'cover_url',
+    }
+    for (const [field, column] of Object.entries(columnByField)) {
+      const value = (fields as Record<string, unknown>)[field]
+      if (value !== undefined) {
+        sets.push(`${column} = ?`)
+        params.push(value)
+      }
+    }
+    if (sets.length === 0) return
+    getDb().prepare(`UPDATE books SET ${sets.join(', ')} WHERE id = ?`).run(...params, id)
+  },
+
   findByIsbn13(isbn13: string): Book | undefined {
     const row = getDb().prepare('SELECT * FROM books WHERE isbn13 = ?').get(isbn13) as BookRow | undefined
     return row ? toBook(row) : undefined

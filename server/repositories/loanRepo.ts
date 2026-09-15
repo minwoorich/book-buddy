@@ -59,6 +59,14 @@ function toLoanWithBook(row: LoanWithBookRow): Loan & { book: Book } {
 }
 
 export const loanRepo = {
+  /** 책별 누적 대출 횟수(반납 여부 무관) — 인기순 정렬용(QA #15). */
+  countsByBook(): Map<number, number> {
+    const rows = getDb()
+      .prepare('SELECT book_id, COUNT(*) as cnt FROM loans GROUP BY book_id')
+      .all() as { book_id: number; cnt: number }[]
+    return new Map(rows.map((r) => [r.book_id, r.cnt]))
+  },
+
   activeByBook(bookId: number): Loan | undefined {
     const row = getDb()
       .prepare('SELECT * FROM loans WHERE book_id = ? AND returned_at IS NULL')

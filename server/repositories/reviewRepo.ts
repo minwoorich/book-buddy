@@ -75,6 +75,25 @@ export const reviewRepo = {
     return row ? toReview(row) : undefined
   },
 
+  /** 한 사용자가 이 책에 이미 남긴 리뷰(1인 1리뷰 규칙 검사용 — QA #18). */
+  findByBookAndUser(bookId: number, userId: number): Review | undefined {
+    const row = getDb()
+      .prepare('SELECT * FROM reviews WHERE book_id = ? AND user_id = ?')
+      .get(bookId, userId) as ReviewRow | undefined
+    return row ? toReview(row) : undefined
+  },
+
+  update(id: number, rating: number, content: string): void {
+    getDb().prepare('UPDATE reviews SET rating = ?, content = ? WHERE id = ?').run(rating, content, id)
+  },
+
+  /** 리뷰 삭제 — 추천(review_votes)부터 지워 FK 제약을 지킨다. */
+  remove(id: number): void {
+    const db = getDb()
+    db.prepare('DELETE FROM review_votes WHERE review_id = ?').run(id)
+    db.prepare('DELETE FROM reviews WHERE id = ?').run(id)
+  },
+
   avgForBook(bookId: number): { avg: number | null; count: number } {
     const row = getDb()
       .prepare('SELECT AVG(rating) AS avg, COUNT(*) AS count FROM reviews WHERE book_id = ?')

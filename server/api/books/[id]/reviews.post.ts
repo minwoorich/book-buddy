@@ -13,6 +13,11 @@ export default defineEventHandler(
     }
     if (!bookRepo.findById(bookId)) throw new ApiError(404, '없는 책이에요')
 
+    // 1인 1책 1리뷰(QA #18) — 이미 남긴 리뷰가 있으면 수정/삭제를 안내한다.
+    if (reviewRepo.findByBookAndUser(bookId, me.id)) {
+      throw new ApiError(409, '이미 이 책에 리뷰를 남기셨어요. 기존 리뷰를 수정하거나 삭제한 뒤 다시 남겨주세요.')
+    }
+
     const review = reviewRepo.insert(bookId, me.id, rating, content.trim())
     setResponseStatus(event, 201)
     return review
