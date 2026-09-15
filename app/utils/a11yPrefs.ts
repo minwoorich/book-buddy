@@ -61,6 +61,14 @@ export function resolveTheme(pref: ThemePref, osPrefersDark: boolean): ResolvedT
   return pref
 }
 
+/**
+ * 다크모드 스위치를 눌렀을 때의 다음 설정. 지금 화면에 보이는 테마의 반대로 **명시적으로** 고정한다
+ * (system이었다면 OS를 따르던 상태가 풀린다 — 스위치를 눌렀다는 건 직접 정하겠다는 뜻).
+ */
+export function nextThemePref(pref: ThemePref, osPrefersDark: boolean): ResolvedTheme {
+  return resolveTheme(pref, osPrefersDark) === 'dark' ? 'light' : 'dark'
+}
+
 /** setAttribute/removeAttribute만 있으면 되므로 테스트에서 가짜 객체를 넣을 수 있다. */
 export type AttrTarget = {
   setAttribute(name: string, value: string): void

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   A11Y_DEFAULTS,
   applyA11yPrefs,
+  nextThemePref,
   normalizeA11yPrefs,
   parseA11yPrefs,
   resolveTheme,
@@ -53,6 +54,20 @@ describe('resolveTheme', () => {
   it('follows OS preference when set to system', () => {
     expect(resolveTheme('system', true)).toBe('dark')
     expect(resolveTheme('system', false)).toBe('light')
+  })
+})
+
+describe('nextThemePref — 다크모드 스위치를 눌렀을 때 다음 설정', () => {
+  it('명시적 설정은 반대쪽으로 뒤집는다 (OS 설정과 무관)', () => {
+    expect(nextThemePref('dark', false)).toBe('light')
+    expect(nextThemePref('dark', true)).toBe('light')
+    expect(nextThemePref('light', true)).toBe('dark')
+    expect(nextThemePref('light', false)).toBe('dark')
+  })
+
+  it('system이면 지금 보이는 테마의 반대로 고정한다', () => {
+    expect(nextThemePref('system', true)).toBe('light')
+    expect(nextThemePref('system', false)).toBe('dark')
   })
 })
 
