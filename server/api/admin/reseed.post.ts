@@ -1,5 +1,6 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
+import { rankingService } from '../../services/rankingService'
 import { handleApi, requireAdmin } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
 
@@ -40,6 +41,7 @@ export default defineEventHandler(
         maxBuffer: 2 * 1024 * 1024,
       })
       const lines = stdout.trim().split('\n')
+      rankingService.invalidate() // 데이터가 통째로 바뀌었으니 30분 스냅샷을 즉시 버린다
       return { ok: true, mode, summary: lines.slice(-3) }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)

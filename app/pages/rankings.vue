@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RankRow } from '#shared/types'
+import type { RankRow, RankSnapshot } from '#shared/types'
 
 type RankBy = 'user' | 'team' | 'department' | 'company'
 type Period = 'month' | 'all'
@@ -22,14 +22,25 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: '전체' },
 ]
 
-const { data: rows } = await useAsyncData<RankRow[]>(
+const EMPTY_SNAPSHOT: RankSnapshot = { rows: [], updatedAt: '', nextUpdateAt: '' }
+
+const { data: snapshot } = await useAsyncData<RankSnapshot>(
   'rankings',
   () =>
     user.value
-      ? api<RankRow[]>('/api/rankings', { query: { by: by.value, period: period.value } })
-      : Promise.resolve([]),
-  { watch: [by, period], default: () => [] }
+      ? api<RankSnapshot>('/api/rankings', { query: { by: by.value, period: period.value } })
+      : Promise.resolve(EMPTY_SNAPSHOT),
+  { watch: [by, period], default: () => EMPTY_SNAPSHOT }
 )
+const rows = computed(() => snapshot.value?.rows ?? [])
+
+// 30분 스냅샷(QA #56): 마지막 집계 시각과 다음 갱신 시각을 보여준다.
+function timeLabel(iso: string): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+const updatedLabel = computed(() => timeLabel(snapshot.value?.updatedAt ?? ''))
+const nextUpdateLabel = computed(() => timeLabel(snapshot.value?.nextUpdateAt ?? ''))
 
 const top3 = computed(() => (rows.value ?? []).slice(0, 3))
 const rest = computed(() => (rows.value ?? []).slice(3))
@@ -67,6 +78,10 @@ function isMine(row: RankRow): boolean {
           <span class="eyebrow">READING LEADERBOARD</span>
           <h1>독서 랭킹</h1>
           <p>대출-반납 기록(완독 권수) 기준으로 집계해요</p>
+          <p v-if="updatedLabel" class="updated">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+            마지막 업데이트 <b>{{ updatedLabel }}</b> · 다음 업데이트 {{ nextUpdateLabel }} (30분마다 갱신)
+          </p>
         </div>
         <div class="period">
           <span
@@ -118,10 +133,12 @@ function isMine(row: RankRow): boolean {
 <style scoped>
 .head-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 8px; }
 .period { margin-left: auto; display: flex; gap: 8px; }
+.updated { display: flex; align-items: center; gap: 5px; margin-top: 8px !important; font-size: 12.5px !important; color: var(--sub); }
+.updated b { color: var(--ink); }
 
 .rank-row { display: flex; align-items: center; gap: 16px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
 .rank-row:last-child { border-bottom: 0; }
-.rank-row .no { font-family: "Noto Serif KR", serif; font-size: 17px; width: 28px; color: var(--sub); text-align: center; }
+.rank-row .no { font-family: var(--font-display); font-size: 17px; width: 28px; color: var(--sub); text-align: center; }
 .rank-row .who { width: 210px; }
 .rank-row .who b { font-size: 14.5px; display: block; }
 .rank-row .who span { font-size: 12px; color: var(--sub); }

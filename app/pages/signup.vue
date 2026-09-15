@@ -117,11 +117,11 @@ async function submit() {
 .signup-wrap { max-width: 460px; margin: 0 auto; padding: 70px 24px 90px; text-align: center; }
 .logo-big { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 26px; }
 .logo-big .logo-mark { width: 44px; height: 44px; border-radius: 10px; }
-.logo-big b { font-family: "Noto Serif KR", serif; font-size: 26px; display: block; text-align: left; }
+.logo-big b { font-family: var(--font-serif); font-size: 26px; display: block; text-align: left; }
 .logo-big span { font-size: 11px; color: var(--sub); letter-spacing: 2.6px; display: block; text-align: left; margin-top: 2px; }
 
 .signup-panel { text-align: center; padding: 32px 28px 30px; }
-h1 { font-family: "Noto Serif KR", serif; font-size: 24px; font-weight: 600; margin: 0 0 8px; }
+h1 { font-family: var(--font-display); font-size: 24px; font-weight: 600; margin: 0 0 8px; }
 .sub { color: var(--sub); font-size: 14.5px; margin-bottom: 28px; }
 
 .signup-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }

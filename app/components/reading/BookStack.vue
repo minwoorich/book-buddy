@@ -66,7 +66,7 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
 .stack-widget { margin-left: auto; display: flex; align-items: flex-end; gap: 22px; }
 .stack-nums { text-align: right; }
 .stack-nums .eyebrow { display: block; margin-bottom: 6px; }
-.stack-nums b { font-family: "Noto Serif KR", serif; font-size: 24px; white-space: nowrap; }
+.stack-nums b { font-family: var(--font-display); font-size: 24px; white-space: nowrap; }
 .stack-nums b i { font-style: normal; color: var(--red); }
 .stack-nums span { font-size: 12.5px; color: var(--sub); display: block; margin-top: 2px; }
 .bookstack { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; }

@@ -47,7 +47,51 @@ function periodClause(period: Period): string {
   return period === 'month' ? "AND l.returned_at >= date('now','start of month')" : ''
 }
 
+/** 랭킹 갱신 주기(QA #56) — 30분마다 스냅샷을 새로 뜬다. */
+export const RANK_REFRESH_MS = 30 * 60 * 1000
+
+export interface RankSnapshot {
+  rows: RankRow[]
+  /** 이 스냅샷이 집계된 시각(30분 경계, ISO). */
+  updatedAt: string
+  /** 다음 갱신 예정 시각(ISO). */
+  nextUpdateAt: string
+}
+
+/**
+ * 30분 단위 스냅샷 캐시. 키는 `by:period`, 값은 어느 30분 구간(bucket)의 결과인지와 함께
+ * 저장해 구간이 바뀌면 자연히 무효화된다. 리시드처럼 데이터가 통째로 바뀌는 경우는
+ * invalidate()로 즉시 비운다.
+ */
+const snapshotCache = new Map<string, { bucket: number; rows: RankRow[] }>()
+
+function currentBucket(now: number): number {
+  return Math.floor(now / RANK_REFRESH_MS)
+}
+
 export const rankingService = {
+  /**
+   * 30분 스냅샷 랭킹(QA #56). 같은 30분 구간 안에서는 첫 조회 결과를 재사용해 "정각·30분마다
+   * 갱신"이 보장되고, 화면엔 마지막/다음 갱신 시각을 보여줄 수 있다.
+   */
+  snapshot(by: RankBy, period: Period, now = Date.now()): RankSnapshot {
+    const bucket = currentBucket(now)
+    const key = `${by}:${period}`
+    const cached = snapshotCache.get(key)
+    const rows = cached && cached.bucket === bucket ? cached.rows : this.rank(by, period)
+    if (!cached || cached.bucket !== bucket) snapshotCache.set(key, { bucket, rows })
+    return {
+      rows,
+      updatedAt: new Date(bucket * RANK_REFRESH_MS).toISOString(),
+      nextUpdateAt: new Date((bucket + 1) * RANK_REFRESH_MS).toISOString(),
+    }
+  },
+
+  /** 스냅샷 캐시를 비운다(리시드 등 데이터가 통째로 바뀔 때). */
+  invalidate(): void {
+    snapshotCache.clear()
+  },
+
   /** 반납 완료(loans.returned_at IS NOT NULL) 기준 랭킹. count DESC 정렬, 0권인 대상은 제외. */
   rank(by: RankBy, period: Period): RankRow[] {
     const db = getDb()

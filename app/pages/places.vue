@@ -244,7 +244,10 @@ async function requestAiRanking() {
 </template>
 
 <style scoped>
-.pl-layout { display: flex; gap: 26px; align-items: stretch; }
+/* 지도와 목록을 한 화면 높이(560px)에 맞추고, 목록은 그 안에서 스크롤(QA #58) —
+   예전엔 지도 620px + 목록이 끝없이 아래로 늘어나 페이지가 길어졌다. */
+.pl-layout { display: flex; gap: 22px; align-items: stretch; height: 560px; }
+.pl-layout :deep(.map) { min-height: 0; height: 100%; }
 .place-head { display: flex; align-items: flex-end; gap: 20px; }
 
 .search-bar { display: flex; gap: 10px; align-items: center; margin: -14px 0 20px; }
@@ -255,33 +258,33 @@ async function requestAiRanking() {
 .search-bar input:focus { outline: none; border-color: var(--red); }
 .loc-on { font-size: 12px; color: var(--sub); background: var(--red-tint); border-radius: 3px; padding: 4px 10px; }
 
-.plist { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
-.place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+.plist { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; }
+.place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 13px 15px; box-shadow: 0 2px 10px rgba(84,70,45,.06); flex-shrink: 0; }
 .place .top { display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; }
-.place .no { font-family: "Noto Serif KR", serif; color: var(--red); font-weight: 700; font-size: 16px; }
+.place .no { font-family: var(--font-display); color: var(--red); font-weight: 700; font-size: 16px; }
 .place b { font-size: 15.5px; }
 .place .cat { font-size: 12px; color: var(--sub); }
 .place .dist { font-size: 12px; color: var(--red); font-weight: 700; }
-.place .meta { font-size: 12.5px; color: var(--sub); margin-bottom: 10px; }
-.place .why { background: var(--red-tint); border-radius: 3px; padding: 9px 12px; font-size: 13px; line-height: 1.6; color: #6E3A34; display: flex; gap: 8px; }
+.place .meta { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; }
+.place .why { background: var(--red-tint); border-radius: 3px; padding: 8px 11px; font-size: 12.5px; line-height: 1.55; color: #6E3A34; display: flex; gap: 8px; }
 .place .why svg { flex-shrink: 0; margin-top: 2px; }
-.place .acts { display: flex; gap: 14px; margin-top: 10px; }
+.place .acts { display: flex; gap: 14px; margin-top: 8px; }
 .place .acts a { font-size: 12.5px; font-weight: 700; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 1px; }
 .place .acts a:hover { color: var(--red); border-color: var(--red); }
 
 .hint { color: var(--sub); font-size: 14px; margin: -18px 0 20px; }
 
 @media (max-width: 900px) {
-  .pl-layout { flex-direction: column; }
-  .pl-layout :deep(.map) { min-height: 380px; width: 100%; }
-  .plist { width: 100%; }
+  .pl-layout { flex-direction: column; height: auto; }
+  .pl-layout :deep(.map) { min-height: 380px; height: 380px; width: 100%; }
+  .plist { width: 100%; overflow: visible; padding-right: 0; }
 }
 @media (max-width: 640px) {
   .place-head { flex-wrap: wrap; }
   .place-head .btn { width: 100%; margin-left: 0 !important; }
   .search-bar { flex-wrap: wrap; margin-top: -4px; }
   .search-bar input { flex: 1 1 100%; }
-  .pl-layout :deep(.map) { min-height: 300px; }
+  .pl-layout :deep(.map) { min-height: 300px; height: 300px; }
   .place .top { flex-wrap: wrap; row-gap: 2px; }
   .hint { margin-top: -8px; }
 }

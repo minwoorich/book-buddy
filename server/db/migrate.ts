@@ -72,6 +72,11 @@ export function migrate(db: Database.Database): void {
       detail TEXT, image_paths TEXT NOT NULL DEFAULT '[]',
       status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    -- 공지사항(QA #55): 관리자만 작성. pinned=1이면 목록 맨 위에 고정.
+    CREATE TABLE IF NOT EXISTS notices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, author_id INTEGER NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL, content TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS home_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT, section_key TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL);

@@ -78,7 +78,8 @@ export function useChat() {
         role: 'assistant',
         content: answer.message,
         books: answer.books,
-        actions: answer.actions,
+        // 확인 질문("~할까요?")엔 네/아니오 퀵리플라이가 항상 붙도록 보정(QA #57)
+        actions: ensureQuickReplies(answer.message, answer.actions),
       })
     } catch (e) {
       messages.value.push({ role: 'assistant', content: apiErrorMessage(e) })

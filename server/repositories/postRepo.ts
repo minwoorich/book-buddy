@@ -76,8 +76,14 @@ function toPostWithMeta(row: PostJoinRow): PostWithMeta {
 }
 
 export const postRepo = {
-  /** 최신순 피드. meId가 있으면 likedByMe도 채운다. */
-  listAll(meId?: number): PostWithMeta[] {
+  /**
+   * 최신순 피드. meId가 있으면 likedByMe도 채운다.
+   * mine=true면 내가 올린 게시물만(QA #60) — meId가 없으면 빈 목록.
+   */
+  listAll(meId?: number, opts: { mine?: boolean } = {}): PostWithMeta[] {
+    if (opts.mine && !meId) return []
+    const mineClause = opts.mine ? 'WHERE p.user_id = ?' : ''
+    const params: number[] = opts.mine ? [meId ?? 0, meId ?? 0] : [meId ?? 0]
     const rows = getDb()
       .prepare(
         `SELECT p.*, u.name AS user_name, u.department AS department,
@@ -90,9 +96,10 @@ export const postRepo = {
          FROM posts p
          JOIN users u ON u.id = p.user_id
          LEFT JOIN books b ON b.id = p.book_id
-         ORDER BY p.created_at DESC`
+         ${mineClause}
+         ORDER BY p.created_at DESC, p.id DESC`
       )
-      .all(meId ?? 0) as PostJoinRow[]
+      .all(...params) as PostJoinRow[]
     const imagesByPost = postImageRepo.listByPosts(rows.map((row) => row.id))
     return rows.map((row) => {
       const images = imagesByPost.get(row.id)
@@ -112,5 +119,34 @@ export const postRepo = {
     return toPost(
       getDb().prepare('SELECT * FROM posts WHERE id = ?').get(Number(result.lastInsertRowid)) as PostRow
     )
+  },
+
+  /** 캡션·책 태그 수정(QA #59). 사진은 바꾸지 않는다. */
+  update(id: number, patch: { caption: string | null; bookId: number | null }): Post | undefined {
+    getDb()
+      .prepare('UPDATE posts SET caption = ?, book_id = ? WHERE id = ?')
+      .run(patch.caption, patch.bookId, id)
+    return this.findById(id)
+  },
+
+  /**
+   * 게시물과 딸린 사진·좋아요·댓글을 한 트랜잭션으로 지운다(QA #59).
+   * 파일 정리는 호출부가 하도록 삭제된 사진 경로를 돌려준다.
+   */
+  remove(id: number): string[] {
+    const db = getDb()
+    const run = db.transaction((postId: number) => {
+      const post = db.prepare('SELECT image_path FROM posts WHERE id = ?').get(postId) as
+        | { image_path: string }
+        | undefined
+      if (!post) return [] as string[]
+      const paths = new Set<string>([post.image_path, ...postImageRepo.listByPost(postId)])
+      db.prepare('DELETE FROM post_comments WHERE post_id = ?').run(postId)
+      db.prepare('DELETE FROM post_likes WHERE post_id = ?').run(postId)
+      db.prepare('DELETE FROM post_images WHERE post_id = ?').run(postId)
+      db.prepare('DELETE FROM posts WHERE id = ?').run(postId)
+      return [...paths]
+    })
+    return run(id)
   },
 }

@@ -223,7 +223,7 @@ function goLogin() {
 
 <style scoped>
 .ai-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
-.ai-head b { font-family: "Noto Serif KR", serif; font-size: 16.5px; }
+.ai-head b { font-family: var(--font-display); font-size: 16.5px; }
 .ai-head i { font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; }
 .ai-q { font-size: 13px; color: var(--sub); margin-left: auto; }
 p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: #464034; max-width: 820px; }

@@ -165,7 +165,7 @@ function starFills(rating: number): boolean[] {
 
 .summary { margin-left: auto; text-align: right; }
 .summary .avg { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.summary .avg b { font-family: "Noto Serif KR", serif; font-size: 26px; }
+.summary .avg b { font-family: var(--font-display); font-size: 26px; }
 .summary > span { font-size: 12.5px; color: var(--sub); }
 
 /* 왓챠피디아 코멘트 피드처럼 카드 그리드 대신 가운데 정렬된 단일 목록으로 쌓는다 —

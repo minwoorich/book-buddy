@@ -124,11 +124,11 @@ watch([() => messages.value.length, sending], async () => {
 </template>
 
 <style scoped>
-.fab-glyph { font-family: "Noto Serif KR", serif; font-size: 32px; font-weight: 600; color: #fff; line-height: 1; }
+.fab-glyph { font-family: var(--font-serif); font-size: 32px; font-weight: 600; color: #fff; line-height: 1; }
 .chat { position: fixed; right: 30px; bottom: 30px; width: 400px; height: 620px; background: var(--card); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 24px 60px rgba(60,48,28,.35); display: flex; flex-direction: column; overflow: hidden; z-index: 100; }
 .chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .chat-head .logo-mark { width: 30px; height: 30px; }
-.chat-head b { font-family: "Noto Serif KR", serif; font-size: 15.5px; display: block; }
+.chat-head b { font-family: var(--font-display); font-size: 15.5px; display: block; }
 .chat-head span { font-size: 12px; font-weight: 600; color: var(--ok); }
 .chat-head .x { margin-left: auto; font-size: 20px; color: var(--sub); cursor: pointer; background: none; border: 0; padding: 4px; }
 .chat-body { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -155,7 +155,7 @@ watch([() => messages.value.length, sending], async () => {
 
 .guest-teaser { height: auto; }
 .guest-body { padding: 34px 24px 30px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; }
-.guest-glyph { font-family: "Noto Serif KR", serif; font-size: 34px; font-weight: 600; color: var(--red); line-height: 1; }
+.guest-glyph { font-family: var(--font-serif); font-size: 34px; font-weight: 600; color: var(--red); line-height: 1; }
 .guest-body p { margin: 0; font-size: 14px; color: var(--sub); line-height: 1.6; }
 .guest-actions { display: flex; gap: 10px; }
 

@@ -5,6 +5,7 @@ const { user, logout } = useCurrentUser()
 
 const ALL_NAV_ITEMS = [
   { key: 'home', label: '홈', to: '/' },
+  { key: 'notices', label: '공지사항', to: '/notices' },
   { key: 'my', label: '내 서재', to: '/my' },
   { key: 'calendar', label: '도서 달력', to: '/calendar' },
   { key: 'rankings', label: '랭킹', to: '/rankings' },
@@ -62,7 +63,8 @@ async function handleLogout() {
 <style scoped>
 .guest-actions { display: flex; align-items: center; gap: 14px; }
 .signup-link { font-size: 13px; color: var(--sub); }
-.me-zone { display: flex; align-items: center; gap: 10px; }
+/* 이름·로그아웃은 항상 헤더 오른쪽 끝(QA #61) — 예전엔 안쪽 .me에만 auto 마진이 있어 메뉴 바로 옆에 붙었다. */
+.me-zone { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .me-zone .me { color: inherit; text-decoration: none; }
 .logout {
   display: flex; align-items: center; justify-content: center;

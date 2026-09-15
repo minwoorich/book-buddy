@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Book, Loan, PurchaseRequest, RankRow, Reservation, Review, Wishlist } from '#shared/types'
+import type { Book, Loan, PurchaseRequest, RankRow, RankSnapshot, Reservation, Review, Wishlist } from '#shared/types'
 
 type LoanWithBook = Loan & { book: Book }
 type WishlistWithBook = Wishlist & { book: Book }
@@ -40,7 +40,10 @@ const { data: purchaseRequests, refresh: refreshPurchaseRequests } = await useAs
 
 const { data: userRankings } = await useAsyncData<RankRow[]>(
   'my-rankings',
-  () => (user.value ? api<RankRow[]>('/api/rankings', { query: { by: 'user' } }) : Promise.resolve([])),
+  () =>
+    user.value
+      ? api<RankSnapshot>('/api/rankings', { query: { by: 'user' } }).then((snap) => snap.rows)
+      : Promise.resolve([]),
   { default: () => [] }
 )
 
@@ -386,7 +389,7 @@ function requestMeta(r: PurchaseRequest): string {
 
 <style scoped>
 .profile { display: flex; align-items: center; gap: 18px; }
-.profile .info b { font-family: "Noto Serif KR", serif; font-size: 22px; display: block; margin-bottom: 3px; }
+.profile .info b { font-family: var(--font-display); font-size: 22px; display: block; margin-bottom: 3px; }
 .profile .info span { font-size: 13.5px; color: var(--sub); }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }

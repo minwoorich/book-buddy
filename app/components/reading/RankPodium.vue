@@ -45,8 +45,8 @@ function initial(row: RankRow): string {
 .pod .avatar { margin: 0 auto 10px; }
 .pod .nm { font-weight: 700; font-size: 15px; }
 .pod .org { font-size: 12px; color: var(--sub); margin-bottom: 10px; }
-.pod .cnt { font-family: "Noto Serif KR", serif; font-size: 18px; margin-bottom: 10px; }
-.pod .base { background: var(--card); border: 1px solid var(--line); border-radius: 4px 4px 0 0; display: flex; align-items: center; justify-content: center; font-family: "Noto Serif KR", serif; font-size: 26px; color: var(--sub); box-shadow: 0 2px 10px rgba(84,70,45,.06); }
+.pod .cnt { font-family: var(--font-display); font-size: 18px; margin-bottom: 10px; }
+.pod .base { background: var(--card); border: 1px solid var(--line); border-radius: 4px 4px 0 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 26px; color: var(--sub); box-shadow: 0 2px 10px rgba(84,70,45,.06); }
 .pod.first .base { height: 110px; border-top: 3px solid var(--red); color: var(--red); font-weight: 700; }
 .pod.second .base { height: 78px; }
 .pod.third .base { height: 58px; }

@@ -316,7 +316,7 @@ function onBookRegistered() {
 .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 34px; }
 .tile { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(84,70,45,.06); }
 .tile .lbl { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-.tile b { font-family: "Noto Serif KR", serif; font-size: 30px; font-weight: 600; }
+.tile b { font-family: var(--font-display); font-size: 30px; font-weight: 600; }
 .tile .sub { font-size: 12px; color: var(--sub); margin-top: 4px; }
 .tile.alert { border-top: 2px solid var(--warn); }
 .tile.alert b { color: var(--warn); }

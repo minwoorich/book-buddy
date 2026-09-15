@@ -196,6 +196,13 @@ export interface RankRow {
   userId?: number
 }
 
+/** GET /api/rankings 응답 — 30분 스냅샷(QA #56)과 집계·다음 갱신 시각. */
+export interface RankSnapshot {
+  rows: RankRow[]
+  updatedAt: string
+  nextUpdateAt: string
+}
+
 export interface StatRow {
   label: string
   loanCount: number
@@ -219,6 +226,18 @@ export interface Place {
   lng: number
   /** 검색 기준 좌표(내 위치)로부터의 거리(미터). 좌표 기반 검색일 때만 채워진다. */
   distanceM?: number
+}
+
+/** 공지사항(QA #55). 관리자만 작성·수정·삭제할 수 있고, pinned는 목록 상단 고정. */
+export interface Notice {
+  id: number
+  authorId: number
+  authorName: string
+  title: string
+  content: string
+  pinned: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 /** 팀 QA용 인앱 피드백. path/viewport는 신고 시점에 자동 수집된다. */

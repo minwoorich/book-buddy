@@ -75,6 +75,49 @@ async function toggleLike() {
   }
 }
 
+// ── 내 게시물 수정·삭제(QA #59): 본인은 수정·삭제, 관리자는 삭제만 ──
+const isMine = computed(() => !!user.value && user.value.id === props.post.userId)
+const canDelete = computed(() => isMine.value || user.value?.role === 'admin')
+const menuOpen = ref(false)
+const editing = ref(false)
+const editCaption = ref('')
+const editBusy = ref(false)
+
+function startEdit() {
+  menuOpen.value = false
+  editCaption.value = props.post.caption ?? ''
+  editing.value = true
+}
+
+function cancelEdit() {
+  editing.value = false
+}
+
+async function saveEdit() {
+  if (editBusy.value) return
+  editBusy.value = true
+  try {
+    await api(`/api/posts/${props.post.id}`, { method: 'PATCH', body: { caption: editCaption.value } })
+    editing.value = false
+    emit('changed')
+  } catch (e) {
+    alert(apiErrorMessage(e))
+  } finally {
+    editBusy.value = false
+  }
+}
+
+async function removePost() {
+  menuOpen.value = false
+  if (!confirm('이 게시물을 삭제할까요? 사진과 댓글도 함께 지워져요.')) return
+  try {
+    await api(`/api/posts/${props.post.id}`, { method: 'DELETE' })
+    emit('changed')
+  } catch (e) {
+    alert(apiErrorMessage(e))
+  }
+}
+
 const commentsOpen = ref(false)
 const comments = ref<CommentWithUser[]>([])
 const commentsLoaded = ref(false)
@@ -135,6 +178,15 @@ async function submitComment() {
         <BookCoverImage :src="post.book.coverUrl" :alt="post.book.title" />
         <span class="booktag-t">{{ post.book.title }}</span>
       </NuxtLink>
+      <div v-if="canDelete" class="more-zone" :class="{ 'no-book': !post.book }">
+        <button type="button" class="more" aria-label="게시물 메뉴" @click="menuOpen = !menuOpen">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+        </button>
+        <div v-if="menuOpen" class="menu">
+          <button v-if="isMine" type="button" @click="startEdit">수정</button>
+          <button type="button" class="danger" @click="removePost">삭제</button>
+        </div>
+      </div>
     </div>
     <div class="photo">
       <img :src="photos[activeIndex]" :alt="post.caption ?? post.book?.title ?? '게시물 사진'">
@@ -163,7 +215,14 @@ async function submitComment() {
         </button>
       </div>
       <div v-if="post.likeCount" class="likes">좋아요 {{ post.likeCount }}개</div>
-      <div v-if="post.caption" class="cap"><b>{{ post.userName }}</b> {{ post.caption }}</div>
+      <div v-if="editing" class="edit-zone">
+        <textarea v-model="editCaption" class="input" rows="3" placeholder="캡션을 입력하세요" />
+        <div class="edit-acts">
+          <button type="button" class="btn sm" :disabled="editBusy" @click="cancelEdit">취소</button>
+          <button type="button" class="btn primary sm" :disabled="editBusy" @click="saveEdit">저장</button>
+        </div>
+      </div>
+      <div v-else-if="post.caption" class="cap"><b>{{ post.userName }}</b> {{ post.caption }}</div>
       <button v-if="!commentsOpen && post.commentCount" type="button" class="cmt-toggle" @click="toggleComments">
         댓글 {{ post.commentCount }}개 모두 보기
       </button>
@@ -194,6 +253,18 @@ async function submitComment() {
 .who-txt span { font-size: 11.5px; color: var(--sub); }
 .booktag { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: var(--card-2); border-radius: 999px; padding: 3px 11px 3px 3px; font-size: 11.5px; font-weight: 600; color: var(--ink); text-decoration: none; max-width: 45%; }
 .booktag-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ··· 메뉴(QA #59): 내 게시물이면 수정·삭제, 관리자면 삭제. */
+.more-zone { position: relative; margin-left: 6px; flex-shrink: 0; }
+.more-zone.no-book { margin-left: auto; }
+.more { border: 0; background: none; padding: 4px; cursor: pointer; color: var(--sub); display: flex; }
+.more:hover { color: var(--ink); }
+.menu { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 96px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(60, 48, 28, .14); padding: 4px; display: flex; flex-direction: column; }
+.menu button { border: 0; background: none; text-align: left; font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 4px; cursor: pointer; color: var(--ink); }
+.menu button:hover { background: var(--card-2); }
+.menu button.danger { color: var(--red); }
+.edit-zone { margin-bottom: 8px; }
+.edit-zone textarea { resize: vertical; font-size: 14px; line-height: 1.55; }
+.edit-acts { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
 .booktag :deep(.cv) { width: 18px; height: 26px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px rgba(60, 48, 28, .25); flex-shrink: 0; }
 
 /* 사진 비율을 고정하지 않는다(QA #48) — 가로/세로/정방형 모두 원본 비율대로, 세로가

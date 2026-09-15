@@ -32,6 +32,39 @@ function submitSearch() {
   router.push({ query: q ? { q } : {} })
 }
 
+// ── 히어로 타이틀 문구 로테이션(QA #52, 전호연): 기본 인사 → 독서 명언 5개가 10초마다
+// 은은하게 페이드아웃/인으로 순환한다. 검색창 placeholder(예시 질문)와 역할을 나눴다.
+const HERO_TITLES = [
+  '오늘은 어떤 책을 읽어볼까요?',
+  '지금의 나는 지금까지 내가 읽은 책의 총합이다',
+  '알고 싶은 주제나 삶에 대한 질문이 분명하면, 길은 어렵지 않다',
+  '질문과 의문이 절실한 주제의 책을 찾아 읽어라',
+  '감명 깊은 책은 개별적이고 주관적이다',
+  '실천이 없는 지식, 성찰이 없는 사유는 허구다',
+] as const
+const HERO_ROTATE_MS = 10_000
+const HERO_FADE_MS = 700
+
+const heroIndex = ref(0)
+const heroVisible = ref(true)
+const heroTitle = computed(() => HERO_TITLES[heroIndex.value] ?? HERO_TITLES[0])
+
+let heroTimer: ReturnType<typeof setInterval> | undefined
+let heroFadeTimer: ReturnType<typeof setTimeout> | undefined
+onMounted(() => {
+  heroTimer = setInterval(() => {
+    heroVisible.value = false
+    heroFadeTimer = setTimeout(() => {
+      heroIndex.value = (heroIndex.value + 1) % HERO_TITLES.length
+      heroVisible.value = true
+    }, HERO_FADE_MS)
+  }, HERO_ROTATE_MS)
+})
+onBeforeUnmount(() => {
+  if (heroTimer) clearInterval(heroTimer)
+  if (heroFadeTimer) clearTimeout(heroFadeTimer)
+})
+
 // ── 배열 옵션(QA #15): 대출 가능한 책만 / 인기순(대출 빈도) ─────────────
 const availableOnly = ref(false)
 const sortPopular = ref(false)
@@ -129,7 +162,7 @@ function toggleExternal() {
       <template v-if="!activeQuery">
         <div class="hero">
           <div class="eyebrow">VATECH PEOPLE&rsquo;S BOOKSHELF</div>
-          <h1>오늘은 어떤 책을 읽어볼까요?</h1>
+          <h1 class="hero-title" :class="{ hidden: !heroVisible }" aria-live="polite">{{ heroTitle }}</h1>
           <CommonSearchBar v-model="searchInput" @submit="submitSearch" />
           <CommonCategoryChips v-model="selectedCategory" />
           <div class="list-options">
@@ -206,7 +239,10 @@ function toggleExternal() {
 
 <style scoped>
 .hero { text-align: center; margin-bottom: 34px; }
-.hero h1 { font-family: "Noto Serif KR", serif; font-size: 31px; font-weight: 600; letter-spacing: -0.4px; margin: 10px 0 22px; }
+.hero h1 { font-family: var(--font-display); font-size: 31px; font-weight: 600; letter-spacing: -0.4px; margin: 10px 0 22px; }
+/* 문구 교체 시 은은한 페이드(QA #52). 긴 명언이 두 줄로 접혀도 검색창이 크게 튀지 않게 최소 높이. */
+.hero-title { min-height: 1.35em; transition: opacity .7s ease; opacity: 1; word-break: keep-all; }
+.hero-title.hidden { opacity: 0; }
 
 .count { font-size: 13px; color: var(--sub); white-space: nowrap; }
 

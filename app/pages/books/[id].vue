@@ -341,7 +341,7 @@ function askAi() {
 .aux { display: flex; justify-content: flex-end; align-items: center; font-size: 12.5px; color: var(--sub); }
 .aux a { color: var(--sub); text-decoration: underline; }
 .right { flex: 1; min-width: 0; }
-.right h1 { font-family: "Noto Serif KR", serif; font-size: 29px; font-weight: 600; margin: 8px 0 6px; letter-spacing: -0.3px; }
+.right h1 { font-family: var(--font-display); font-size: 29px; font-weight: 600; margin: 8px 0 6px; letter-spacing: -0.3px; }
 .cat-chip { cursor: default; }
 .byline { font-size: 15px; color: var(--sub); margin-bottom: 10px; }
 .metaline { display: flex; gap: 14px; font-size: 13px; color: var(--sub); margin-bottom: 14px; flex-wrap: wrap; }

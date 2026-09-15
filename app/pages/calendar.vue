@@ -140,7 +140,7 @@ const doneRows = computed(() =>
 .cal-layout { display: flex; gap: 30px; align-items: flex-start; }
 .cal { flex: 1; }
 .cal-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
-.cal-head h1 { font-family: "Noto Serif KR", serif; font-size: 25px; font-weight: 600; margin: 0; }
+.cal-head h1 { font-family: var(--font-display); font-size: 25px; font-weight: 600; margin: 0; }
 .cal-nav { display: flex; gap: 6px; }
 .cal-nav button { font: inherit; width: 32px; height: 32px; border-radius: 3px; border: 1px solid var(--line-strong); background: transparent; cursor: pointer; color: var(--sub); font-size: 14px; }
 .cal-nav button:hover { background: #F1EADD; }
@@ -155,7 +155,7 @@ const doneRows = computed(() =>
 .done-row .t { font-size: 13.5px; font-weight: 700; margin-bottom: 2px; color: var(--ink); }
 .done-row .d { font-size: 12px; color: var(--sub); }
 .month-sum { text-align: center; padding: 18px 0 6px; }
-.month-sum b { font-family: "Noto Serif KR", serif; font-size: 30px; }
+.month-sum b { font-family: var(--font-display); font-size: 30px; }
 .month-sum b i { font-style: normal; color: var(--red); }
 .month-sum span { display: block; font-size: 12.5px; color: var(--sub); margin-top: 4px; }
 

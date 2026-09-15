@@ -13,10 +13,16 @@ type PostWithMeta = Post & {
 const api = useApi()
 const { user } = useCurrentUser()
 
+// 내 게시물만 모아보기(QA #60) — 켜면 서버가 내 글만 최신순으로 돌려준다.
+const mineOnly = ref(false)
+
 const { data: posts, refresh } = await useAsyncData<PostWithMeta[]>(
   'feed-posts',
-  () => (user.value ? api<PostWithMeta[]>('/api/posts') : Promise.resolve([])),
-  { default: () => [] }
+  () =>
+    user.value
+      ? api<PostWithMeta[]>('/api/posts', { query: mineOnly.value ? { mine: '1' } : {} })
+      : Promise.resolve([]),
+  { default: () => [], watch: [mineOnly] }
 )
 
 const composerOpen = ref(false)
@@ -37,7 +43,11 @@ async function handleCreated() {
           <h1>피드</h1>
           <p>동료들의 독서 순간을 구경하세요</p>
         </div>
-        <button type="button" class="btn primary" style="margin-left:auto;" @click="composerOpen = !composerOpen">
+        <button type="button" class="chip mine-chip" :class="{ on: mineOnly }" @click="mineOnly = !mineOnly">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+          내 게시물만
+        </button>
+        <button type="button" class="btn primary" @click="composerOpen = !composerOpen">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px; margin-right:5px;"><line x1="12" y1="4" x2="12" y2="20" /><line x1="4" y1="12" x2="20" y2="12" /></svg>
           글쓰기
         </button>
@@ -45,7 +55,9 @@ async function handleCreated() {
 
       <FeedPostComposer v-if="composerOpen" @created="handleCreated" @cancel="composerOpen = false" />
 
-      <p v-if="!posts?.length" class="hint">아직 올라온 피드가 없어요. 첫 독서 순간을 남겨보세요.</p>
+      <p v-if="!posts?.length" class="hint">
+        {{ mineOnly ? '아직 내가 올린 게시물이 없어요. 첫 독서 순간을 남겨보세요.' : '아직 올라온 피드가 없어요. 첫 독서 순간을 남겨보세요.' }}
+      </p>
       <div v-else class="feed-grid">
         <FeedPostCard v-for="post in posts" :key="post.id" :post="post" @changed="refresh" />
       </div>
@@ -54,13 +66,17 @@ async function handleCreated() {
 </template>
 
 <style scoped>
-.head-row { display: flex; align-items: flex-end; margin-bottom: 26px; }
+.head-row { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 26px; }
+.mine-chip { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
 /* 인스타처럼 게시물을 1열로 하나씩 보여준다(QA #6). */
 .feed-grid { display: flex; flex-direction: column; gap: 30px; max-width: 540px; margin: 0 auto; }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
 
 @media (max-width: 600px) {
-  .head-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .head-row { flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .head-row .page-head { flex-basis: 100%; }
+  .mine-chip { margin-left: 0; }
+  .head-row .btn { margin-left: auto; }
 }
 </style>

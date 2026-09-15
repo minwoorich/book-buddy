@@ -13,6 +13,7 @@ export default defineEventHandler(
       throw new ApiError(400, '지원하지 않는 기준이에요')
     }
 
-    return rankingService.rank(by, period)
+    // 30분 스냅샷 + 갱신 시각(QA #56). 응답은 { rows, updatedAt, nextUpdateAt }.
+    return rankingService.snapshot(by, period)
   })
 )
