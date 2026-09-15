@@ -42,9 +42,14 @@ async function handleLogout() {
         >{{ item.label }}</NuxtLink>
         <NuxtLink v-if="user?.role === 'admin'" :class="{ on: activeKey === 'admin' }" to="/admin">관리자</NuxtLink>
       </div>
-      <button v-if="user" type="button" class="me" style="background:none;border:0;cursor:pointer;font:inherit;" @click="handleLogout">
-        <div class="avatar">{{ user.name.charAt(0) }}</div> {{ user.name }} 님
-      </button>
+      <div v-if="user" class="me-zone">
+        <NuxtLink class="me" to="/my" title="마이페이지로 이동">
+          <div class="avatar">{{ user.name.charAt(0) }}</div> {{ user.name }} 님
+        </NuxtLink>
+        <button type="button" class="logout" title="로그아웃" @click="handleLogout">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+        </button>
+      </div>
       <div v-else class="guest-actions">
         <NuxtLink to="/signup" class="signup-link">회원가입</NuxtLink>
         <NuxtLink to="/login" class="btn primary sm">로그인</NuxtLink>
@@ -56,4 +61,12 @@ async function handleLogout() {
 <style scoped>
 .guest-actions { display: flex; align-items: center; gap: 14px; }
 .signup-link { font-size: 13px; color: var(--sub); }
+.me-zone { display: flex; align-items: center; gap: 10px; }
+.me-zone .me { color: inherit; text-decoration: none; }
+.logout {
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; cursor: pointer; padding: 4px;
+  color: var(--sub);
+}
+.logout:hover { color: var(--red); }
 </style>

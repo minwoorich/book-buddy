@@ -17,9 +17,15 @@ const api = useApi()
 const fileInput = ref<HTMLInputElement | null>(null)
 const images = ref<SelectedImage[]>([])
 const caption = ref('')
-const bookId = ref('')
 const submitting = ref(false)
-const bookOptions = ref<Book[]>([])
+
+// ── 책 태그: 전체 도서에서 검색해 선택한다(QA #7·#11 — 대출 이력이 없어도 태그 가능). ──
+const selectedBook = ref<Book | null>(null)
+const bookQuery = ref('')
+const bookResults = ref<Book[]>([])
+const bookSearching = ref(false)
+/** 검색어가 비어 있을 때 보여줄 제안: 내가 빌렸던(읽고 있는·읽은) 책. */
+const myBooks = ref<Book[]>([])
 
 onMounted(async () => {
   try {
@@ -34,11 +40,46 @@ onMounted(async () => {
       seen.add(loan.book.id)
       result.push(loan.book)
     }
-    bookOptions.value = result
+    myBooks.value = result
   } catch {
-    bookOptions.value = []
+    myBooks.value = []
   }
 })
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(bookQuery, (q) => {
+  clearTimeout(searchTimer)
+  const keyword = q.trim()
+  if (!keyword) {
+    bookResults.value = []
+    bookSearching.value = false
+    return
+  }
+  bookSearching.value = true
+  searchTimer = setTimeout(async () => {
+    try {
+      const found = await api<Book[]>('/api/books', { query: { query: keyword } })
+      bookResults.value = found.slice(0, 8)
+    } catch {
+      bookResults.value = []
+    } finally {
+      bookSearching.value = false
+    }
+  }, 250)
+})
+
+/** 드롭다운에 실제로 보여줄 목록: 검색어가 있으면 검색 결과, 없으면 내 책 제안. */
+const suggestions = computed(() => (bookQuery.value.trim() ? bookResults.value : myBooks.value.slice(0, 8)))
+
+function pickBook(book: Book) {
+  selectedBook.value = book
+  bookQuery.value = ''
+  bookResults.value = []
+}
+
+function clearBook() {
+  selectedBook.value = null
+}
 
 function revokeAllPreviews() {
   for (const img of images.value) URL.revokeObjectURL(img.url)
@@ -70,7 +111,10 @@ function removeImage(index: number) {
   if (removed) URL.revokeObjectURL(removed.url)
 }
 
-onBeforeUnmount(revokeAllPreviews)
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
+  revokeAllPreviews()
+})
 
 async function submit() {
   if (submitting.value) return
@@ -83,12 +127,13 @@ async function submit() {
     const formData = new FormData()
     for (const img of images.value) formData.append('image', img.file)
     if (caption.value.trim()) formData.append('caption', caption.value.trim())
-    if (bookId.value) formData.append('bookId', bookId.value)
+    if (selectedBook.value) formData.append('bookId', String(selectedBook.value.id))
     await api('/api/posts', { method: 'POST', body: formData })
 
     revokeAllPreviews()
     caption.value = ''
-    bookId.value = ''
+    selectedBook.value = null
+    bookQuery.value = ''
     if (fileInput.value) fileInput.value.value = ''
     emit('created')
   } catch (e) {
@@ -116,10 +161,33 @@ function cancel() {
       </div>
       <span v-else class="placeholder">사진을 선택해주세요 (최대 5장)</span>
       <textarea v-model="caption" class="input" rows="3" placeholder="오늘의 독서 순간을 기록해보세요" />
-      <select v-model="bookId" class="input">
-        <option value="">태그 없음</option>
-        <option v-for="b in bookOptions" :key="b.id" :value="String(b.id)">{{ b.title }}</option>
-      </select>
+
+      <div v-if="selectedBook" class="picked">
+        <img v-if="selectedBook.coverUrl" :src="selectedBook.coverUrl" alt="" />
+        <div class="picked-info">
+          <b>{{ selectedBook.title }}</b>
+          <span>{{ selectedBook.author }}</span>
+        </div>
+        <button type="button" class="remove-book" aria-label="책 태그 제거" @click="clearBook">×</button>
+      </div>
+      <div v-else class="book-picker">
+        <input
+          v-model="bookQuery"
+          type="search"
+          class="input"
+          placeholder="함께 올릴 책 검색 (제목·저자) — 선택하지 않아도 돼요"
+        />
+        <div v-if="bookSearching" class="picker-hint">검색 중...</div>
+        <div v-else-if="bookQuery.trim() && suggestions.length === 0" class="picker-hint">검색 결과가 없어요</div>
+        <div v-else-if="suggestions.length" class="picker-list">
+          <div v-if="!bookQuery.trim()" class="picker-label">내가 빌렸던 책</div>
+          <button v-for="b in suggestions" :key="b.id" type="button" class="picker-item" @click="pickBook(b)">
+            <img v-if="b.coverUrl" :src="b.coverUrl" alt="" />
+            <span class="pi-title">{{ b.title }}</span>
+            <span class="pi-author">{{ b.author }}</span>
+          </button>
+        </div>
+      </div>
     </div>
     <div class="composer-acts">
       <button type="button" class="btn" @click="cancel">취소</button>
@@ -140,4 +208,23 @@ function cancel() {
 .thumb .remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0, 0, 0, .55); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
 .thumb .remove:hover { background: rgba(0, 0, 0, .75); }
 .composer-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+.book-picker { display: flex; flex-direction: column; gap: 6px; }
+.picker-hint { font-size: 12.5px; color: var(--sub); padding: 2px 2px 0; }
+.picker-label { font-size: 11.5px; font-weight: 700; color: var(--sub); padding: 4px 4px 0; }
+.picker-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 4px; max-height: 240px; overflow-y: auto; background: var(--card); }
+.picker-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 0; background: none; cursor: pointer; font: inherit; text-align: left; border-bottom: 1px solid var(--line); }
+.picker-item:last-child { border-bottom: 0; }
+.picker-item:hover { background: var(--red-tint); }
+.picker-item img { width: 26px; height: 38px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+.pi-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-author { font-size: 12px; color: var(--sub); margin-left: auto; flex-shrink: 0; }
+
+.picked { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 8px 10px; background: var(--bg); }
+.picked img { width: 30px; height: 44px; object-fit: cover; border-radius: 2px; }
+.picked-info { flex: 1; min-width: 0; }
+.picked-info b { display: block; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picked-info span { font-size: 12px; color: var(--sub); }
+.remove-book { border: 0; background: none; font-size: 17px; color: var(--sub); cursor: pointer; padding: 0 4px; }
+.remove-book:hover { color: var(--red); }
 </style>

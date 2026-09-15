@@ -101,6 +101,8 @@ const returnBusyId = ref<number | null>(null)
 
 async function returnLoan(loanId: number) {
   if (returnBusyId.value !== null) return
+  const title = activeLoans.value?.find((l) => l.id === loanId)?.book.title
+  if (!confirm(`${title ? `『${title}』을(를)` : '이 책을'} 반납할까요?`)) return
   returnBusyId.value = loanId
   try {
     await api(`/api/loans/${loanId}`, { method: 'PATCH', body: { returned: true } })
@@ -113,9 +115,17 @@ async function returnLoan(loanId: number) {
 }
 
 // ── 읽은 책 선반 ───────────────────────────────────────────────────
-const doneSorted = computed(() =>
-  [...(doneLoans.value ?? [])].sort((a, b) => (b.returnedAt ?? '').localeCompare(a.returnedAt ?? ''))
-)
+// 같은 책을 여러 번 대출-반납해도 선반에는 한 번만 보여준다(가장 최근 완독 기준) — QA #10.
+// 랭킹·책쌓기 집계는 규칙대로 대출-반납 "기록" 수를 세므로 여기서만 중복을 걷어낸다.
+const doneSorted = computed(() => {
+  const sorted = [...(doneLoans.value ?? [])].sort((a, b) => (b.returnedAt ?? '').localeCompare(a.returnedAt ?? ''))
+  const seen = new Set<number>()
+  return sorted.filter((l) => {
+    if (seen.has(l.book.id)) return false
+    seen.add(l.book.id)
+    return true
+  })
+})
 const readBooks = computed(() => doneSorted.value.map((l) => l.book))
 const readMetaTexts = computed(() =>
   doneSorted.value.map((l) => {

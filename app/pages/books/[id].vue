@@ -64,6 +64,7 @@ const loanBusy = ref(false)
 async function borrow() {
   if (!user.value) return navigateTo('/login')
   if (!book.value || loanBusy.value) return
+  if (!confirm(`『${book.value.title}』을(를) 대출할까요?\n반납 기한은 14일이에요.`)) return
   loanBusy.value = true
   try {
     await api('/api/loans', { method: 'POST', body: { bookId: bookId.value } })
@@ -79,6 +80,7 @@ async function returnLoan() {
   if (!user.value) return navigateTo('/login')
   const loanId = myLoanId.value
   if (!loanId || loanBusy.value) return
+  if (!confirm(`『${book.value?.title}』을(를) 반납할까요?`)) return
   loanBusy.value = true
   try {
     await api(`/api/loans/${loanId}`, { method: 'PATCH', body: { returned: true } })
@@ -93,6 +95,7 @@ async function returnLoan() {
 async function reserve() {
   if (!user.value) return navigateTo('/login')
   if (!book.value || loanBusy.value) return
+  if (!confirm(`『${book.value.title}』을(를) 예약할까요?\n지금 대출 중인 책이라, 반납되면 순서대로 안내해드려요.`)) return
   loanBusy.value = true
   try {
     await api('/api/reservations', { method: 'POST', body: { bookId: bookId.value } })

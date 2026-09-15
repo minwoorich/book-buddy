@@ -15,7 +15,16 @@ const birthYear = ref<number | null>(null)
 const loading = ref(false)
 const error = ref('')
 
-const COMPANIES = ['바텍', '레이언스', '바텍네트웍스']
+// 계열사 확대 + 부서/팀/직급 추천 목록(QA #12). 부서·팀·직급은 자유 입력에
+// datalist 제안만 얹는다 — 조직도를 강제할 데이터가 없으니 제안이 최선이다.
+const COMPANIES = ['바텍', '레이언스', '바텍네트웍스', '바텍이우홀딩스', '바텍엠시스']
+const DEPARTMENT_SUGGESTIONS = [
+  '개발본부', '연구소', '마케팅본부', '영업본부', '경영지원본부', '품질본부', '기획본부', '정보전략실', '인사실', '생산본부',
+]
+const TEAM_SUGGESTIONS = [
+  'SW개발팀', 'HW개발팀', '기구개발팀', '연구1팀', '연구2팀', '마케팅팀', '영업팀', 'CS팀', '인사팀', '재무팀', '총무팀', '품질팀', '기획팀', '구매팀', '생산팀',
+]
+const POSITION_SUGGESTIONS = ['사원', '주임', '대리', '과장', '차장', '부장', '책임', '수석', '팀장', '실장']
 
 async function submit() {
   if (loading.value) return
@@ -73,14 +82,23 @@ async function submit() {
         </div>
 
         <div class="row">
-          <input v-model="department" type="text" class="input" placeholder="부서">
-          <input v-model="team" type="text" class="input" placeholder="팀">
+          <input v-model="department" type="text" class="input" placeholder="부서" list="department-options">
+          <input v-model="team" type="text" class="input" placeholder="팀" list="team-options">
         </div>
+        <datalist id="department-options">
+          <option v-for="d in DEPARTMENT_SUGGESTIONS" :key="d" :value="d" />
+        </datalist>
+        <datalist id="team-options">
+          <option v-for="t in TEAM_SUGGESTIONS" :key="t" :value="t" />
+        </datalist>
 
         <div class="row">
-          <input v-model="position" type="text" class="input" placeholder="직급">
+          <input v-model="position" type="text" class="input" placeholder="직급" list="position-options">
           <input v-model.number="birthYear" type="number" class="input" placeholder="출생연도" min="1940" max="2010">
         </div>
+        <datalist id="position-options">
+          <option v-for="p in POSITION_SUGGESTIONS" :key="p" :value="p" />
+        </datalist>
 
         <p v-if="error" class="error">{{ error }}</p>
         <button type="submit" class="btn primary signup-btn" :disabled="loading">

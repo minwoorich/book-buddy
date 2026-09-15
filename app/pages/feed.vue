@@ -55,14 +55,12 @@ async function handleCreated() {
 
 <style scoped>
 .head-row { display: flex; align-items: flex-end; margin-bottom: 26px; }
-.feed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-items: start; }
+/* 인스타처럼 게시물을 1열로 하나씩 보여준다(QA #6). */
+.feed-grid { display: flex; flex-direction: column; gap: 30px; max-width: 540px; margin: 0 auto; }
+
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
 
-@media (max-width: 900px) {
-  .feed-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 600px) {
-  .feed-grid { grid-template-columns: 1fr; }
   .head-row { flex-direction: column; align-items: flex-start; gap: 12px; }
 }
 </style>

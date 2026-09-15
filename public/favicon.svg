@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="12" fill="#E60012"/>
-  <text x="32" y="34" text-anchor="middle" dominant-baseline="central"
+  <!-- dominant-baseline 대신 명시 베이스라인(y=48)로 상하좌우 여백을 맞춘다 (QA #5) -->
+  <text x="33" y="48" text-anchor="middle"
         font-family="'Noto Serif KR','Nanum Myeongjo',serif"
         font-size="44" font-weight="600" fill="#FFFFFF">道</text>
 </svg>
