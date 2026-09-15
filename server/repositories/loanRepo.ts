@@ -113,6 +113,13 @@ export const loanRepo = {
     getDb().prepare("UPDATE loans SET returned_at = datetime('now') WHERE id = ?").run(id)
   },
 
+  /** 이 사용자가 이 책을 대출한 기록(반납 여부 무관)이 있는지 — 리뷰 자격 검사용(QA #43). */
+  hasByUserAndBook(userId: number, bookId: number): boolean {
+    return Boolean(
+      getDb().prepare('SELECT 1 FROM loans WHERE user_id = ? AND book_id = ? LIMIT 1').get(userId, bookId)
+    )
+  },
+
   /** 대출 기록 삭제 — 잘못 누른 대출의 "취소"용(QA #28). 완독/랭킹 집계에 남지 않는다. */
   remove(id: number): void {
     getDb().prepare('DELETE FROM loans WHERE id = ?').run(id)

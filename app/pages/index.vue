@@ -210,7 +210,8 @@ function toggleExternal() {
 
 .count { font-size: 13px; color: var(--sub); white-space: nowrap; }
 
-.list-options { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
+/* 옵션 칩은 서가(책 목록) 시작점과 나란히 오른쪽 정렬(QA #41). */
+.list-options { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .opt-chip {
   font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sub);
   background: var(--card); border: 1px solid var(--line-strong); border-radius: 999px;

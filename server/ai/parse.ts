@@ -59,14 +59,15 @@ function isAllowedActionPath(to: string): boolean {
 function isChatAction(value: unknown): value is ChatAction {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
-  return (
-    v.type === 'navigate' &&
-    typeof v.label === 'string' &&
-    v.label.length > 0 &&
-    typeof v.to === 'string' &&
-    v.to.length > 0 &&
-    isAllowedActionPath(v.to)
-  )
+  if (typeof v.label !== 'string' || v.label.length === 0 || v.label.length > 60) return false
+  if (v.type === 'navigate') {
+    return typeof v.to === 'string' && v.to.length > 0 && isAllowedActionPath(v.to)
+  }
+  // reply: 클릭 시 send 텍스트를 사용자 메시지로 전송하는 빠른 답장(실행 확인 네/아니오 등).
+  if (v.type === 'reply') {
+    return typeof v.send === 'string' && v.send.trim().length > 0 && v.send.length <= 200
+  }
+  return false
 }
 
 function toActions(value: unknown): ChatAction[] {

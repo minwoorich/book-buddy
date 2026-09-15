@@ -117,6 +117,8 @@ export function migrate(db: Database.Database): void {
     'INSERT OR IGNORE INTO home_sections (section_key, title, enabled, sort_order) VALUES (?, ?, ?, ?)'
   )
   const defaultSections: [string, string, number, number][] = [
+    // admin-picks: 관리자 계정이 찜한 책 = 추천 큐레이션(QA #45). 맨 위(sort_order 0)에 노출.
+    ['admin-picks', '임원진 추천 도서', 1, 0],
     ['new', '새로 들어온 책', 1, 1],
     ['top-rated', '동료 평점이 높은 책', 1, 2],
     ['popular', '가장 많이 빌린 책', 1, 3],

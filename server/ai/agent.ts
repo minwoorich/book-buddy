@@ -179,7 +179,9 @@ export async function runAgent(
   }
 
   const last = res.messages.at(-1)
-  const content = typeof last?.content === 'string' ? last.content : JSON.stringify(last?.content)
+  // content가 블록 배열(thinking/text 등)로 오면 text 블록만 이어붙인다 — JSON.stringify를
+  // 쓰면 thinking 블록의 raw JSON이 그대로 사용자에게 노출된다(QA #33·34·35).
+  const content = typeof last?.content === 'string' ? last.content : extractDeltaText(last?.content)
   const answer = parseAiAnswer(content)
 
   return { answer, usage: { inputTokens, outputTokens, durationMs } }

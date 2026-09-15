@@ -1,4 +1,5 @@
 import { bookRepo } from '../../../repositories/bookRepo'
+import { loanRepo } from '../../../repositories/loanRepo'
 import { reviewRepo } from '../../../repositories/reviewRepo'
 import { handleApi, requireUser } from '../../../utils/api'
 import { ApiError } from '../../../utils/errors'
@@ -12,6 +13,11 @@ export default defineEventHandler(
       throw new ApiError(400, '별점(1~5)과 한줄 리뷰를 입력해주세요')
     }
     if (!bookRepo.findById(bookId)) throw new ApiError(404, '없는 책이에요')
+
+    // 읽은(대출한) 기록이 있어야 리뷰를 남길 수 있다(QA #43).
+    if (!loanRepo.hasByUserAndBook(me.id, bookId)) {
+      throw new ApiError(403, '이 책을 대출한 기록이 있어야 리뷰를 남길 수 있어요')
+    }
 
     // 1인 1책 1리뷰(QA #18) — 이미 남긴 리뷰가 있으면 수정/삭제를 안내한다.
     if (reviewRepo.findByBookAndUser(bookId, me.id)) {

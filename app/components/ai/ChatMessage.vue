@@ -4,13 +4,18 @@ import type { ChatMsg } from '~/composables/useChat'
 
 defineProps<{ msg: ChatMsg }>()
 
-const { open } = useChat()
+const { open, sending, send } = useChat()
 
 function closePanel() {
   open.value = false
 }
 
 async function runAction(action: ChatAction) {
+  if (action.type === 'reply') {
+    // 빠른 답장(실행 확인 네/아니오 등) — 패널을 닫지 않고 그 텍스트를 그대로 전송한다.
+    if (!sending.value) await send(action.send)
+    return
+  }
   closePanel()
   await navigateTo(action.to)
 }
@@ -45,6 +50,7 @@ async function runAction(action: ChatAction) {
         :key="i"
         type="button"
         class="chat-act"
+        :disabled="action.type === 'reply' && sending"
         @click="runAction(action)"
       >{{ action.label }}</button>
     </div>
@@ -64,5 +70,6 @@ async function runAction(action: ChatAction) {
 .chat-acts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .chat-act { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--red); background: transparent; border: 1px solid var(--red); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
 .chat-act:hover { background: var(--red-tint); }
+.chat-act:disabled { opacity: .5; cursor: not-allowed; }
 .msg-text { white-space: pre-line; display: block; }
 </style>

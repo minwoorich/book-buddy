@@ -84,6 +84,22 @@ function idsForSection(section: HomeSection): number[] {
     ).map((r) => r.id)
   }
 
+  if (section.sectionKey === 'admin-picks') {
+    // 임원진 추천(QA #45): 관리자 계정이 찜한 책이 곧 큐레이션이다 — 별도 관리 화면 없이
+    // 관리자가 책 상세에서 찜하는 것으로 추천 서가를 채운다.
+    return (
+      db
+        .prepare(
+          `SELECT w.book_id as id
+           FROM wishlists w JOIN users u ON u.id = w.user_id
+           WHERE u.role = 'admin'
+           ORDER BY w.id DESC
+           LIMIT ?`
+        )
+        .all(SECTION_BOOK_LIMIT) as { id: number }[]
+    ).map((r) => r.id)
+  }
+
   if (section.sectionKey.startsWith(CATEGORY_PREFIX)) {
     const category = section.sectionKey.slice(CATEGORY_PREFIX.length)
     return (
@@ -99,12 +115,17 @@ function idsForSection(section: HomeSection): number[] {
 export const homeService = {
   /** 노출 섹션을 sort_order순으로, 각각 책 최대 6권과 함께 반환한다(홈 화면 '전체' 카테고리용). */
   getHomeSections(): { key: string; title: string; books: BookWithMeta[] }[] {
-    return homeSectionRepo.listEnabled().map((section) => {
-      const books = idsForSection(section)
-        .map((id) => bookRepo.findById(id))
-        .filter((b): b is Book => Boolean(b))
-        .map(withMeta)
-      return { key: section.sectionKey, title: section.title, books }
-    })
+    return homeSectionRepo
+      .listEnabled()
+      .map((section) => {
+        const books = idsForSection(section)
+          .map((id) => bookRepo.findById(id))
+          .filter((b): b is Book => Boolean(b))
+          .map(withMeta)
+        return { key: section.sectionKey, title: section.title, books }
+      })
+      // 책이 0권인 섹션은 홈에서 숨긴다(예: 아직 관리자 찜이 없는 admin-picks) — 빈 제목만
+      // 덩그러니 보이는 것보다 낫다. 관리자 편집 화면에는 그대로 나온다.
+      .filter((section) => section.books.length > 0)
   },
 }

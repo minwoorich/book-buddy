@@ -47,9 +47,11 @@ onMounted(async () => {
 })
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+let searchSeq = 0 // 응답 역전 가드 — 늦게 도착한 옛 검색 결과가 최신 목록을 덮지 않게(QA #46)
 watch(bookQuery, (q) => {
   clearTimeout(searchTimer)
   const keyword = q.trim()
+  const seq = ++searchSeq
   if (!keyword) {
     bookResults.value = []
     bookSearching.value = false
@@ -59,11 +61,12 @@ watch(bookQuery, (q) => {
   searchTimer = setTimeout(async () => {
     try {
       const found = await api<Book[]>('/api/books', { query: { query: keyword } })
+      if (seq !== searchSeq) return // 그 사이 새 검색이 시작됐다 — 이 결과는 버린다
       bookResults.value = found.slice(0, 8)
     } catch {
-      bookResults.value = []
+      if (seq === searchSeq) bookResults.value = []
     } finally {
-      bookSearching.value = false
+      if (seq === searchSeq) bookSearching.value = false
     }
   }, 250)
 })
@@ -102,6 +105,16 @@ function handleFileChange(e: Event) {
   if (files.length > room) alert('사진은 최대 5장까지예요')
 
   for (const file of files.slice(0, room)) {
+    // 업로드가 조용히 실패하는 흔한 원인 두 가지를 선택 시점에 잡아준다(QA #42):
+    // 지원하지 않는 형식(아이폰 HEIC 등)과 과대 용량.
+    if (!/^image\/(jpe?g|png|webp|gif)$/i.test(file.type)) {
+      alert(`"${file.name}"은(는) 지원하지 않는 형식이에요. jpg·png·webp·gif만 올릴 수 있어요.`)
+      continue
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert(`"${file.name}"이(가) 너무 커요(8MB 초과). 스크린샷이나 압축본으로 올려주세요.`)
+      continue
+    }
     images.value.push({ file, url: URL.createObjectURL(file) })
   }
 }

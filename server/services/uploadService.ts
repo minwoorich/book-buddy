@@ -10,6 +10,7 @@ const EXT_BY_MIME: Record<string, string> = {
   'image/jpg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
+  'image/gif': 'gif',
 }
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
@@ -17,12 +18,13 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
+  gif: 'image/gif',
 }
 
-const ALLOWED_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp'])
+const ALLOWED_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif'])
 
-/** `/^[a-z0-9-]+\.(jpg|jpeg|png|webp)$/i`만 허용 — 경로 탈출(`../`) 방지 겸 저장 파일명 검증. */
-const NAME_RE = /^[a-z0-9-]+\.(jpg|jpeg|png|webp)$/i
+/** 허용 확장자 파일명만 통과 — 경로 탈출(`../`) 방지 겸 저장 파일명 검증. */
+const NAME_RE = /^[a-z0-9-]+\.(jpg|jpeg|png|webp|gif)$/i
 
 function extFromFilename(filename?: string): string | undefined {
   const match = filename?.match(/\.([a-zA-Z0-9]+)$/)

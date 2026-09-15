@@ -9,7 +9,7 @@ type BookDetail = Book & {
   avgRating: number | null
   reviewCount: number
   wishCount: number
-  myState?: { myActiveLoanId: number | null; wished: boolean }
+  myState?: { myActiveLoanId: number | null; wished: boolean; reservedByMe?: boolean }
 }
 
 const route = useRoute()
@@ -42,13 +42,15 @@ const isReservedForOther = computed(() => {
   return reservedFor !== user.value?.id
 })
 
-type LoanAction = 'borrow' | 'reserved-wait' | 'return' | 'reserve'
+type LoanAction = 'borrow' | 'reserved-wait' | 'return' | 'reserve' | 'reserved-by-me'
 
 const loanAction = computed<LoanAction>(() => {
   if (myLoanId.value !== null) return 'return'
   if (book.value?.status === 'available') {
+    // 반납된 책이 내 예약 차례면 reservedByMe여도 바로 대출 버튼을 보여준다.
     return isReservedForOther.value ? 'reserved-wait' : 'borrow'
   }
+  if (book.value?.myState?.reservedByMe) return 'reserved-by-me'
   return 'reserve'
 })
 
@@ -228,6 +230,10 @@ function askAi() {
             :disabled="loanBusy"
             @click="returnLoan"
           >반납하기</button>
+          <template v-else-if="loanAction === 'reserved-by-me'">
+            <button type="button" class="btn" disabled>예약 중</button>
+            <p class="reserved-hint">반납되면 알려드려요 — 예약 취소는 <NuxtLink to="/my">내 서재</NuxtLink>에서</p>
+          </template>
           <button v-else type="button" class="btn" :disabled="loanBusy" @click="reserve">예약하기</button>
 
           <button type="button" class="btn" :disabled="wishBusy" @click="toggleWish">

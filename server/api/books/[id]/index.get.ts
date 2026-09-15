@@ -1,5 +1,6 @@
 import { bookRepo } from '../../../repositories/bookRepo'
 import { loanRepo } from '../../../repositories/loanRepo'
+import { reservationRepo } from '../../../repositories/reservationRepo'
 import { reviewRepo } from '../../../repositories/reviewRepo'
 import { wishlistRepo } from '../../../repositories/wishlistRepo'
 import { loanService } from '../../../services/loanService'
@@ -20,6 +21,8 @@ export default defineEventHandler(
     const activeLoan = loanRepo.activeByBook(id)
     const myActiveLoanId = me && activeLoan && activeLoan.userId === me.id ? activeLoan.id : null
     const wished = me ? wishlistRepo.existsByUserAndBook(me.id, id) : false
+    // 내가 이 책을 예약 대기 중인지 — 상세 화면에서 "예약하기" 대신 "예약 중"을 보여준다(QA #38).
+    const reservedByMe = me ? reservationRepo.waitingByUser(me.id).some((r) => r.bookId === id) : false
 
     return {
       ...book,
@@ -27,7 +30,7 @@ export default defineEventHandler(
       avgRating: avg,
       reviewCount: count,
       wishCount,
-      ...(me ? { myState: { myActiveLoanId, wished } } : {}),
+      ...(me ? { myState: { myActiveLoanId, wished, reservedByMe } } : {}),
     }
   })
 )

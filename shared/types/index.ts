@@ -165,11 +165,11 @@ export interface Report {
   createdAt: string
 }
 
-export interface ChatAction {
-  type: 'navigate'
-  label: string
-  to: string
-}
+export type ChatAction =
+  /** 페이지로 이동하는 버튼. to는 서버 화이트리스트 검증을 거친다. */
+  | { type: 'navigate'; label: string; to: string }
+  /** 클릭하면 send 텍스트를 사용자 메시지로 바로 전송하는 빠른 답장 버튼(예: 실행 확인 네/아니오). */
+  | { type: 'reply'; label: string; send: string }
 
 export interface AiAnswer {
   message: string

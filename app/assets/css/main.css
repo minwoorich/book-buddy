@@ -12,8 +12,8 @@
   --bg: #F8F4ED;
   --card: #FFFDF9;
   --card-2: #FBF8F1;
-  --shelf-a: #E6DCCA;
-  --shelf-b: #D2C5AC;
+  --shelf-a: #C9A87E;
+  --shelf-b: #9F7B52;
   --gold: #C9A227;
   --ok: #47703C;
   --ok-tint: #EDF3E7;
@@ -90,7 +90,15 @@ a:hover { color: var(--red-dark); }
 .cv.hover:hover { transform: translateY(-6px); }
 
 /* ── 서가 (선반) ───────────────────────── */
-.shelf { height: 13px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; box-shadow: 0 10px 16px -7px rgba(84,70,45,.4); }
+/* 나무 책장 느낌(QA #39): 우드 톤 그라디언트 + 은은한 나뭇결 줄무늬. */
+.shelf {
+  height: 15px; border-radius: 2px;
+  background:
+    repeating-linear-gradient(90deg, rgba(120,84,48,.12) 0 3px, transparent 3px 26px),
+    linear-gradient(180deg, var(--shelf-a), var(--shelf-b));
+  border-bottom: 2px solid #7E5C3A;
+  box-shadow: 0 10px 16px -7px rgba(84,70,45,.45);
+}
 .shelf-grid { display: grid; gap: 22px; align-items: end; }
 
 /* ── 별점 ──────────────────────────────── */

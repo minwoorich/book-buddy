@@ -50,6 +50,6 @@ const rows = computed(() => {
 .shelf { margin: 0 -14px; }
 .meta-row { display: grid; gap: 22px; }
 .meta { text-align: center; padding-top: 16px; }
-.meta .t { font-size: 13.5px; font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.meta .a { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+.meta .t { font-size: 14.5px; font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta .a { font-size: 13px; color: var(--sub); margin-bottom: 4px; }
 </style>

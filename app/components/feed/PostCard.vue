@@ -113,6 +113,7 @@ async function submitComment() {
     await api(`/api/posts/${props.post.id}/comments`, { method: 'POST', body: { content: trimmed } })
     newComment.value = ''
     await loadComments()
+    commentsOpen.value = true // 방금 단 댓글이 바로 보이도록 펼친다
     emit('changed')
   } catch (e) {
     alert(apiErrorMessage(e))
@@ -124,6 +125,17 @@ async function submitComment() {
 
 <template>
   <div class="post">
+    <div class="who">
+      <span class="avatar">{{ post.userName.charAt(0) }}</span>
+      <div class="who-txt">
+        <b>{{ post.userName }}</b>
+        <span>{{ post.department }} · {{ timeLabel }}</span>
+      </div>
+      <NuxtLink v-if="post.book" class="booktag" :to="`/books/${post.book.id}`">
+        <BookCoverImage :src="post.book.coverUrl" :alt="post.book.title" />
+        <span class="booktag-t">{{ post.book.title }}</span>
+      </NuxtLink>
+    </div>
     <div class="photo">
       <img :src="photos[activeIndex]" :alt="post.caption ?? post.book?.title ?? '게시물 사진'">
       <template v-if="photos.length > 1">
@@ -142,37 +154,48 @@ async function submitComment() {
       </template>
     </div>
     <div class="body">
-      <div class="who">
-        <span class="avatar">{{ post.userName.charAt(0) }}</span>
-        <div><b>{{ post.userName }}</b><span>{{ post.department }} · {{ timeLabel }}</span></div>
-      </div>
-      <div v-if="post.caption" class="cap">{{ post.caption }}</div>
-      <NuxtLink v-if="post.book" class="booktag" :to="`/books/${post.book.id}`">
-        <BookCoverImage :src="post.book.coverUrl" :alt="post.book.title" />
-        {{ post.book.title }}
-      </NuxtLink>
       <div class="acts">
-        <span class="like" :class="{ on: post.likedByMe }" @click="toggleLike">
-          <svg width="15" height="15" viewBox="0 0 24 24" :fill="post.likedByMe ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M12 21C7 16.5 3 13.3 3 9.2 3 6.4 5.2 4 8 4c1.6 0 3.1.8 4 2 0.9-1.2 2.4-2 4-2 2.8 0 5 2.4 5 5.2 0 4.1-4 7.3-9 11.8z" /></svg>
-          {{ post.likeCount }}
-        </span>
-        <span class="cmt-toggle" @click="toggleComments">댓글 {{ post.commentCount }}</span>
+        <button type="button" class="act-btn" :class="{ on: post.likedByMe }" aria-label="좋아요" @click="toggleLike">
+          <svg width="22" height="22" viewBox="0 0 24 24" :fill="post.likedByMe ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8"><path d="M12 21C7 16.5 3 13.3 3 9.2 3 6.4 5.2 4 8 4c1.6 0 3.1.8 4 2 0.9-1.2 2.4-2 4-2 2.8 0 5 2.4 5 5.2 0 4.1-4 7.3-9 11.8z" /></svg>
+        </button>
+        <button type="button" class="act-btn" aria-label="댓글" @click="toggleComments">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5c0 4.1-4 7.5-9 7.5-1 0-2-.13-2.9-.38L4 20l1.2-3.6C3.8 15.1 3 13.4 3 11.5 3 7.4 7 4 12 4s9 3.4 9 7.5z" /></svg>
+        </button>
       </div>
+      <div v-if="post.likeCount" class="likes">좋아요 {{ post.likeCount }}개</div>
+      <div v-if="post.caption" class="cap"><b>{{ post.userName }}</b> {{ post.caption }}</div>
+      <button v-if="!commentsOpen && post.commentCount" type="button" class="cmt-toggle" @click="toggleComments">
+        댓글 {{ post.commentCount }}개 모두 보기
+      </button>
       <div v-if="commentsOpen" class="comments">
         <p v-if="commentsLoading" class="hint">불러오는 중…</p>
         <p v-else-if="!comments.length" class="hint">아직 댓글이 없어요.</p>
         <div v-for="c in comments" :key="c.id" class="cmt"><b>{{ c.userName }}</b>{{ c.content }}</div>
-        <div class="cmt-form">
-          <input v-model="newComment" class="input" placeholder="댓글 달기..." @keyup.enter="submitComment">
-          <button type="button" class="btn sm" :disabled="commentSubmitting" @click="submitComment">등록</button>
-        </div>
+      </div>
+      <div class="cmt-form">
+        <input v-model="newComment" placeholder="댓글 달기..." @keyup.enter="submitComment">
+        <button
+          type="button"
+          class="post-btn"
+          :disabled="commentSubmitting || !newComment.trim()"
+          @click="submitComment"
+        >게시</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.post { background: var(--card); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; box-shadow: 0 2px 10px rgba(84, 70, 45, .06); }
+/* 인스타 무드(QA #40): 헤더 → 사진 → 아이콘 액션 → 좋아요 → 캡션 → 댓글, 여백 넉넉히. */
+.post { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(84, 70, 45, .06); }
+
+.who { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.who-txt b { font-size: 13.5px; display: block; }
+.who-txt span { font-size: 11.5px; color: var(--sub); }
+.booktag { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: var(--card-2); border-radius: 999px; padding: 3px 11px 3px 3px; font-size: 11.5px; font-weight: 600; color: var(--ink); text-decoration: none; max-width: 45%; }
+.booktag-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.booktag :deep(.cv) { width: 18px; height: 26px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px rgba(60, 48, 28, .25); flex-shrink: 0; }
+
 .post .photo { aspect-ratio: 4 / 3; background: #EDE7DA; position: relative; overflow: hidden; }
 .post .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .post .photo .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0, 0, 0, .4); color: #fff; font-size: 17px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -184,22 +207,23 @@ async function submitComment() {
 .post .photo .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, .55); }
 .post .photo .dot.on { background: var(--red); }
 .post .photo .counter { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.post .body { padding: 14px 16px 16px; }
-.post .who { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
-.post .who b { font-size: 13.5px; display: block; }
-.post .who span { font-size: 11.5px; color: var(--sub); }
-.post .cap { font-size: 14px; line-height: 1.65; color: #3E382D; margin-bottom: 12px; }
-.booktag { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card-2); border-radius: 999px; padding: 4px 12px 4px 4px; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 12px; text-decoration: none; }
-.booktag :deep(.cv) { width: 20px; height: 28px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px rgba(60, 48, 28, .25); }
-.acts { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--sub); border-top: 1px solid var(--line); padding-top: 12px; }
-.acts .like { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-.acts .like.on { color: var(--red); font-weight: 700; }
-.acts .cmt-toggle { cursor: pointer; }
-.acts .cmt-toggle:hover { color: var(--ink); }
-.comments { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.comments .hint { color: var(--sub); font-size: 12.5px; }
-.cmt { font-size: 13px; line-height: 1.5; }
+.post .body { padding: 10px 14px 6px; }
+.acts { display: flex; align-items: center; gap: 4px; margin: 0 -6px 2px; }
+.act-btn { border: 0; background: none; padding: 6px; cursor: pointer; color: var(--ink); display: flex; }
+.act-btn:hover { opacity: .6; }
+.act-btn.on { color: var(--red); }
+.likes { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
+.post .cap { font-size: 14px; line-height: 1.6; color: #3E382D; margin-bottom: 6px; }
+.post .cap b { margin-right: 5px; }
+.cmt-toggle { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--sub); cursor: pointer; margin-bottom: 6px; display: block; }
+.cmt-toggle:hover { color: var(--ink); }
+.comments { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
+.comments .hint { color: var(--sub); font-size: 12.5px; margin: 0; }
+.cmt { font-size: 13.5px; line-height: 1.55; }
 .cmt b { margin-right: 6px; }
-.cmt-form { display: flex; gap: 8px; margin-top: 4px; }
-.cmt-form .input { padding: 7px 12px; font-size: 13px; }
+/* 인풋·버튼을 한 줄로 — 버튼이 좁아져 글자가 세로로 깨지지 않게 nowrap + shrink 금지(QA #44). */
+.cmt-form { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); margin: 4px -14px 0; padding: 9px 14px; }
+.cmt-form input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--ink); }
+.post-btn { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--red); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.post-btn:disabled { opacity: .4; cursor: default; }
 </style>

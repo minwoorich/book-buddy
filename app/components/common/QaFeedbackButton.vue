@@ -38,10 +38,7 @@ function revokePreviews() {
   previews.value = []
 }
 
-function onPickFiles(e: Event) {
-  const input = e.target as HTMLInputElement
-  const picked = [...(input.files ?? [])].filter((f) => f.type.startsWith('image/'))
-  input.value = '' // 같은 파일을 다시 골라도 change가 뜨도록 리셋
+function addFiles(picked: File[]) {
   for (const f of picked) {
     if (files.value.length >= MAX_IMAGES) {
       alert(`스크린샷은 최대 ${MAX_IMAGES}장까지 첨부할 수 있어요`)
@@ -50,6 +47,21 @@ function onPickFiles(e: Event) {
     files.value.push(f)
     previews.value.push(URL.createObjectURL(f))
   }
+}
+
+function onPickFiles(e: Event) {
+  const input = e.target as HTMLInputElement
+  const picked = [...(input.files ?? [])].filter((f) => f.type.startsWith('image/'))
+  input.value = '' // 같은 파일을 다시 골라도 change가 뜨도록 리셋
+  addFiles(picked)
+}
+
+/** 캡처 후 Ctrl+V로 바로 붙여넣을 수 있게(QA #36) 패널 어디서든 클립보드 이미지를 받는다. */
+function onPaste(e: ClipboardEvent) {
+  const pasted = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'))
+  if (pasted.length === 0) return
+  e.preventDefault()
+  addFiles(pasted)
 }
 
 function removeFile(i: number) {
@@ -104,7 +116,7 @@ onBeforeUnmount(revokePreviews)
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="6"></circle><path d="M9 8l-2-3M15 8l2-3M4 13H1M23 13h-3M5 18l-2 2M19 18l2 2"></path></svg>
       QA
     </button>
-    <div v-else class="qa-panel">
+    <div v-else class="qa-panel" @paste="onPaste">
       <div class="qa-head">
         <b>QA 피드백</b>
         <span class="qa-path">{{ route.fullPath }}</span>
@@ -161,7 +173,7 @@ onBeforeUnmount(revokePreviews)
         </div>
 
         <div class="field">
-          <label>스크린샷 <span class="opt">최대 {{ MAX_IMAGES }}장 · 해결되면 자동 삭제</span></label>
+          <label>스크린샷 <span class="opt">최대 {{ MAX_IMAGES }}장 · Ctrl+V 붙여넣기 가능 · 해결되면 자동 삭제</span></label>
           <div class="shots">
             <div v-for="(src, i) in previews" :key="src" class="shot">
               <img :src="src" alt="첨부 스크린샷 미리보기" />
