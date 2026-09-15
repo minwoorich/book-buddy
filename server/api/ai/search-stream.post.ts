@@ -4,7 +4,7 @@ import { aiSettingsRepo } from '../../repositories/aiSettingsRepo'
 import { aiUsageRepo } from '../../repositories/aiUsageRepo'
 import { bookRepo } from '../../repositories/bookRepo'
 import { requireUser } from '../../utils/api'
-import { ApiError } from '../../utils/errors'
+import { ApiError, toHttpError } from '../../utils/errors'
 import type { AiSearchStreamEvent, Book, User } from '../../../shared/types'
 
 /**
@@ -38,7 +38,8 @@ export default defineEventHandler(async (event) => {
     kakaoRestKey = config.kakaoRestKey
     if (!anthropicApiKey) throw new ApiError(503, 'AI를 사용할 수 없어요')
   } catch (e) {
-    if (e instanceof ApiError) throw createError({ statusCode: e.statusCode, message: e.message })
+    const mapped = toHttpError(e)
+    if (mapped) throw createError({ ...mapped, cause: e })
     throw e
   }
 

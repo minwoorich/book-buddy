@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { userRepo } from '../repositories/userRepo'
-import { ApiError } from './errors'
+import { ApiError, toHttpError } from './errors'
 import type { User } from '../../shared/types'
 
 /** `x-user-id` 헤더로 로그인 사용자를 조회한다. 헤더가 없거나 존재하지 않는 유저면 undefined. */
@@ -40,16 +40,16 @@ export function parseQueryUserId(value: unknown): number | undefined {
 
 /**
  * API 핸들러 래퍼. ApiError를 h3의 createError로 변환해 statusCode/message가
- * 응답에 그대로 실리게 한다. ApiError가 아닌 예외는 그대로 다시 던진다.
+ * 응답에 그대로 실리게 한다. 외부 SDK 에러는 502로 감싸고(toHttpError 참고),
+ * 그 외 예외는 그대로 다시 던진다.
  */
 export function handleApi<T>(fn: (event: H3Event) => T | Promise<T>) {
   return async (event: H3Event): Promise<T> => {
     try {
       return await fn(event)
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw createError({ statusCode: err.statusCode, message: err.message })
-      }
+      const mapped = toHttpError(err)
+      if (mapped) throw createError({ ...mapped, cause: err })
       throw err
     }
   }
