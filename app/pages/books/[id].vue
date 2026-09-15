@@ -62,6 +62,21 @@ const descriptionLabel = computed(() => {
   return /[.!?"'」』)\]…]$/.test(raw) ? raw : `${raw}…`
 })
 
+// 긴 설명은 접어두고 "더보기"로 펼친다(QA #49). 문장 경계에서 잘라 자연스럽게 접는다.
+const DESC_COLLAPSE_LIMIT = 200
+const descExpanded = ref(false)
+watch(bookId, () => {
+  descExpanded.value = false
+})
+const descIsLong = computed(() => descriptionLabel.value.length > DESC_COLLAPSE_LIMIT + 40)
+const descCollapsed = computed(() => {
+  const full = descriptionLabel.value
+  if (!descIsLong.value) return full
+  const head = full.slice(0, DESC_COLLAPSE_LIMIT)
+  const lastBreak = Math.max(head.lastIndexOf('. '), head.lastIndexOf('다.'), head.lastIndexOf(' '))
+  return `${head.slice(0, lastBreak > 80 ? lastBreak + 1 : DESC_COLLAPSE_LIMIT).trimEnd()}…`
+})
+
 const pubDateLabel = computed(() => {
   const raw = book.value?.pubDate
   if (!raw) return null
@@ -265,7 +280,12 @@ function askAi() {
             </template>
             <span v-else style="font-size:13px; color:var(--sub);">아직 리뷰가 없어요</span>
           </div>
-          <p v-if="descriptionLabel" class="desc">{{ descriptionLabel }}</p>
+          <p v-if="descriptionLabel" class="desc">
+            {{ descExpanded ? descriptionLabel : descCollapsed }}
+            <button v-if="descIsLong" type="button" class="desc-more" @click="descExpanded = !descExpanded">
+              {{ descExpanded ? '접기' : '더보기' }}
+            </button>
+          </p>
 
           <div class="panel accent ai-mini">
             <i>책벗 · AI</i>
@@ -329,6 +349,8 @@ function askAi() {
 .rating b { font-size: 20px; }
 .rating :deep(.star-rating) svg { width: 16px; height: 16px; }
 .desc { font-size: 15px; line-height: 1.8; color: #464034; margin: 0 0 24px; }
+.desc-more { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--sub); cursor: pointer; text-decoration: underline; }
+.desc-more:hover { color: var(--red); }
 .ai-mini { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; }
 .ai-mini i { flex: 1; font-style: normal; font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; }
 .ai-mini .btn { white-space: nowrap; }

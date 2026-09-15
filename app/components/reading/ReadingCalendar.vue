@@ -39,6 +39,26 @@ const today = new Date()
 function isToday(d: Date): boolean {
   return sameLocalDate(d, today)
 }
+
+// 한 날짜에 완독이 여러 권이면 ‹ › 로 표지를 넘겨본다(QA #47). 키 = 셀 인덱스.
+const coverIndex = ref<Record<number, number>>({})
+watch(
+  () => [props.year, props.month, props.loans] as const,
+  () => {
+    coverIndex.value = {}
+  }
+)
+
+function activeLoanOf(cellIdx: number, dayLoans: LoanWithBook[]): LoanWithBook {
+  const i = coverIndex.value[cellIdx] ?? 0
+  return dayLoans[Math.min(i, dayLoans.length - 1)]!
+}
+
+function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
+  const current = coverIndex.value[cellIdx] ?? 0
+  const next = (current + delta + dayLoans.length) % dayLoans.length
+  coverIndex.value = { ...coverIndex.value, [cellIdx]: next }
+}
 </script>
 
 <template>
@@ -56,10 +76,18 @@ function isToday(d: Date): boolean {
         <span class="n">{{ cell.date.getDate() }}</span>
         <template v-if="cell.dayLoans.length">
           <span class="done">완독</span>
-          <NuxtLink class="cv-link" :to="`/books/${cell.dayLoans[0]!.book.id}`">
-            <BookCoverImage class="hover" :src="cell.dayLoans[0]!.book.coverUrl" :alt="cell.dayLoans[0]!.book.title" />
+          <NuxtLink class="cv-link" :to="`/books/${activeLoanOf(i, cell.dayLoans).book.id}`">
+            <BookCoverImage
+              class="hover"
+              :src="activeLoanOf(i, cell.dayLoans).book.coverUrl"
+              :alt="activeLoanOf(i, cell.dayLoans).book.title"
+            />
           </NuxtLink>
-          <span v-if="cell.dayLoans.length > 1" class="more">+{{ cell.dayLoans.length - 1 }}</span>
+          <template v-if="cell.dayLoans.length > 1">
+            <button type="button" class="cv-nav prev" aria-label="이전 완독 책" @click.stop="shiftCover(i, cell.dayLoans, -1)">‹</button>
+            <button type="button" class="cv-nav next" aria-label="다음 완독 책" @click.stop="shiftCover(i, cell.dayLoans, 1)">›</button>
+            <span class="more">{{ (coverIndex[i] ?? 0) + 1 }}/{{ cell.dayLoans.length }}</span>
+          </template>
         </template>
       </div>
     </div>
@@ -86,6 +114,15 @@ function isToday(d: Date): boolean {
 .day :deep(.cv) { width: 58px; height: 84px; margin: 7px auto 0; display: block; }
 .day .done { position: absolute; top: 7px; right: 7px; font-size: 10px; color: var(--ok); font-weight: 700; }
 .day .more { position: absolute; bottom: 6px; right: 7px; font-size: 10px; font-weight: 700; color: var(--sub); background: #EDE7DA; border-radius: 8px; padding: 1px 5px; line-height: 1; }
+.day .cv-nav {
+  position: absolute; top: 58%; transform: translateY(-50%);
+  width: 18px; height: 18px; border-radius: 50%; border: none;
+  background: rgba(0, 0, 0, .45); color: #fff; font-size: 12px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.day .cv-nav:hover { background: rgba(0, 0, 0, .65); }
+.day .cv-nav.prev { left: 4px; }
+.day .cv-nav.next { right: 4px; }
 .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12.5px; color: var(--sub); align-items: center; }
 .legend .k { display: inline-block; width: 12px; height: 17px; border-radius: 1px 3px 3px 1px; background: #33465C; box-shadow: 1px 2px 4px rgba(60,48,28,.3); margin-right: 6px; vertical-align: -3px; }
 </style>

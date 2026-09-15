@@ -196,8 +196,10 @@ async function submitComment() {
 .booktag-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .booktag :deep(.cv) { width: 18px; height: 26px; border-radius: 1px 3px 3px 1px; box-shadow: 1px 2px 4px rgba(60, 48, 28, .25); flex-shrink: 0; }
 
-.post .photo { aspect-ratio: 4 / 3; background: #EDE7DA; position: relative; overflow: hidden; }
-.post .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 사진 비율을 고정하지 않는다(QA #48) — 가로/세로/정방형 모두 원본 비율대로, 세로가
+   너무 긴 사진만 640px에서 잘라낸다. */
+.post .photo { background: #EDE7DA; position: relative; overflow: hidden; }
+.post .photo img { width: 100%; height: auto; max-height: 640px; object-fit: cover; display: block; }
 .post .photo .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0, 0, 0, .4); color: #fff; font-size: 17px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .post .photo .nav:hover:not(:disabled) { background: rgba(0, 0, 0, .6); }
 .post .photo .nav:disabled { opacity: .3; cursor: default; }
@@ -213,7 +215,7 @@ async function submitComment() {
 .act-btn:hover { opacity: .6; }
 .act-btn.on { color: var(--red); }
 .likes { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
-.post .cap { font-size: 14px; line-height: 1.6; color: #3E382D; margin-bottom: 6px; }
+.post .cap { font-size: 15px; line-height: 1.65; color: #3E382D; margin-bottom: 6px; }
 .post .cap b { margin-right: 5px; }
 .cmt-toggle { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--sub); cursor: pointer; margin-bottom: 6px; display: block; }
 .cmt-toggle:hover { color: var(--ink); }

@@ -20,7 +20,7 @@ const activeKey = computed(() => props.active)
         <div class="logo-mark">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M3 5c3-1.5 6-1.5 9 0 3-1.5 6-1.5 9 0v14c-3-1.5-6-1.5-9 0-3-1.5-6-1.5-9 0V5z"></path><line x1="12" y1="5" x2="12" y2="19"></line></svg>
         </div>
-        <div><b>Book Buddy</b><span>ADMIN CONSOLE</span></div>
+        <div><b>道서관</b><span>ADMIN CONSOLE</span></div>
       </NuxtLink>
       <div class="nav-links">
         <NuxtLink
