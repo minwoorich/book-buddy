@@ -43,3 +43,9 @@
 - 증상: `/places`에서 실지도 대신 예시 지도, 콘솔 `[KakaoMap] SDK 로드 실패`.
 - 원인: `dapi.kakao.com/v2/maps/sdk.js`는 Referer 도메인이 카카오 앱의 Web 플랫폼에 등록돼 있어야 200을 준다. 컨테이너에서 확인한 결과 `https://www.vnlibrary.com`·`https://vnlibrary.com` Referer는 401 `domain mismatched`, `book-buddy-production-27b4.up.railway.app`·`localhost:3000`은 200. 즉 도메인을 vnlibrary.com으로 옮긴 뒤 카카오 콘솔에 새 도메인을 등록하지 않았다.
 - 조치: developers.kakao.com → 앱 → 플랫폼 → Web → 사이트 도메인에 `https://www.vnlibrary.com`과 `https://vnlibrary.com` 추가. 코드 변경 불필요(키·public-config는 정상).
+
+## 카카오 로컬 검색 — 리뷰 없음 (2026-09-16 확인)
+
+- `GET https://dapi.kakao.com/v2/local/search/keyword.json` 응답 documents 필드: `id, place_name, category_name, category_group_code, category_group_name, phone, address_name, road_address_name, x, y, place_url, distance`. **평점·리뷰 없음.** 지도 JS SDK에도 리뷰 API 없음.
+- `place_url`(`http://place.map.kakao.com/{id}`)이 카카오 리뷰가 있는 상세 페이지 — 아웃링크로만 쓴다. iframe은 현재 프레임 차단 헤더가 없어 뜰 수는 있으나 비공식이라 쓰지 않음.
+- `id`는 장소 후기(`place_reviews.kakao_place_id`)의 안정 키로 사용.
