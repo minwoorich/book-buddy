@@ -1,3 +1,5 @@
+import type { PlaceTagCode } from '../constants/placeTags'
+
 export interface User {
   id: number
   name: string
@@ -230,6 +232,36 @@ export interface Place {
   lng: number
   /** 검색 기준 좌표(내 위치)로부터의 거리(미터). 좌표 기반 검색일 때만 채워진다. */
   distanceM?: number
+  /** 카카오 장소 id — 장소 후기의 안정 키. 폴백 예시 장소에는 없다. */
+  kakaoId?: string
+  /** 카카오맵 장소 상세 페이지(place.map.kakao.com/{id}). */
+  placeUrl?: string
+}
+
+/** 장소 후기 1건(태그 칩 + 선택적 한 줄). 1인 1후기. */
+export interface PlaceReview {
+  id: number
+  kakaoPlaceId: string
+  placeName: string
+  userId: number
+  userName: string
+  department: string
+  tags: PlaceTagCode[]
+  comment: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** 장소 카드에 보여줄 후기 요약. 목록 화면이 장소 id 묶음으로 한 번에 받는다. */
+export interface PlaceReviewSummary {
+  kakaoPlaceId: string
+  total: number
+  /** 태그별 개수. 0인 태그는 키 자체가 없다. */
+  tagCounts: Partial<Record<PlaceTagCode, number>>
+  /** comment가 비어 있지 않은 최근 2건. */
+  recent: Pick<PlaceReview, 'id' | 'userName' | 'department' | 'comment' | 'createdAt'>[]
+  /** 요청한 사용자의 후기. 없으면 null. */
+  mine: Pick<PlaceReview, 'tags' | 'comment'> | null
 }
 
 /** 공지사항(QA #55). 관리자만 작성·수정·삭제할 수 있고, pinned는 목록 상단 고정. */
