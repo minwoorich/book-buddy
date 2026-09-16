@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection'
-import type { Book, Loan, Review, User } from '../../shared/types'
+import type { Book, Loan, PublicReader, ReaderProfile, Review, User } from '../../shared/types'
 import { loanRepo } from './loanRepo'
 
 /** 관리자 회원 목록 한 줄 — 사람별 대출·반납·리뷰 집계. */
@@ -94,6 +94,33 @@ export const memberRepo = {
   /** 한 사람의 대출 이력 전체(책 포함, 최근 대출순). */
   loansOf(userId: number): (Loan & { book: Book })[] {
     return loanRepo.findWithBook({ userId })
+  },
+
+  /**
+   * 랭킹에서 여는 다른 사람의 독서 프로필 — 완독한 책과 남긴 리뷰.
+   * 전 직원이 보는 화면이라 신원은 이름·소속까지만 내려준다(성별·출생연도·권한·게스트 여부 제외).
+   * 읽는 중인 책은 아직 "읽은 책"이 아니라서 제외한다.
+   */
+  readerProfileOf(userId: number): ReaderProfile | null {
+    const row = getDb()
+      .prepare(`SELECT id, name, company, department, team, position FROM users WHERE id = ?`)
+      .get(userId) as PublicReader | undefined
+    if (!row) return null
+
+    // findWithBook은 대출 시각순이라, 완독 목록은 "최근에 다 읽은 순"으로 다시 세운다.
+    const books = loanRepo
+      .findWithBook({ userId, returned: true })
+      .map((loan) => ({ ...loan.book, returnedAt: loan.returnedAt as string }))
+      .sort((a, b) => b.returnedAt.localeCompare(a.returnedAt))
+    const reviews = memberRepo.reviewsOf(userId)
+
+    return {
+      user: row,
+      doneCount: books.length,
+      reviewCount: reviews.length,
+      books,
+      reviews,
+    }
   },
 
   /** 한 사람이 남긴 리뷰(최근순). */

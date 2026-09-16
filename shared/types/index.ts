@@ -225,6 +225,36 @@ export interface RankSnapshot {
   nextUpdateAt: string
 }
 
+/** 랭킹에서 다른 사람을 눌렀을 때 보여줄 최소 신원 — 전 직원이 보는 화면이라 소속까지만. */
+export interface PublicReader {
+  id: number
+  name: string
+  company: string
+  department: string
+  team: string
+  position: string
+}
+
+/** 프로필의 완독 책 한 줄 — 책 정보 + 그 사람이 반납한 시각. */
+export interface ReaderBook extends Book {
+  returnedAt: string
+}
+
+/** 프로필의 리뷰 한 줄 — 어떤 책에 남긴 리뷰인지 함께. */
+export interface ReaderReview extends Review {
+  bookTitle: string
+  bookCoverUrl: string | null
+}
+
+/** GET /api/users/[id]/profile 응답 — 완독한 책과 남긴 리뷰. */
+export interface ReaderProfile {
+  user: PublicReader
+  doneCount: number
+  reviewCount: number
+  books: ReaderBook[]
+  reviews: ReaderReview[]
+}
+
 export interface StatRow {
   label: string
   loanCount: number

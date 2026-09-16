@@ -92,6 +92,18 @@ function barWidth(row: RankRow): number {
 function isMine(row: RankRow): boolean {
   return by.value === 'user' && !!user.value && row.userId === user.value.id
 }
+
+// 개인 랭킹 줄을 누르면 그 사람이 완독한 책과 남긴 리뷰를 모달로 본다.
+// 팀·부서·계열사 집계 줄에는 userId가 없어 누를 수 없다.
+const pickedUserId = ref<number | null>(null)
+
+function canPick(row: RankRow): boolean {
+  return row.userId !== undefined
+}
+
+function pick(row: RankRow): void {
+  if (row.userId !== undefined) pickedUserId.value = row.userId
+}
 </script>
 
 <template>
@@ -131,14 +143,19 @@ function isMine(row: RankRow): boolean {
       </div>
 
       <template v-if="(rows ?? []).length">
-        <ReadingRankPodium :top3="top3" />
+        <ReadingRankPodium :top3="top3" @pick="pick" />
 
         <div v-if="rest.length" class="panel" style="padding: 6px 6px;">
           <div
             v-for="(row, idx) in rest"
             :key="row.key"
             class="rank-row"
-            :class="{ mine: isMine(row) }"
+            :class="{ mine: isMine(row), pickable: canPick(row) }"
+            :role="canPick(row) ? 'button' : undefined"
+            :tabindex="canPick(row) ? 0 : undefined"
+            @click="pick(row)"
+            @keydown.enter.prevent="pick(row)"
+            @keydown.space.prevent="pick(row)"
           >
             <span class="no">{{ restRanks[idx] }}</span>
             <span class="avatar">{{ row.label.charAt(0) }}</span>
@@ -155,6 +172,12 @@ function isMine(row: RankRow): boolean {
         </div>
       </template>
       <p v-else class="hint">아직 완독 기록이 없어요</p>
+
+      <ReadingReaderProfileModal
+        v-if="pickedUserId !== null"
+        :user-id="pickedUserId"
+        @close="pickedUserId = null"
+      />
     </div>
   </div>
 </template>
@@ -182,6 +205,12 @@ function isMine(row: RankRow): boolean {
 .rank-row.mine { background: var(--red-tint); border-radius: 4px; border-bottom: 0; }
 .rank-row.mine .bar i { background: var(--red); }
 .rank-row.mine .no { color: var(--red); font-weight: 700; }
+
+.rank-row.pickable { cursor: pointer; }
+.rank-row.pickable:hover { background: var(--hover); }
+.rank-row.pickable:hover .who b { text-decoration: underline; }
+.rank-row.pickable:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; border-radius: 4px; }
+.rank-row.mine.pickable:hover { background: var(--red-tint); }
 
 .hint { color: var(--sub); font-size: 14px; padding: 14px 0; }
 
