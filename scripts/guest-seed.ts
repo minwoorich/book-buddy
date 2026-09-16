@@ -1,7 +1,7 @@
 /**
  * 시연용 게스트 계정 시드 (QR로 접속한 심사위원이 회원가입 없이 바로 쓰는 슬롯).
- *   npx tsx scripts/guest-seed.ts            # 게스트 1~5 생성 (이미 있으면 건너뜀)
- *   npx tsx scripts/guest-seed.ts 8          # 게스트 1~8
+ *   npx tsx scripts/guest-seed.ts            # 게스트 1~8 생성 (이미 있으면 건너뜀)
+ *   npx tsx scripts/guest-seed.ts 12         # 게스트 1~12
  *   npx tsx scripts/guest-seed.ts --remove   # 게스트 계정과 그 활동 기록 삭제 (시연 종료 후)
  * 게스트가 한 명이라도 있으면 /login 상단에 선택 카드가 뜨고, 없으면 기존 화면 그대로다.
  */
@@ -41,7 +41,7 @@ if (args.includes('--remove')) {
   process.exit(0)
 }
 
-const count = Number(args[0] ?? 5)
+const count = Number(args[0] ?? 8)
 if (!Number.isInteger(count) || count < 1 || count > 20) {
   console.error('게스트 수는 1~20 사이 정수여야 합니다')
   process.exit(1)
