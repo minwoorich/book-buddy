@@ -1,46 +1,21 @@
 <script setup lang="ts">
 import type { Book, Loan } from '#shared/types'
+import { layoutStack } from '#shared/utils/bookStack'
 
 const props = defineProps<{
   doneLoans: (Loan & { book: Book })[]
 }>()
 
-/** my.html 책등 6색 팔레트. 순환은 book.id % length로 결정적으로 정한다. */
-const PALETTE = ['#33465C', '#8A6D3B', '#7A3B47', '#4A4E58', '#37655E', '#5C4A66']
-
-function spineColor(bookId: number): string {
-  return PALETTE[bookId % PALETTE.length]
-}
-
-/**
- * 자연스러운 쌓기(QA #77 → #82): 책마다 제목이 다 보이는 폭으로 — 폭은 제목 길이에서 나오고
- * 책마다 살짝(±4px) 흔들어 손으로 쌓은 느낌만 낸다. 위로 갈수록 좁아질 필요는 없다.
- * 최대 9권까지 쌓고 넘치면 "+N권"으로 알린다.
- */
-const MAX_STACK = 9
-const MIN_WIDTH = 72
-const MAX_WIDTH = 210
-/** 책등 글자(8.5px, 굵게) 한 자 폭 근사 — 한글 기준. 영문·숫자는 조금 좁아 여유가 남는다. */
-const CHAR_PX = 8.8
-const PAD_PX = 18
-
 /** 최근 완독순(반납일 desc). 첫 원소가 받침대 바로 위. */
 const recentDone = computed(() =>
   [...props.doneLoans].sort((a, b) => (b.returnedAt ?? '').localeCompare(a.returnedAt ?? ''))
 )
-const stacked = computed(() => recentDone.value.slice(0, MAX_STACK))
-const overflowCount = computed(() => Math.max(0, recentDone.value.length - MAX_STACK))
 
-function spineWidth(title: string, bookId: number): number {
-  const fit = title.length * CHAR_PX + PAD_PX
-  const jitter = ((bookId * 7) % 9) - 4
-  return Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, fit)) + jitter)
-}
-
-/** 받침대는 가장 넓은 책보다 조금 더 넓게. */
-const baseWidth = computed(() =>
-  Math.max(130, ...stacked.value.map((l) => spineWidth(l.book.title, l.book.id))) + 16
-)
+/**
+ * 폭 계산은 shared/utils/bookStack으로 뺐다 — 탑 전체 폭(px) 하나와 책등별 비율(%)로 나뉜다.
+ * 그래야 좁은 화면에서 CSS가 `min(폭, 100%)` 한 줄로 탑을 통째로 줄일 수 있다.
+ */
+const stack = computed(() => layoutStack(recentDone.value.map((l) => l.book)))
 
 const now = new Date()
 const thisYear = now.getFullYear()
@@ -67,29 +42,45 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
       <b>올해 <i>{{ yearCount }}권</i> 완독</b>
       <span>이달 {{ monthCount }}권 · 대출-반납 기록 기준</span>
     </div>
-    <div class="bookstack">
+    <div class="bookstack" :style="{ '--stack-w': `${stack.width}px` }">
       <!-- column-reverse라 DOM 첫 요소가 맨 아래에 온다 — 받침대를 먼저 둬야 바닥에 깔린다(QA #76). -->
-      <div class="stack-base" :style="{ width: `${baseWidth}px` }" />
+      <div class="stack-base" />
       <div
-        v-for="loan in stacked"
-        :key="loan.id"
+        v-for="spine in stack.spines"
+        :key="spine.book.id"
         class="spine"
-        :style="{ width: `${spineWidth(loan.book.title, loan.book.id)}px`, background: spineColor(loan.book.id) }"
-        :title="loan.book.title"
-      >{{ loan.book.title }}</div>
-      <span v-if="overflowCount" class="more" :title="`${recentDone.length}권 완독`">+{{ overflowCount }}권</span>
+        :style="{ width: `${spine.widthPercent}%`, background: spine.color }"
+        :title="spine.book.title"
+      >{{ spine.book.title }}</div>
+      <span v-if="stack.overflowCount" class="more" :title="`${recentDone.length}권 완독`">
+        +{{ stack.overflowCount }}권
+      </span>
     </div>
   </div>
 </template>
 
 <style scoped>
-.stack-widget { margin-left: auto; display: flex; align-items: flex-end; gap: 22px; }
+.stack-widget { margin-left: auto; display: flex; align-items: flex-end; gap: 22px; min-width: 0; }
 .stack-nums { text-align: right; }
 .stack-nums .eyebrow { display: block; margin-bottom: 6px; }
 .stack-nums b { font-family: var(--font-display); font-size: 24px; white-space: nowrap; }
 .stack-nums b i { font-style: normal; color: var(--red); }
 .stack-nums span { font-size: 12.5px; color: var(--sub); display: block; margin-top: 2px; }
-.bookstack { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; }
+
+/*
+ * 탑이 쓰고 싶은 폭(--stack-w)은 가장 긴 제목에서 나온다. 좁은 화면에선 그 폭이 패널보다
+ * 넓어지므로 100%로 잘라낸다 — 책등은 %라 같이 줄어든다. min-width:0 이 없으면 flex 항목이
+ * 내용 폭 아래로 줄지 않아(min-width:auto) 잘라내기가 무효가 된다.
+ */
+.bookstack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  width: min(var(--stack-w), 100%);
+  min-width: 0;
+  flex-shrink: 1;
+}
 .spine {
   height: 15px;
   border-radius: 2px;
@@ -107,13 +98,22 @@ const monthCount = computed(() => props.doneLoans.filter((l) => isThisMonth(l.re
   padding: 0 6px;
   box-sizing: border-box;
 }
-.stack-base { height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-bottom: 4px; box-shadow: 0 6px 10px -6px var(--shadow); }
+.stack-base { width: 100%; height: 8px; background: linear-gradient(180deg, var(--shelf-a), var(--shelf-b)); border-radius: 2px; margin-bottom: 4px; box-shadow: 0 6px 10px -6px var(--shadow); }
 .more { font-size: 11px; font-weight: 700; color: var(--sub); margin-bottom: 3px; }
 
 @media (max-width: 900px) {
   .stack-widget { margin-left: 0; flex-basis: 100%; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }
   .stack-nums { text-align: left; }
   .stack-nums b { font-size: 20px; }
+}
 
+/*
+ * 모바일에선 완독 숫자와 탑이 한 줄을 나눠 가지면 둘 다 좁아진다(숫자는 nowrap이라 안 줄어서
+ * 탑만 짓눌렸다). 줄을 나눠 탑에 패널 폭을 통째로 준다 — 제목이 덜 잘린다.
+ */
+@media (max-width: 640px) {
+  .stack-widget { flex-direction: column; align-items: stretch; gap: 14px; }
+  .bookstack { align-self: center; }
+  .spine { padding: 0 5px; letter-spacing: 0; }
 }
 </style>
