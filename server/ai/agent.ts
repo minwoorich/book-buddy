@@ -2,13 +2,14 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { createReactAgent } from '@langchain/langgraph/prebuilt'
 import { isAIMessage } from '@langchain/core/messages'
 import type { StructuredToolInterface } from '@langchain/core/tools'
-import type { AiAnswer } from '../../shared/types'
+import type { AiAnswer, PlaceEvidence } from '../../shared/types'
 import { isPlaceTagCode, PLACE_TAG_LABEL } from '../../shared/constants/placeTags'
 import { ApiError } from '../utils/errors'
 import { parseAiAnswer } from './parse'
 import { enrichAnswer, recentBookIdsFromHistory } from './enrich'
 import { resolveTemperature } from './defaults'
 import { createMessageExtractor } from './streamText'
+import { collectPlaceEvidence } from './placeEvidence'
 import { makeSearchBooks } from './tools/searchBooks'
 import { makeGetBookDetail } from './tools/getBookDetail'
 import { makeGetMyLoans } from './tools/getMyLoans'
@@ -74,7 +75,7 @@ function isGraphRecursionError(e: unknown): boolean {
 }
 
 /** recursionLimit 초과 시 runAgent/streamAgent가 공통으로 돌려주는 부드러운 안내 답변. */
-function recursionFallbackAnswer(startedAt: number): { answer: AiAnswer; usage: AgentUsage } {
+function recursionFallbackAnswer(startedAt: number): { answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[] } {
   return {
     answer: {
       message: '질문을 살피다 서가를 너무 오래 돌았어요. 조금 더 구체적으로(예: 분야나 상황을 붙여서) 다시 물어봐 주시겠어요?',
@@ -82,6 +83,7 @@ function recursionFallbackAnswer(startedAt: number): { answer: AiAnswer; usage: 
       actions: [],
     },
     usage: { inputTokens: 0, outputTokens: 0, durationMs: Date.now() - startedAt },
+    places: [],
   }
 }
 
@@ -149,7 +151,7 @@ export async function runAgent(
   userId: number,
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemExtra = ''
-): Promise<{ answer: AiAnswer; usage: AgentUsage }> {
+): Promise<{ answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[] }> {
   if (!deps.anthropicApiKey) {
     throw new ApiError(503, 'AI를 사용할 수 없어요')
   }
@@ -196,8 +198,11 @@ export async function runAgent(
   const content = typeof last?.content === 'string' ? last.content : extractDeltaText(last?.content)
   // 모델이 버튼을 빠뜨리거나 평문으로 답한 경우 본문·문맥으로 빠진 버튼을 채운다(enrich.ts 참고).
   const answer = enrichAnswer(parseAiAnswer(content), { recentBookIds: recentBookIdsFromHistory(messages) })
+  // 장소 도구가 돌려준 사내 후기 중 이번 답변이 실제로 근거로 쓴 것만 동봉한다 — 채팅에서
+  // "후기 근거 보기"로 펼쳐 볼 수 있게. 모델이 아니라 도구 결과가 출처다(placeEvidence.ts).
+  const places = collectPlaceEvidence(res.messages, answer.message)
 
-  return { answer, usage: { inputTokens, outputTokens, durationMs } }
+  return { answer, usage: { inputTokens, outputTokens, durationMs }, places }
 }
 
 /**

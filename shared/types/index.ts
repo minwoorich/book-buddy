@@ -184,6 +184,20 @@ export interface AiAnswer {
 }
 
 /**
+ * 책벗이 장소를 추천할 때 근거로 삼은 사내 후기. 모델이 말로만 인용하고 끝나지 않도록
+ * 서버가 장소 도구의 결과에서 직접 뽑아 답변에 동봉한다 — 채팅에서 바로 펼쳐 볼 수 있게.
+ */
+export interface PlaceEvidence {
+  name: string
+  total: number
+  /** 태그 라벨 → 인원 수. 많은 순. */
+  tags: Record<string, number>
+  /** "이름(부서): 한 줄 후기" 형태. */
+  comments: string[]
+  mapUrl: string
+}
+
+/**
  * `/api/ai/search-stream`(SSE)이 클라이언트로 내려보내는 이벤트 와이어 포맷.
  * tool/delta는 서버 streamAgent가 진행 중 흘려보내고, done/error는 엔드포인트가
  * 스트림 마지막에 한 번만 보낸다.

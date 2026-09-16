@@ -4,7 +4,7 @@ import { aiUsageRepo } from '../../repositories/aiUsageRepo'
 import { bookRepo } from '../../repositories/bookRepo'
 import { handleApi, requireUser } from '../../utils/api'
 import { ApiError } from '../../utils/errors'
-import type { AiAnswer, Book } from '../../../shared/types'
+import type { AiAnswer, Book, PlaceEvidence } from '../../../shared/types'
 
 const MAX_MESSAGES = 12
 
@@ -14,7 +14,7 @@ interface ChatBody {
 }
 
 export default defineEventHandler(
-  handleApi(async (event): Promise<AiAnswer & { books: Book[] }> => {
+  handleApi(async (event): Promise<AiAnswer & { books: Book[]; places: PlaceEvidence[] }> => {
     const me = requireUser(event)
     const { messages, context } = await readBody<ChatBody>(event)
 
@@ -42,7 +42,7 @@ export default defineEventHandler(
     if (!setting) throw new ApiError(503, 'AI를 사용할 수 없어요')
 
     const { anthropicApiKey, kakaoRestKey } = useRuntimeConfig(event)
-    const { answer, usage } = await runAgent(
+    const { answer, usage, places } = await runAgent(
       { anthropicApiKey, kakaoRestKey, settings: setting },
       me.id,
       recent,
@@ -55,6 +55,6 @@ export default defineEventHandler(
       .map((id) => bookRepo.findById(id))
       .filter((b): b is Book => Boolean(b))
 
-    return { ...answer, books }
+    return { ...answer, books, places }
   })
 )

@@ -1,10 +1,12 @@
-import type { AiAnswer, Book, ChatAction } from '#shared/types'
+import type { AiAnswer, Book, ChatAction, PlaceEvidence } from '#shared/types'
 
 export interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
   books?: Book[]
   actions?: ChatAction[]
+  /** 이 답변이 장소를 추천하며 근거로 쓴 사내 후기(서버가 장소 도구 결과에서 뽑아 보낸다). */
+  places?: PlaceEvidence[]
 }
 
 /**
@@ -68,7 +70,7 @@ export function useChat() {
     try {
       // assistant 턴은 모델이 냈던 JSON 형태로 되돌려 보낸다(app/utils/chatHistory.ts 참고).
       const history = toChatHistory(messages.value)
-      const answer = await api<AiAnswer & { books: Book[] }>('/api/ai/chat', {
+      const answer = await api<AiAnswer & { books: Book[]; places: PlaceEvidence[] }>('/api/ai/chat', {
         method: 'POST',
         body: {
           messages: history,
@@ -79,6 +81,7 @@ export function useChat() {
         role: 'assistant',
         content: answer.message,
         books: answer.books,
+        places: answer.places,
         // 확인 질문("~할까요?")엔 네/아니오 퀵리플라이가 항상 붙도록 보정(QA #57)
         actions: ensureQuickReplies(answer.message, answer.actions),
       })
