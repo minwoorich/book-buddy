@@ -7,6 +7,7 @@ type PlaceWithReason = Place & { reason: string }
 const api = useApi()
 const { user } = useCurrentUser()
 const config = useRuntimeConfig()
+const route = useRoute()
 
 // ssr:false SPA는 public runtimeConfig가 빌드 시점 값으로 굳으므로(배포 빌드에선 빈 값),
 // 서버가 런타임 env에서 읽은 키를 /api/public-config로 받아 보완한다.
@@ -74,8 +75,23 @@ const locating = ref(false)
 
 // ── 기준 사업장 드롭다운: 바텍네트웍스 본사(기본)·바텍엠시스·바텍이엠엑스. 고르면 그 사업장
 // 주변으로 다시 검색하고 지도도 그리로 옮긴다. 내 위치를 잡아둔 상태였다면 사업장 선택이 우선.
-const officeKey = ref(VATECH_OFFICES[0].key)
+/**
+ * 책벗이 "엠시스 근처 카페"를 추천하고 넘어온 경우 `?office=msys`로 들어온다. setup 시점에
+ * 초기값으로 넣어야 officeKey watcher가 깨어나 기본 사업장으로 다시 검색하는 일이 없다.
+ */
+function initialOfficeKey(): string {
+  const q = route.query.office
+  return typeof q === 'string' && VATECH_OFFICES.some((o) => o.key === q) ? q : VATECH_OFFICES[0].key
+}
+
+const officeKey = ref(initialOfficeKey())
 const office = computed(() => findOffice(officeKey.value))
+
+// ── 책벗 추천 모드: `?picks=1`로 들어오면 거리순 전체 대신 책벗이 추천한 곳만 지도·목록에
+// 보여준다. 검색·사업장 변경·내 위치처럼 사용자가 직접 목록을 부르면 자동으로 풀린다.
+const { picks, clear: clearPicks } = usePlacePicks()
+const pickMode = ref(route.query.picks === '1' && (picks.value?.places.length ?? 0) > 0)
+const pickPlaces = computed<Place[]>(() => (pickMode.value ? (picks.value?.places ?? []) : []))
 /** 검색 원점: 내 위치가 있으면 내 위치, 없으면 선택한 사업장. */
 const origin = computed(() => myLocation.value ?? { lat: office.value.lat, lng: office.value.lng })
 
@@ -90,6 +106,9 @@ watch(officeKey, () => {
  * 사용자가 직접 누른 검색의 실패는 알림으로 보여준다.
  */
 async function fetchPlaces(opts: { silent?: boolean } = {}) {
+  // 목록을 직접 부르는 순간이 추천 모드를 벗어나는 지점이다(검색·사업장 변경·내 위치·전체 보기).
+  pickMode.value = false
+  clearPicks()
   if (!user.value) {
     fetchedPlaces.value = []
     return
@@ -112,7 +131,13 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
   }
 }
 
-onMounted(() => void fetchPlaces({ silent: true }))
+onMounted(() => {
+  if (pickMode.value) {
+    void fetchReviewSummaries(pickPlaces.value)
+    return
+  }
+  void fetchPlaces({ silent: true })
+})
 
 /** 브라우저 geolocation으로 내 위치를 얻어 지도에 표시하고, 그 근처를 거리순으로 재검색한다. */
 function locateMe() {
@@ -161,10 +186,14 @@ function onReviewChanged(summary: PlaceReviewSummary) {
 }
 
 // 실제 검색 결과가 하나도 없으면(키 미설정으로 503이거나, 로그인 전) 예시로 대체한다.
-const isFallback = computed(() => fetchedPlaces.value.length === 0)
+// 추천 모드일 땐 fetchedPlaces가 비어 있는 게 정상이므로 예시로 흘러가면 안 된다.
+const isFallback = computed(() => !pickMode.value && fetchedPlaces.value.length === 0)
 
-/** 실제 목록(검색 결과 또는 예시). */
-const basePlaces = computed<Place[]>(() => (isFallback.value ? FALLBACK_PLACES : fetchedPlaces.value))
+/** 실제 목록(추천 · 검색 결과 · 예시). */
+const basePlaces = computed<Place[]>(() => {
+  if (pickMode.value) return pickPlaces.value
+  return isFallback.value ? FALLBACK_PLACES : fetchedPlaces.value
+})
 
 // AI 추천받기 버튼은 뺐다(QA #70) — 장소는 사업장 기준 거리순으로만 보여준다.
 const displayList = computed<PlaceWithReason[]>(() => {
@@ -197,7 +226,7 @@ function formatDistance(m?: number): string {
         <div>
           <span class="eyebrow">READING SPOTS</span>
           <h1>책 읽기 좋은 장소</h1>
-          <p>{{ office.name }} 주변 카페·도서관·공원을 가까운 순으로 모았어요</p>
+          <p>{{ pickMode ? '책벗이 추천한 장소를 지도에 표시했어요' : `${office.name} 주변 카페·도서관·공원을 가까운 순으로 모았어요` }}</p>
         </div>
       </div>
 
@@ -223,6 +252,12 @@ function formatDistance(m?: number): string {
           {{ locating ? '위치 확인 중...' : '내 위치' }}
         </button>
         <span class="loc-on">{{ myLocation ? '내 위치 기준 거리순' : office.shortName + ' 기준 거리순' }}</span>
+      </div>
+
+      <div v-if="pickMode" class="pick-banner">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" /></svg>
+        <span><b>책벗이 추천한 {{ displayList.length }}곳</b>만 보고 있어요 · {{ office.name }} 기준</span>
+        <button type="button" class="pick-exit" @click="fetchPlaces()">주변 전체 보기</button>
       </div>
 
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
@@ -261,6 +296,20 @@ function formatDistance(m?: number): string {
 </template>
 
 <style scoped>
+/* 책벗 추천만 보고 있다는 상태 배너 — 전체 목록으로 돌아갈 길을 항상 옆에 둔다. */
+.pick-banner {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin: -6px 0 18px; padding: 10px 14px; font-size: 13px; color: var(--ink);
+  background: var(--red-tint); border: 1px solid var(--red); border-radius: 4px;
+}
+.pick-banner svg { color: var(--red); flex-shrink: 0; }
+.pick-banner b { font-weight: 700; }
+.pick-exit {
+  margin-left: auto; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--red);
+  background: var(--card); border: 1px solid var(--red); border-radius: 999px; padding: 5px 13px; cursor: pointer;
+}
+.pick-exit:hover { background: var(--red); color: #fff; }
+
 /* 지도와 목록을 한 화면 높이(560px)에 맞추고, 목록은 그 안에서 스크롤(QA #58) —
    예전엔 지도 620px + 목록이 끝없이 아래로 늘어나 페이지가 길어졌다. */
 .pl-layout { display: flex; gap: 22px; align-items: stretch; height: 560px; }

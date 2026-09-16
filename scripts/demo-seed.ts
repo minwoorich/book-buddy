@@ -4,6 +4,7 @@
  * 목업에서 검증된 실제 표지 6권 + 직원 12명 + 활동 데이터.
  */
 import { initDb } from '../server/db/connection'
+import { SEED_NOTICES } from './noticeContent'
 
 const db = initDb()
 
@@ -198,8 +199,19 @@ db.prepare(
    VALUES (?, 'book', ?, ?, 'pending', ?)`,
 ).run(uid['오유진'], bid['하드씽'], '215쪽에 낙서가 있어요', ts('2026-09-12'))
 
+// 공지사항 — 전부 관리자(도서관리자) 작성. 고정 공지가 목록 맨 위에 오는 것까지 시연된다.
+const insNotice = db.prepare(
+  `INSERT INTO notices (author_id, title, content, pinned, created_at, updated_at)
+   VALUES (?, ?, ?, ?, ?, ?)`,
+)
+for (const n of SEED_NOTICES) {
+  const at = ts(n.date, '09:00:00')
+  insNotice.run(uid['도서관리자'], n.title, n.content, n.pinned ? 1 : 0, at, at)
+}
+
 const count = (t: string) => (db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get() as { c: number }).c
 console.log('미니 시드 완료:',
   `users=${count('users')}, books=${count('books')}, loans=${count('loans')},`,
   `reviews=${count('reviews')}, votes=${count('review_votes')}, posts=${count('posts')}, post_images=${count('post_images')},`,
-  `reservations=${count('reservations')}, wishlists=${count('wishlists')}, requests=${count('purchase_requests')}, reports=${count('reports')}`)
+  `reservations=${count('reservations')}, wishlists=${count('wishlists')}, requests=${count('purchase_requests')}, reports=${count('reports')},`,
+  `notices=${count('notices')}`)

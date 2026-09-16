@@ -6,6 +6,7 @@ import { initDb, getDb } from '../server/db/connection'
 import { bookRepo } from '../server/repositories/bookRepo'
 import { kakaoBookService } from '../server/services/kakaoBookService'
 import { generateUniqueNames, randomOrgProfile } from './nameGenerator'
+import { SEED_NOTICES } from './noticeContent'
 import { pickReviewContent, pickWeightedRating, targetReviewCount } from './reviewContent'
 import type { Book } from '../shared/types'
 
@@ -75,6 +76,7 @@ function resetAll(): void {
     'reviews',
     'reservations',
     'loans',
+    'notices',
     'books',
     'users',
   ]
@@ -401,6 +403,26 @@ function seedReport(userIds: number[], books: Book[]): void {
     .run(reporterId, book.id, '표지가 파손되어 있어요.')
 }
 
+// ── 11. 공지사항 10건 (모두 관리자 작성) ─────────────────────────────
+// 본문이 "9/22 마감", "추석 9/24~9/26"처럼 특정 날짜를 짚고 있어서, 다른 시드 데이터와 달리
+// daysAgo 상대 날짜가 아니라 noticeContent.ts에 적힌 절대 날짜를 그대로 쓴다.
+function seedNotices(): number {
+  const admin = getDb().prepare(`SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1`).get() as
+    | { id: number }
+    | undefined
+  if (!admin) return 0
+
+  const stmt = getDb().prepare(
+    `INSERT INTO notices (author_id, title, content, pinned, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  )
+  for (const n of SEED_NOTICES) {
+    const at = `${n.date} 09:00:00`
+    stmt.run(admin.id, n.title, n.content, n.pinned ? 1 : 0, at, at)
+  }
+  return SEED_NOTICES.length
+}
+
 // ── main ─────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   const restKey = process.env.NUXT_KAKAO_REST_KEY
@@ -445,6 +467,7 @@ async function main(): Promise<void> {
   const purchaseCount = seedPurchaseRequests(userIds)
   const postCount = seedPosts(userIds, books)
   seedReport(userIds, books)
+  const noticeCount = seedNotices()
 
   console.log('\n--- 시드 완료 ---')
   console.log(`books: ${books.length} (목표 ${CATEGORIES.length * MAX_PER_CATEGORY}권)`)
@@ -459,6 +482,7 @@ async function main(): Promise<void> {
   console.log(`purchase_requests: ${purchaseCount}`)
   console.log(`posts: ${postCount} (1건은 사진 3장 post_images)`)
   console.log(`reports: 1`)
+  console.log(`notices: ${noticeCount} (고정 공지 ${SEED_NOTICES.filter((n) => n.pinned).length}건 포함)`)
 }
 
 main().catch((err) => {

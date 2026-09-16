@@ -16,23 +16,6 @@ const streamText = ref('')
 
 let currentController: AbortController | null = null
 
-const TOOL_LABELS: Record<string, string> = {
-  search_books: '서가를 뒤지는 중',
-  get_book_detail: '책 정보를 읽는 중',
-  get_reviews: '동료 리뷰 확인 중',
-  get_my_loans: '대출 이력 살피는 중',
-  search_external_books: '외부 서점 검색 중',
-  borrow_book: '요청 처리 중',
-  return_book: '요청 처리 중',
-  reserve_book: '요청 처리 중',
-  request_purchase: '요청 처리 중',
-  add_wishlist: '요청 처리 중',
-}
-
-function toolLabel(name: string): string {
-  return TOOL_LABELS[name] ?? '요청 처리 중'
-}
-
 function resetState() {
   errorMessage.value = null
   answer.value = null
@@ -190,7 +173,8 @@ function goLogin() {
         <b>책벗의 추천</b>
         <span class="ai-q">"{{ query }}"</span>
       </div>
-      <p class="ai-message" :class="{ multi: multiLine }">{{ answer.message }}</p>
+      <!-- eslint-disable-next-line vue/no-v-html -- renderMarkdown이 이스케이프 후 만든 HTML만 들어온다 -->
+      <div class="ai-message md-body" :class="{ multi: multiLine }" v-html="renderedAnswer" />
       <div v-if="answer.books.length" class="ai-books">
         <NuxtLink v-for="book in answer.books" :key="book.id" :to="`/books/${book.id}`" class="ai-book">
           <BookCoverImage :src="book.coverUrl" :alt="book.title" />
@@ -218,7 +202,8 @@ function goLogin() {
         <b>책벗의 추천</b>
         <span class="ai-q">"{{ query }}"</span>
       </div>
-      <p class="ai-message">{{ streamText }}</p>
+      <!-- eslint-disable-next-line vue/no-v-html -- 위와 같음 -->
+      <div class="ai-message md-body multi" v-html="renderedStream" />
     </template>
   </div>
 </template>
@@ -241,7 +226,7 @@ p { margin: 0 0 20px; font-size: 15px; line-height: 1.75; color: var(--text-2); 
 .ai-loading { padding: 2px 0; min-height: 132px; }
 
 .ai-fallback { margin: 0; font-size: 14px; color: var(--sub); }
-.ai-message { white-space: pre-line; text-align: center; max-width: 720px; margin: 0 auto 18px; }
+.ai-message { text-align: center; max-width: 720px; margin: 0 auto 18px; font-size: 15px; line-height: 1.75; color: var(--text-2); }
 /* 여러 줄(추천 목록)은 블록만 가운데 두고 글줄은 왼쪽 정렬해 읽기 쉽게 */
 .ai-message.multi { text-align: left; display: table; }
 

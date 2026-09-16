@@ -2,14 +2,15 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { createReactAgent } from '@langchain/langgraph/prebuilt'
 import { isAIMessage } from '@langchain/core/messages'
 import type { StructuredToolInterface } from '@langchain/core/tools'
-import type { AiAnswer, PlaceEvidence } from '../../shared/types'
+import type { AiAnswer, PlaceEvidence, PlaceRecommendation } from '../../shared/types'
 import { isPlaceTagCode, PLACE_TAG_LABEL } from '../../shared/constants/placeTags'
 import { ApiError } from '../utils/errors'
 import { parseAiAnswer } from './parse'
 import { enrichAnswer, recentBookIdsFromHistory } from './enrich'
 import { resolveTemperature } from './defaults'
 import { createMessageExtractor } from './streamText'
-import { collectPlaceEvidence } from './placeEvidence'
+import { collectPlaceEvidence, toolMessageFromStreamEvent, type ToolMessageLike } from './placeEvidence'
+import { createPlaceCollector, pickRecommendation, withPlaceAction, type PlaceCollector } from './placeCollector'
 import { makeSearchBooks } from './tools/searchBooks'
 import { makeGetBookDetail } from './tools/getBookDetail'
 import { makeGetMyLoans } from './tools/getMyLoans'
@@ -27,8 +28,14 @@ import { makeSearchReviewedPlaces } from './tools/searchReviewedPlaces'
  * Task 9의 조회 도구 5종 + Task 10의 행동 도구 5종 + 장소 도구 2종을 조합한다.
  * 장소 도구는 짝이다 — search_reading_places는 "가까운 곳"(카카오 검색 + 사내 후기 요약),
  * search_reviewed_places는 "동료들이 좋다고 한 곳"(사내 후기만)을 맡는다.
+ *
+ * placeCollector를 주면 근처 검색 도구가 원본 장소·사업장을 그리로 흘려보낸다(지도 마킹용).
  */
-export function createTools(userId: number, opts: { kakaoRestKey: string }): StructuredToolInterface[] {
+export function createTools(
+  userId: number,
+  opts: { kakaoRestKey: string },
+  placeCollector?: PlaceCollector
+): StructuredToolInterface[] {
   return [
     makeSearchBooks(),
     makeGetBookDetail(),
@@ -40,7 +47,7 @@ export function createTools(userId: number, opts: { kakaoRestKey: string }): Str
     makeReserveBook(userId),
     makeRequestPurchase(userId),
     makeAddWishlist(userId),
-    makeSearchReadingPlaces(opts.kakaoRestKey, userId),
+    makeSearchReadingPlaces(opts.kakaoRestKey, userId, placeCollector),
     makeSearchReviewedPlaces(),
   ]
 }
@@ -75,7 +82,9 @@ function isGraphRecursionError(e: unknown): boolean {
 }
 
 /** recursionLimit 초과 시 runAgent/streamAgent가 공통으로 돌려주는 부드러운 안내 답변. */
-function recursionFallbackAnswer(startedAt: number): { answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[] } {
+function recursionFallbackAnswer(
+  startedAt: number
+): { answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[]; recommend: PlaceRecommendation | null } {
   return {
     answer: {
       message: '질문을 살피다 서가를 너무 오래 돌았어요. 조금 더 구체적으로(예: 분야나 상황을 붙여서) 다시 물어봐 주시겠어요?',
@@ -84,6 +93,7 @@ function recursionFallbackAnswer(startedAt: number): { answer: AiAnswer; usage: 
     },
     usage: { inputTokens: 0, outputTokens: 0, durationMs: Date.now() - startedAt },
     places: [],
+    recommend: null,
   }
 }
 
@@ -151,7 +161,7 @@ export async function runAgent(
   userId: number,
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemExtra = ''
-): Promise<{ answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[] }> {
+): Promise<{ answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[]; recommend: PlaceRecommendation | null }> {
   if (!deps.anthropicApiKey) {
     throw new ApiError(503, 'AI를 사용할 수 없어요')
   }
@@ -163,9 +173,10 @@ export async function runAgent(
     temperature: resolveTemperature(deps.settings.model, deps.settings.temperature),
   })
 
+  const placeCollector = createPlaceCollector()
   const agent = createReactAgent({
     llm,
-    tools: createTools(userId, { kakaoRestKey: deps.kakaoRestKey }),
+    tools: createTools(userId, { kakaoRestKey: deps.kakaoRestKey }, placeCollector),
     prompt: deps.settings.systemPrompt + systemExtra,
   })
 
@@ -197,12 +208,15 @@ export async function runAgent(
   // 쓰면 thinking 블록의 raw JSON이 그대로 사용자에게 노출된다(QA #33·34·35).
   const content = typeof last?.content === 'string' ? last.content : extractDeltaText(last?.content)
   // 모델이 버튼을 빠뜨리거나 평문으로 답한 경우 본문·문맥으로 빠진 버튼을 채운다(enrich.ts 참고).
-  const answer = enrichAnswer(parseAiAnswer(content), { recentBookIds: recentBookIdsFromHistory(messages) })
+  const enriched = enrichAnswer(parseAiAnswer(content), { recentBookIds: recentBookIdsFromHistory(messages) })
   // 장소 도구가 돌려준 사내 후기 중 이번 답변이 실제로 근거로 쓴 것만 동봉한다 — 채팅에서
   // "후기 근거 보기"로 펼쳐 볼 수 있게. 모델이 아니라 도구 결과가 출처다(placeEvidence.ts).
-  const places = collectPlaceEvidence(res.messages, answer.message)
+  const places = collectPlaceEvidence(res.messages, enriched.message)
+  // 같은 판정으로 "이번에 추천한 장소"를 정하고, /places 버튼이 사업장·추천 장소를 들고 가게 한다.
+  const recommend = pickRecommendation(placeCollector.records(), enriched.message)
+  const answer = { ...enriched, actions: withPlaceAction(enriched.actions, recommend) }
 
-  return { answer, usage: { inputTokens, outputTokens, durationMs }, places }
+  return { answer, usage: { inputTokens, outputTokens, durationMs }, places, recommend }
 }
 
 /**
@@ -221,7 +235,7 @@ export async function streamAgent(
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemExtra: string,
   emit: (ev: AgentStreamEvent) => void
-): Promise<{ answer: AiAnswer; usage: AgentUsage }> {
+): Promise<{ answer: AiAnswer; usage: AgentUsage; places: PlaceEvidence[]; recommend: PlaceRecommendation | null }> {
   if (!deps.anthropicApiKey) {
     throw new ApiError(503, 'AI를 사용할 수 없어요')
   }
@@ -233,9 +247,11 @@ export async function streamAgent(
     temperature: resolveTemperature(deps.settings.model, deps.settings.temperature),
   })
 
+  // 장소 근거·추천은 runAgent와 같은 방식으로 모은다 — 모델이 아니라 도구 결과가 출처다.
+  const placeCollector = createPlaceCollector()
   const agent = createReactAgent({
     llm,
-    tools: createTools(userId, { kakaoRestKey: deps.kakaoRestKey }),
+    tools: createTools(userId, { kakaoRestKey: deps.kakaoRestKey }, placeCollector),
     prompt: deps.settings.systemPrompt + systemExtra,
   })
 
@@ -244,6 +260,8 @@ export async function streamAgent(
   let extractor = createMessageExtractor()
   let inputTokens = 0
   let outputTokens = 0
+  // runAgent의 `res.messages` 대신, 도구가 끝날 때마다 같은 모양으로 쌓아 둔다(근거 판정용).
+  const toolMessages: ToolMessageLike[] = []
 
   try {
     const eventStream = agent.streamEvents(
@@ -270,6 +288,9 @@ export async function streamAgent(
           const delta = extractor.feed(text)
           if (delta) emit({ type: 'delta', text: delta })
         }
+      } else if (ev.event === 'on_tool_end') {
+        const msg = toolMessageFromStreamEvent(ev.name, (ev.data as { output?: unknown } | undefined)?.output)
+        if (msg) toolMessages.push(msg)
       } else if (ev.event === 'on_chat_model_end') {
         const output = (ev.data as { output?: { usage_metadata?: { input_tokens?: number; output_tokens?: number } } } | undefined)
           ?.output
@@ -285,7 +306,10 @@ export async function streamAgent(
   }
 
   const durationMs = Date.now() - startedAt
-  const answer = enrichAnswer(parseAiAnswer(fullText), { recentBookIds: recentBookIdsFromHistory(messages) })
+  const enriched = enrichAnswer(parseAiAnswer(fullText), { recentBookIds: recentBookIdsFromHistory(messages) })
+  const places = collectPlaceEvidence(toolMessages, enriched.message)
+  const recommend = pickRecommendation(placeCollector.records(), enriched.message)
+  const answer = { ...enriched, actions: withPlaceAction(enriched.actions, recommend) }
 
-  return { answer, usage: { inputTokens, outputTokens, durationMs } }
+  return { answer, usage: { inputTokens, outputTokens, durationMs }, places, recommend }
 }

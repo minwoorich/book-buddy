@@ -226,6 +226,18 @@ export interface PlaceEvidence {
 }
 
 /**
+ * 책벗이 이번 답변에서 추천한 장소. 채팅의 "장소 보기" 버튼이 이걸 들고 /places로 넘어가
+ * 기준 사업장을 맞추고 추천한 곳만 지도에 찍는다. 모델의 말이 아니라 도구 호출 인자·결과에서
+ * 뽑으므로, 지도에 찍히는 핀은 실제로 검색된 장소다.
+ */
+export interface PlaceRecommendation {
+  /** 도구가 실제로 쓴 기준 사업장 키(networks|msys|emx). */
+  officeKey: string
+  /** 답변이 이름을 부른 장소만. 아무 이름도 안 불렀으면 빈 배열(기준점만 옮긴다). */
+  places: Place[]
+}
+
+/**
  * `/api/ai/search-stream`(SSE)이 클라이언트로 내려보내는 이벤트 와이어 포맷.
  * tool/delta는 서버 streamAgent가 진행 중 흘려보내고, done/error는 엔드포인트가
  * 스트림 마지막에 한 번만 보낸다.
@@ -234,6 +246,25 @@ export type AiSearchStreamEvent =
   | { type: 'tool'; name: string; detail: string }
   | { type: 'delta'; text: string }
   | { type: 'done'; answer: AiAnswer; books: Book[] }
+  | { type: 'error'; message: string }
+
+/**
+ * 책벗 채팅(POST /api/ai/chat-stream)의 SSE 이벤트.
+ *
+ * 검색과 달리 done에 장소 근거(places)·추천(recommend)까지 실린다 — 비스트리밍
+ * /api/ai/chat 응답과 같은 재료를 그대로 담아, 클라이언트가 텍스트를 먼저 흘려 보여준 뒤
+ * 마지막에 책·액션 버튼·후기 근거 UI를 한 번에 붙일 수 있게 한다.
+ */
+export type AiChatStreamEvent =
+  | { type: 'tool'; name: string; detail: string }
+  | { type: 'delta'; text: string }
+  | {
+      type: 'done'
+      answer: AiAnswer
+      books: Book[]
+      places: PlaceEvidence[]
+      recommend: PlaceRecommendation | null
+    }
   | { type: 'error'; message: string }
 
 export interface RankRow {

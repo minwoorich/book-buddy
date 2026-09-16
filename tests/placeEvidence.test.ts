@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { collectPlaceEvidence } from '../server/ai/placeEvidence'
+import { collectPlaceEvidence, toolMessageFromStreamEvent } from '../server/ai/placeEvidence'
 
 /** ToolMessage 흉내 — 실제 res.messages 원소처럼 name/content만 본다. */
 function toolMsg(name: string, payload: unknown) {
@@ -112,5 +112,26 @@ describe('collectPlaceEvidence', () => {
     const noPlaces = toolMsg('search_reviewed_places', { message: '아직 사내 후기가 쌓인 장소가 없어요' })
     const broken = { name: 'search_reading_places', content: '{"places":[' }
     expect(collectPlaceEvidence([noPlaces, broken], '아직 후기가 없어요.')).toEqual([])
+  })
+})
+
+describe('toolMessageFromStreamEvent', () => {
+  it('ToolMessage 객체의 content 문자열을 꺼낸다', () => {
+    expect(toolMessageFromStreamEvent('search_reading_places', { content: '{"places":[]}' })).toEqual({
+      name: 'search_reading_places',
+      content: '{"places":[]}',
+    })
+  })
+
+  it('output이 그냥 문자열로 와도 받는다', () => {
+    expect(toolMessageFromStreamEvent('search_books', '{"books":[]}')).toEqual({
+      name: 'search_books',
+      content: '{"books":[]}',
+    })
+  })
+
+  it('문자열 content가 없으면 null — 근거 판정에서 조용히 빠진다', () => {
+    expect(toolMessageFromStreamEvent('search_books', { content: [{ type: 'text' }] })).toBeNull()
+    expect(toolMessageFromStreamEvent('search_books', undefined)).toBeNull()
   })
 })

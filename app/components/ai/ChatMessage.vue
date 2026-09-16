@@ -5,11 +5,16 @@ import type { ChatMsg } from '~/composables/useChat'
 const props = defineProps<{ msg: ChatMsg }>()
 
 const { open, sending, send } = useChat()
+const { set: setPicks } = usePlacePicks()
 
 // 장소 추천의 근거 후기 — 기본은 접어 두고 버튼으로 펼친다. 본문이 "동료 3명이 조용하다고
 // 했어요"라고만 하고 끝나지 않도록, 그 3명이 누구였는지까지 바로 확인할 수 있게.
 const showPlaces = ref(false)
 const places = computed(() => props.msg.places ?? [])
+
+// 모델은 답변에 마크다운(**굵게**, 목록, 제목)을 섞어 쓴다 — 기호를 그대로 보여주지 않고
+// HTML로 렌더한다. renderMarkdown은 원문을 먼저 이스케이프하므로 v-html로 넣어도 안전하다.
+const rendered = computed(() => renderMarkdown(props.msg.content))
 
 /** 태그 라벨 → 인원 수를 칩으로 그릴 배열로. digest가 이미 많은 순으로 정렬해 보낸다. */
 function tagChips(tags: Record<string, number>) {
@@ -32,6 +37,9 @@ async function runAction(action: ChatAction) {
     if (!sending.value) await send(action.send)
     return
   }
+  // /places로 갈 때는 이 메시지가 추천한 장소를 함께 넘긴다. 버튼이 메시지에 속하므로,
+  // 뒤에 더 새로운 추천이 와 있어도 사용자가 누른 그 답변의 장소가 지도에 찍힌다.
+  if (action.to.startsWith('/places')) setPicks(props.msg.recommend ?? null)
   closePanel()
   await navigateTo(action.to)
 }
@@ -42,7 +50,8 @@ async function runAction(action: ChatAction) {
 
   <div v-else class="msg-ai">
     <span class="tag">책벗</span>
-    <span class="msg-text">{{ msg.content }}</span>
+    <!-- eslint-disable-next-line vue/no-v-html -- renderMarkdown이 이스케이프 후 만든 HTML만 들어온다 -->
+    <div class="msg-text md-body" v-html="rendered" />
 
     <div v-if="msg.books?.length" class="mini-books">
       <NuxtLink
@@ -133,5 +142,5 @@ async function runAction(action: ChatAction) {
 .ev-comments .who { color: var(--sub); margin-left: 6px; }
 .ev-map { font-size: 12px; font-weight: 600; color: var(--red); text-decoration: none; align-self: flex-start; }
 .ev-map:hover { text-decoration: underline; }
-.msg-text { white-space: pre-line; display: block; }
+/* 마크다운 본문 스타일은 main.css의 .md-body(공용) — 스트리밍 말풍선과 같은 모양을 쓴다. */
 </style>

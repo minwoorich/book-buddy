@@ -1,4 +1,5 @@
 import type { PlaceEvidence } from '../../shared/types'
+import { createMentionTest } from './placeMention'
 
 /**
  * 장소 추천의 "근거 보기"에 쓸 사내 후기를 도구 결과에서 직접 뽑아낸다.
@@ -72,9 +73,18 @@ function fromToolMessage(msg: ToolMessageLike): { names: string[]; evidence: Pla
   }
 }
 
-/** "커피베이 동탄점"과 "커피베이동탄점"을 같게 보기 위한 정규화. */
-function squash(s: string): string {
-  return s.replace(/\s+/g, '')
+/**
+ * streamEvents(v2)의 `on_tool_end` 이벤트가 준 output에서 근거 판정에 쓸 도구 메시지를 만든다.
+ *
+ * 비스트리밍(runAgent)은 실행이 끝난 뒤 `res.messages`에서 ToolMessage를 그대로 읽지만,
+ * 스트리밍에는 그 목록이 없다 — 대신 도구가 끝날 때마다 이 헬퍼로 같은 모양을 쌓아
+ * collectPlaceEvidence에 넘긴다. output 모양은 LangGraph 버전에 따라 ToolMessage 객체이거나
+ * 문자열일 수 있고, 둘 다 아니면(예: content가 블록 배열) 근거로 쓸 수 없으니 null.
+ */
+export function toolMessageFromStreamEvent(name: string, output: unknown): ToolMessageLike | null {
+  if (typeof output === 'string') return { name, content: output }
+  if (isRecord(output) && typeof output.content === 'string') return { name, content: output.content }
+  return null
 }
 
 /**
@@ -97,9 +107,9 @@ export function collectPlaceEvidence(messages: ToolMessageLike[], answerText: st
   }
 
   const all = [...byName.values()]
-  const text = squash(answerText)
-  if (names.some((n) => text.includes(squash(n)))) {
-    return all.filter((e) => text.includes(squash(e.name)))
+  const mentions = createMentionTest(answerText)
+  if (names.some(mentions)) {
+    return all.filter((e) => mentions(e.name))
   }
 
   return all.sort((a, b) => b.total - a.total).slice(0, FALLBACK_MAX)

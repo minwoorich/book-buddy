@@ -3,6 +3,7 @@ import { initDb, getDb } from '../server/db/connection'
 import { placeReviewRepo } from '../server/repositories/placeReviewRepo'
 import { makeSearchReadingPlaces } from '../server/ai/tools/searchReadingPlaces'
 import { makeSearchReviewedPlaces } from '../server/ai/tools/searchReviewedPlaces'
+import { createPlaceCollector } from '../server/ai/placeCollector'
 
 function insertUser(name: string, department = '개발팀'): number {
   const result = getDb()
@@ -101,5 +102,42 @@ describe('search_reviewed_places — 후기만으로 고르기', () => {
     const result = JSON.parse(raw as string)
     expect(result.places).toBeUndefined()
     expect(result.message).toContain('search_reading_places')
+  })
+})
+
+describe('search_reading_places — 지도 마킹용 사이드 채널', () => {
+  it('모델에 보낸 JSON과 별개로, 좌표가 살아 있는 원본 장소와 사업장 키를 collector에 기록한다', async () => {
+    const me = insertUser('김민우')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(KAKAO_RESPONSE), { status: 200 })))
+    const collector = createPlaceCollector()
+
+    const raw = await makeSearchReadingPlaces('key', me, collector).invoke({ kind: '카페', office: 'msys' })
+
+    // 모델이 읽는 쪽에는 좌표가 없다 — 쓰지도 않는 값으로 토큰을 쓰지 않기 위해서다.
+    expect(JSON.parse(raw as string).places[0].lat).toBeUndefined()
+    expect(collector.records()).toHaveLength(1)
+    expect(collector.records()[0].officeKey).toBe('msys')
+    expect(collector.records()[0].places[0]).toMatchObject({
+      name: '청수당 베이커리',
+      kakaoId: CAFE,
+      lat: 37.57388138546145,
+      lng: 126.98978471926921,
+    })
+  })
+
+  it('검색이 실패하면 아무것도 기록하지 않는다', async () => {
+    const me = insertUser('김민우')
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('boom') }))
+    const collector = createPlaceCollector()
+
+    await makeSearchReadingPlaces('key', me, collector).invoke({ kind: '카페', office: 'msys' })
+
+    expect(collector.records()).toEqual([])
+  })
+
+  it('카카오 키가 없으면 기록하지 않는다', async () => {
+    const collector = createPlaceCollector()
+    await makeSearchReadingPlaces('', insertUser('김민우'), collector).invoke({ kind: '카페', office: 'msys' })
+    expect(collector.records()).toEqual([])
   })
 })

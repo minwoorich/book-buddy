@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { user } = useCurrentUser()
-const { open, messages, sending, send } = useChat()
+const { open, messages, sending, send, streamText, activity } = useChat()
 const route = useRoute()
 
 // /login·/signup 화면에서는 굳이 책벗 FAB로 로그인을 또 유도할 필요가 없다.
@@ -8,6 +8,12 @@ const hideWidget = computed(() => route.path === '/login' || route.path === '/si
 
 const draft = ref('')
 const bodyRef = ref<HTMLElement | null>(null)
+
+// 스트리밍 중 도착한 본문은 완성된 답변과 같은 마크다운 렌더를 거친다 — done으로 바뀌는
+// 순간 글자가 다시 그려지지 않고 아래에 책·버튼만 붙는 것처럼 보이게.
+const renderedStream = computed(() => renderMarkdown(streamText.value))
+/** 아직 첫 글자가 오기 전에는 로더가 "무엇을 하는 중"인지 알려준다. */
+const loaderLabel = computed(() => (activity.value ? `책벗이 ${activity.value}...` : '책벗이 서가를 걷는 중...'))
 
 function close() {
   open.value = false
@@ -47,7 +53,7 @@ async function scrollToBottom() {
   if (bodyRef.value) bodyRef.value.scrollTop = bodyRef.value.scrollHeight
 }
 
-watch([() => messages.value.length, sending], scrollToBottom)
+watch([() => messages.value.length, sending, streamText], scrollToBottom)
 // 열 때는 복원된 대화(sessionStorage)가 렌더된 뒤 한 번 더 — 처음 열면 항상 최신 메시지가 보이게.
 watch(open, (isOpen) => {
   if (isOpen) void scrollToBottom()
@@ -202,9 +208,13 @@ function resetSize() {
 
         <AiChatMessage v-for="(msg, i) in messages" :key="i" :msg="msg" />
 
-        <div v-if="sending" class="thinking">
+        <!-- 답변이 도착하는 동안: 첫 글자 전에는 로더, 델타가 오기 시작하면 타자기 말풍선.
+             done이 오면 useChat이 이 자리를 완성된 메시지(책·버튼·근거 포함)로 바꾼다. -->
+        <div v-if="sending" class="thinking" :class="{ typing: streamText }">
           <span class="tag">책벗</span>
-          <AiLibrarySearchLoader compact label="책벗이 서가를 걷는 중..." />
+          <!-- eslint-disable-next-line vue/no-v-html -- renderMarkdown이 이스케이프 후 만든 HTML만 들어온다 -->
+          <div v-if="streamText" class="stream-text md-body" v-html="renderedStream" />
+          <AiLibrarySearchLoader v-else compact :label="loaderLabel" />
         </div>
       </div>
 
@@ -247,6 +257,11 @@ function resetSize() {
 .example-chip:disabled { opacity: .5; cursor: not-allowed; }
 .thinking { align-self: stretch; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px 14px 14px 3px; padding: 12px 14px 8px; }
 .thinking .tag { font-size: 10.5px; letter-spacing: 2px; color: var(--red); font-weight: 700; display: block; margin-bottom: 4px; }
+/* 타자기 말풍선: 완성된 답변(.msg-ai)과 같은 글꼴·여백이라 done 순간 글자가 튀지 않는다. */
+.thinking.typing { padding: 12px 14px; font-size: 14px; line-height: 1.65; color: var(--text-2); }
+.stream-text::after { content: '▍'; color: var(--red); margin-left: 1px; animation: caret 1s steps(2) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .stream-text::after { animation: none; } }
 .chat-foot { border-top: 1px solid var(--line); padding: 12px 14px; display: flex; align-items: center; gap: 10px; background: var(--bg); }
 .chat-foot input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 14px; background: transparent; color: var(--ink); }
 .chat-foot .send { width: 36px; height: 36px; border-radius: 50%; background: var(--red); border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
