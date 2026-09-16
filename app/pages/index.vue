@@ -178,25 +178,29 @@ function toggleExternal() {
   <div>
     <CommonAppHeader active="home" />
     <div class="wrap">
-      <template v-if="!activeQuery">
-        <div class="hero">
+      <!-- 검색바와 목록 옵션은 검색 결과 화면에서도 남긴다 — 검색어를 고쳐
+           다시 찾거나, 조용히 걸려 있던 필터를 그 자리에서 끌 수 있게. -->
+      <div class="hero" :class="{ compact: activeQuery }">
+        <template v-if="!activeQuery">
           <div class="eyebrow">VATECH PEOPLE&rsquo;S BOOKSHELF</div>
           <h1 class="hero-title" :aria-label="heroTitle"><span aria-hidden="true">{{ heroText }}</span><span class="caret" :class="{ typing: heroTyping }" aria-hidden="true" /></h1>
-          <CommonSearchBar v-model="searchInput" @submit="submitSearch" />
-          <CommonCategoryChips v-model="selectedCategory" />
-          <div class="list-options">
-            <label class="switch">
-              <input v-model="availableOnly" type="checkbox">
-              <span class="track"><span class="knob" /></span>
-              <span class="switch-label">대출 가능만</span>
-            </label>
-            <div class="seg" role="radiogroup" aria-label="정렬">
-              <button type="button" role="radio" :aria-checked="sortMode === 'default'" :class="{ on: sortMode === 'default' }" @click="sortMode = 'default'">기본순</button>
-              <button type="button" role="radio" :aria-checked="sortMode === 'popular'" :class="{ on: sortMode === 'popular' }" @click="sortMode = 'popular'">인기순</button>
-            </div>
+        </template>
+        <CommonSearchBar v-model="searchInput" @submit="submitSearch" />
+        <CommonCategoryChips v-if="!activeQuery" v-model="selectedCategory" />
+        <div class="list-options">
+          <label class="switch">
+            <input v-model="availableOnly" type="checkbox">
+            <span class="track"><span class="knob" /></span>
+            <span class="switch-label">대출 가능만</span>
+          </label>
+          <div class="seg" role="radiogroup" aria-label="정렬">
+            <button type="button" role="radio" :aria-checked="sortMode === 'default'" :class="{ on: sortMode === 'default' }" @click="sortMode = 'default'">기본순</button>
+            <button type="button" role="radio" :aria-checked="sortMode === 'popular'" :class="{ on: sortMode === 'popular' }" @click="sortMode = 'popular'">인기순</button>
           </div>
         </div>
+      </div>
 
+      <template v-if="!activeQuery">
         <template v-if="selectedCategory === '전체' && !listOptionsActive">
           <p v-if="homeSectionsPending" class="hint">불러오는 중…</p>
           <template v-else-if="homeSections && homeSections.length">
@@ -261,6 +265,9 @@ function toggleExternal() {
 
 <style scoped>
 .hero { text-align: center; margin-bottom: 34px; }
+/* 검색 결과 화면의 얇은 헤더 — 문구·칩 없이 검색바와 옵션만. */
+.hero.compact { margin-bottom: 22px; }
+.hero.compact .list-options { max-width: 660px; margin: 14px auto 0; height: auto; }
 .hero h1 { font-family: var(--font-display); font-size: 31px; font-weight: 600; letter-spacing: -0.4px; margin: 10px 0 22px; }
 /* 타자기 효과(QA #74). 긴 명언이 두 줄로 접혀도 검색창이 크게 튀지 않게 최소 높이. */
 .hero-title { min-height: 1.35em; word-break: keep-all; }

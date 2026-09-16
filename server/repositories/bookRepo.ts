@@ -30,13 +30,28 @@ function toBook(row: BookRow): Book {
   }
 }
 
+/** 검색어를 공백으로 쪼갠 키워드들. 빈 토큰은 버리고(전체 매칭 방지) 최대 10개까지. */
+const MAX_KEYWORDS = 10
+function keywords(query: string): string[] {
+  return query.trim().split(/\s+/).filter(Boolean).slice(0, MAX_KEYWORDS)
+}
+
+/** 제목+저자에 걸린 키워드 개수 — 많이 걸린 책을 위로 올리는 데 쓴다. */
+function matchScore(book: Book, words: string[]): number {
+  const haystack = `${book.title} ${book.author}`.toLowerCase()
+  return words.filter((w) => haystack.includes(w.toLowerCase())).length
+}
+
 export const bookRepo = {
   findAll(q?: { query?: string; category?: string }): Book[] {
     const clauses: string[] = []
     const params: unknown[] = []
-    if (q?.query) {
-      clauses.push('(title LIKE ? OR author LIKE ?)')
-      params.push(`%${q.query}%`, `%${q.query}%`)
+    // 검색어는 공백 단위로 쪼개 단어마다 제목/저자를 훑는다. 단어끼리는 OR라
+    // 한 단어만 걸려도 결과에 나오고, 많이 걸린 책일수록 위로 정렬된다.
+    const words = q?.query ? keywords(q.query) : []
+    if (words.length) {
+      clauses.push(`(${words.map(() => '(title LIKE ? OR author LIKE ?)').join(' OR ')})`)
+      for (const word of words) params.push(`%${word}%`, `%${word}%`)
     }
     if (q?.category) {
       clauses.push('category = ?')
@@ -44,7 +59,12 @@ export const bookRepo = {
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
     const rows = getDb().prepare(`SELECT * FROM books ${where}`).all(...params) as BookRow[]
-    return rows.map(toBook)
+    const books = rows.map(toBook)
+    if (words.length < 2) return books
+    return books
+      .map((book, index) => ({ book, index, score: matchScore(book, words) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((entry) => entry.book)
   },
 
   findById(id: number): Book | undefined {
