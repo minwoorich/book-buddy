@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Place, PlaceReviewSummary } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
+import { placeKey } from '#shared/utils/placeKey'
 
 type PlaceWithReason = Place & { reason: string }
 
@@ -72,6 +73,10 @@ const searchQuery = ref('')
 const searching = ref(false)
 const myLocation = ref<{ lat: number; lng: number } | null>(null)
 const locating = ref(false)
+/** geolocation이 알려준 오차 반경(m). 지도 클릭으로 직접 찍은 위치는 오차가 없으므로 null. */
+const accuracyM = ref<number | null>(null)
+/** 지도를 눌러 내 위치를 직접 찍는 보정 모드 — 웹의 Wi-Fi/IP 추정이 빗나갈 때 쓰는 탈출구. */
+const pickingLocation = ref(false)
 
 // ── 기준 사업장 드롭다운: 바텍네트웍스 본사(기본)·바텍엠시스·바텍이엠엑스. 고르면 그 사업장
 // 주변으로 다시 검색하고 지도도 그리로 옮긴다. 내 위치를 잡아둔 상태였다면 사업장 선택이 우선.
@@ -97,6 +102,8 @@ const origin = computed(() => myLocation.value ?? { lat: office.value.lat, lng: 
 
 watch(officeKey, () => {
   myLocation.value = null
+  accuracyM.value = null
+  pickingLocation.value = false
   void fetchPlaces()
 })
 
@@ -139,7 +146,14 @@ onMounted(() => {
   void fetchPlaces({ silent: true })
 })
 
-/** 브라우저 geolocation으로 내 위치를 얻어 지도에 표시하고, 그 근처를 거리순으로 재검색한다. */
+/**
+ * 브라우저 geolocation으로 내 위치를 얻어 지도에 표시하고, 그 근처를 거리순으로 재검색한다.
+ *
+ * 데스크톱 브라우저에는 GPS가 없어 Wi-Fi/IP 추정으로 좌표를 만든다. 그래서 웹에서는 늘 같은
+ * 엉뚱한 건물로 찍히는 일이 흔하다(모바일은 정확). 코드로 정확도를 올릴 방법은 없으므로,
+ * 받은 오차 반경(coords.accuracy)을 그대로 보여주고 지도 클릭 보정(`pickingLocation`)을
+ * 열어 사용자가 직접 바로잡게 한다.
+ */
 function locateMe() {
   if (locating.value) return
   if (!navigator.geolocation) {
@@ -151,14 +165,42 @@ function locateMe() {
     (pos) => {
       locating.value = false
       myLocation.value = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      accuracyM.value = Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null
+      // 오차가 크면(데스크톱 Wi-Fi/IP 추정) 보정 모드를 바로 열어준다.
+      pickingLocation.value = (accuracyM.value ?? 0) > LOW_ACCURACY_M
       void fetchPlaces()
     },
     () => {
       locating.value = false
       alert('위치를 가져오지 못했어요. 브라우저의 위치 권한을 확인해주세요.')
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   )
+}
+
+/** 이 이상 벌어지면 "대략 이 동네" 수준이라 그대로 거리순에 쓰기 어렵다. */
+const LOW_ACCURACY_M = 500
+
+/** 오차가 커서 위치를 믿기 어려운 상태 — 안내 문구와 보정 버튼을 띄우는 조건. */
+const locationUnreliable = computed(() => (accuracyM.value ?? 0) > LOW_ACCURACY_M)
+
+/** 지도에서 직접 찍은 지점을 내 위치로 삼는다 — 오차 없음으로 취급하고 주변을 다시 검색한다. */
+function onPickLocation(loc: { lat: number; lng: number }) {
+  myLocation.value = loc
+  accuracyM.value = null
+  pickingLocation.value = false
+  void fetchPlaces()
+}
+
+function clearMyLocation() {
+  myLocation.value = null
+  accuracyM.value = null
+  pickingLocation.value = false
+  void fetchPlaces()
+}
+
+function formatAccuracy(m: number): string {
+  return m < 1000 ? `±${Math.round(m)}m` : `±${(m / 1000).toFixed(1)}km`
 }
 
 /** 장소 id → 후기 요약. 목록이 바뀔 때마다 한 번에 다시 받는다. */
@@ -199,6 +241,34 @@ const basePlaces = computed<Place[]>(() => {
 const displayList = computed<PlaceWithReason[]>(() => {
   if (isFallback.value) return FALLBACK_PLACES
   return basePlaces.value.map((p) => ({ ...p, reason: '' }))
+})
+
+// ── 목록 ↔ 지도 양방향 선택
+// 카드를 누르면 지도가 그 핀으로 이동·강조하고, 핀을 누르면 목록이 그 카드로 스크롤·강조한다.
+// 양쪽이 같은 장소를 가리키는지는 placeKey 하나로만 판단한다(번호는 정렬이 바뀌면 흔들린다).
+const selectedKey = ref<string | null>(null)
+const listEl = ref<HTMLElement | null>(null)
+
+function toggleSelect(place: Place) {
+  const key = placeKey(place)
+  selectedKey.value = selectedKey.value === key ? null : key
+}
+
+/** 지도 핀 클릭 — 목록에서 해당 카드를 찾아 보이는 곳까지 스크롤한다. */
+function onMapSelect(key: string) {
+  selectedKey.value = key
+  void nextTick(() => {
+    const card = listEl.value?.querySelector<HTMLElement>(`[data-place-key="${CSS.escape(key)}"]`)
+    // block:'nearest' — 이미 보이는 카드면 화면이 튀지 않는다.
+    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
+}
+
+// 목록이 통째로 바뀌면(검색·사업장 변경·내 위치) 예전 선택은 의미가 없다.
+watch(displayList, () => {
+  if (selectedKey.value && !displayList.value.some((p) => placeKey(p) === selectedKey.value)) {
+    selectedKey.value = null
+  }
 })
 
 /** (0,0)은 폴백 예시의 좌표 없음 표시 — 지도 링크를 만들 수 없다. */
@@ -254,6 +324,25 @@ function formatDistance(m?: number): string {
         <span class="loc-on">{{ myLocation ? '내 위치 기준 거리순' : office.shortName + ' 기준 거리순' }}</span>
       </div>
 
+      <!-- 웹(데스크톱)은 GPS가 없어 Wi-Fi/IP로 위치를 추정한다 — 오차를 숨기지 않고 드러내고,
+           지도 클릭으로 직접 바로잡을 길을 바로 옆에 둔다. -->
+      <div v-if="myLocation" class="loc-note" :class="{ warn: locationUnreliable }">
+        <template v-if="locationUnreliable">
+          <b>내 위치가 {{ formatAccuracy(accuracyM!) }}까지 벗어날 수 있어요.</b>
+          <span>PC는 GPS가 없어 Wi-Fi·IP로 추정합니다. 엉뚱한 곳이면 지도를 눌러 직접 지정하세요.</span>
+        </template>
+        <template v-else-if="accuracyM">
+          <span>내 위치 정확도 {{ formatAccuracy(accuracyM) }}</span>
+        </template>
+        <template v-else>
+          <span>지도에서 직접 지정한 위치를 기준으로 보고 있어요</span>
+        </template>
+        <button type="button" class="loc-act" @click="pickingLocation = !pickingLocation">
+          {{ pickingLocation ? '지정 취소' : '지도에서 직접 지정' }}
+        </button>
+        <button type="button" class="loc-act ghost" @click="clearMyLocation">{{ office.shortName }} 기준으로</button>
+      </div>
+
       <div v-if="pickMode" class="pick-banner">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" /></svg>
         <span><b>책벗이 추천한 {{ displayList.length }}곳</b>만 보고 있어요 · {{ office.name }} 기준</span>
@@ -263,17 +352,35 @@ function formatDistance(m?: number): string {
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
 
       <div class="pl-layout">
-        <CommonKakaoMap :places="displayList" :app-key="kakaoJsKey" :my-location="myLocation" :base="office" />
+        <CommonKakaoMap
+          :places="displayList"
+          :app-key="kakaoJsKey"
+          :my-location="myLocation"
+          :accuracy-m="accuracyM"
+          :base="office"
+          :selected="selectedKey"
+          :picking-location="pickingLocation"
+          @select="onMapSelect"
+          @pick="onPickLocation"
+        />
 
-        <div class="plist">
-          <div v-for="(place, i) in displayList" :key="place.kakaoId ?? place.name" class="place">
-            <div class="top">
+        <div ref="listEl" class="plist">
+          <div
+            v-for="(place, i) in displayList"
+            :key="placeKey(place)"
+            class="place"
+            :class="{ 'is-selected': selectedKey === placeKey(place) }"
+            :data-place-key="placeKey(place)"
+          >
+            <!-- 카드 윗줄 전체가 지도 연동 버튼이다. 아래의 후기·링크 영역까지 클릭 대상으로
+                 만들면 "카카오맵에서 보기"를 누르려다 선택이 토글되는 사고가 난다. -->
+            <button type="button" class="top" :aria-pressed="selectedKey === placeKey(place)" @click="toggleSelect(place)">
               <span class="no">{{ i + 1 }}</span>
               <b>{{ place.name }}</b>
               <span class="cat">{{ place.category }}</span>
               <span v-if="place.distanceM" class="dist">{{ formatDistance(place.distanceM) }}</span>
               <span v-if="isFallback" class="badge no" style="margin-left:auto;">예시</span>
-            </div>
+            </button>
             <div class="meta">{{ place.address }}</div>
             <div v-if="place.reason" class="why">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="stroke: var(--red-dark)" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
@@ -328,9 +435,36 @@ function formatDistance(m?: number): string {
 .office-pick select { border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); padding: 9px 0; cursor: pointer; }
 .loc-on { font-size: 12px; color: var(--sub); background: var(--red-tint); border-radius: 3px; padding: 4px 10px; }
 
+/* 내 위치 정확도 안내 — 오차가 크면(웹 Wi-Fi/IP 추정) 붉게 띄워 보정을 유도한다. */
+.loc-note {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin: -12px 0 18px; padding: 9px 13px; font-size: 12.5px; color: var(--sub);
+  background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+}
+.loc-note.warn { background: var(--red-tint); border-color: var(--red); color: var(--red-text); }
+.loc-note b { font-weight: 700; color: var(--ink); }
+.loc-note.warn b { color: var(--red-text); }
+.loc-act {
+  font: inherit; font-size: 12px; font-weight: 700; color: var(--red); cursor: pointer;
+  background: var(--card); border: 1px solid var(--red); border-radius: 999px; padding: 4px 12px;
+}
+.loc-act:first-of-type { margin-left: auto; }
+.loc-act:hover { background: var(--red); color: #fff; }
+.loc-act.ghost { color: var(--sub); border-color: var(--line-strong); }
+.loc-act.ghost:hover { background: var(--line); color: var(--ink); }
+
 .plist { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; }
-.place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 13px 15px; box-shadow: 0 2px 10px var(--shadow); flex-shrink: 0; }
-.place .top { display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; }
+.place { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 13px 15px; box-shadow: 0 2px 10px var(--shadow); flex-shrink: 0; transition: border-color .14s ease, box-shadow .14s ease; }
+.place:hover { border-color: var(--line-strong); }
+/* 지도 핀과 짝이 맞는다는 표시 — 왼쪽 붉은 띠 + 강조 테두리. */
+.place.is-selected { border-color: var(--red); box-shadow: 0 3px 14px rgba(181, 0, 14, .18); }
+.place.is-selected .no { background: var(--red); color: #fff; border-radius: 4px; padding: 0 6px; }
+/* 카드 윗줄은 button이지만 시각적으로는 원래의 한 줄 그대로다. */
+.place .top {
+  display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; width: 100%;
+  font: inherit; text-align: left; color: inherit; background: none; border: 0; padding: 0; cursor: pointer;
+}
+.place .top:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; border-radius: 3px; }
 .place .no { font-family: var(--font-display); color: var(--red); font-weight: 700; font-size: 16px; }
 .place b { font-size: 15.5px; }
 .place .cat { font-size: 12px; color: var(--sub); }
