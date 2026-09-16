@@ -116,6 +116,34 @@ export interface Review {
   createdAt: string
 }
 
+/** 리뷰 모아보기 피드 1건 — 작성자·책·추천 수와 이달의 다독왕 순위까지 붙은 형태. */
+export interface ReviewCard extends Review {
+  userName: string
+  department: string
+  voteCount: number
+  votedByMe: boolean
+  bookTitle: string
+  bookAuthor: string
+  bookCoverUrl: string | null
+  /** 이달 반납 권수 기준 다독왕 순위(1~3). 다독왕이 아니면 null. */
+  topReaderRank: number | null
+}
+
+/** 소속 필터 선택지 1건 — 리뷰를 남긴 사람들의 계열사/부서/팀 조합. */
+export interface ReviewOrg {
+  company: string
+  department: string
+  team: string
+}
+
+/** GET /api/reviews?scope=all 응답. */
+export interface ReviewFeed {
+  stats: { count: number; avg: number | null }
+  reviews: ReviewCard[]
+  /** 소속 드롭다운 선택지 — 고르면 반드시 결과가 있는 조합만 내려온다. */
+  orgs: ReviewOrg[]
+}
+
 export interface ReviewVote {
   id: number
   reviewId: number

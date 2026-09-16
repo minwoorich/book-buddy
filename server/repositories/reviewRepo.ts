@@ -93,11 +93,21 @@ export const reviewRepo = {
   /**
    * 전체 리뷰 모아보기(왓챠피디아식 코멘트 피드). 작성자·책·추천 수 포함.
    * sort: popular=추천순, latest=최신순, rating=별점 높은 순(동률은 최신순).
+   *
+   * 소속 필터(company/department/team)는 랭킹과 같은 규칙으로 상위 소속까지 AND로 묶는다 —
+   * "바텍/연구소"와 "레이언스/연구소"는 이름이 같아도 다른 조직이기 때문(rankingService 참고).
+   * topReaderIds가 주어지면 그 사용자들의 리뷰만 남긴다(다독왕 리뷰 보기). 빈 배열이면 결과도 비어 있다.
    */
   listAllWithMeta(
     meId: number,
-    sort: 'popular' | 'latest' | 'rating',
-    limit = 60
+    opts: {
+      sort: 'popular' | 'latest' | 'rating'
+      company?: string
+      department?: string
+      team?: string
+      topReaderIds?: number[]
+      limit?: number
+    }
   ): (Review & {
     userName: string
     department: string
@@ -107,12 +117,36 @@ export const reviewRepo = {
     bookAuthor: string
     bookCoverUrl: string | null
   })[] {
+    const { sort, company, department, team, topReaderIds, limit = 60 } = opts
+    if (topReaderIds && topReaderIds.length === 0) return []
+
     const orderBy =
       sort === 'popular'
         ? 'vote_count DESC, r.created_at DESC'
         : sort === 'rating'
           ? 'r.rating DESC, r.created_at DESC'
           : 'r.created_at DESC, r.id DESC'
+
+    const conditions: string[] = []
+    const filterParams: (string | number)[] = []
+    if (company) {
+      conditions.push('u.company = ?')
+      filterParams.push(company)
+    }
+    if (department) {
+      conditions.push('u.department = ?')
+      filterParams.push(department)
+    }
+    if (team) {
+      conditions.push('u.team = ?')
+      filterParams.push(team)
+    }
+    if (topReaderIds) {
+      conditions.push(`u.id IN (${topReaderIds.map(() => '?').join(', ')})`)
+      filterParams.push(...topReaderIds)
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+
     const rows = getDb()
       .prepare(
         `SELECT r.id, r.book_id, r.user_id, r.rating, r.content, r.created_at,
@@ -123,16 +157,35 @@ export const reviewRepo = {
          FROM reviews r
          JOIN users u ON u.id = r.user_id
          JOIN books b ON b.id = r.book_id
+         ${where}
          ORDER BY ${orderBy}
          LIMIT ?`
       )
-      .all(meId, limit) as (ReviewJoinRow & { book_title: string; book_author: string; book_cover_url: string | null })[]
+      .all(meId, ...filterParams, limit) as (ReviewJoinRow & {
+      book_title: string
+      book_author: string
+      book_cover_url: string | null
+    })[]
     return rows.map((row) => ({
       ...toReviewWithMeta(row),
       bookTitle: row.book_title,
       bookAuthor: row.book_author,
       bookCoverUrl: row.book_cover_url,
     }))
+  },
+
+  /**
+   * 리뷰를 실제로 남긴 사람들의 소속 목록(중복 제거). 모아보기 소속 드롭다운용 —
+   * 고르면 반드시 결과가 있는 선택지만 내려간다.
+   */
+  orgOptions(): { company: string; department: string; team: string }[] {
+    return getDb()
+      .prepare(
+        `SELECT DISTINCT u.company AS company, u.department AS department, u.team AS team
+         FROM reviews r JOIN users u ON u.id = r.user_id
+         ORDER BY u.company, u.department, u.team`
+      )
+      .all() as { company: string; department: string; team: string }[]
   },
 
   /** 전체 리뷰 수·평균 별점 — 모아보기 페이지 헤더 요약용. */

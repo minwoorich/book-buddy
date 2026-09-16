@@ -95,6 +95,22 @@ export const rankingService = {
   },
 
   /**
+   * 이달의 다독왕 상위 n명(리뷰 모아보기 뱃지·필터용). 랭킹 페이지의 개인·이달 순위를
+   * 그대로 쓰므로 두 화면의 "다독왕"이 어긋나지 않는다.
+   * 권수와 달성 시각이 모두 같을 때만 공동 순위가 된다(QA #93과 같은 규칙).
+   */
+  topReaders(limit = 3): { userId: number; rank: number }[] {
+    const rows = this.snapshot('user', 'month').rows.slice(0, limit)
+    const ranks: number[] = []
+    for (let i = 0; i < rows.length; i++) {
+      const prev = rows[i - 1]
+      const tied = !!prev && prev.count === rows[i]!.count && (prev.reachedAt ?? null) === (rows[i]!.reachedAt ?? null)
+      ranks.push(tied ? ranks[i - 1]! : i + 1)
+    }
+    return rows.map((row, i) => ({ userId: row.userId!, rank: ranks[i]! }))
+  },
+
+  /**
    * 반납 완료(loans.returned_at IS NOT NULL) 기준 랭킹. count DESC 정렬, 0권인 대상은 제외.
    *
    * 권수가 같을 때는 "그 권수를 먼저 채운 쪽"이 앞선다(QA #93). 집계 구간 안에서
