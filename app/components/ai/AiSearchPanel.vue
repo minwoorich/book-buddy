@@ -136,6 +136,13 @@ const visibleActions = computed(() => (answer.value?.actions ?? []).filter((a) =
 /** 여러 줄 답변(추천 목록)은 블록만 가운데 두고 글줄은 왼쪽 정렬(QA #84). */
 const multiLine = computed(() => (answer.value?.message ?? '').includes('\n'))
 
+// 답변에 마크다운이 섞여 오므로 채팅 말풍선(ChatMessage)과 같은 방식으로 HTML로 렌더한다.
+// renderMarkdown은 원문을 먼저 이스케이프하므로 v-html로 넣어도 안전하다.
+/** 최종 답변 message를 렌더한 HTML. */
+const renderedAnswer = computed(() => renderMarkdown(answer.value?.message ?? ''))
+/** 스트리밍 중 누적된 평문을 렌더한 HTML(타자기 효과). */
+const renderedStream = computed(() => renderMarkdown(streamText.value))
+
 function goLogin() {
   void navigateTo('/login')
 }
