@@ -36,22 +36,32 @@ function keywords(query: string): string[] {
   return query.trim().split(/\s+/).filter(Boolean).slice(0, MAX_KEYWORDS)
 }
 
-/** 제목+저자에 걸린 키워드 개수 — 많이 걸린 책을 위로 올리는 데 쓴다. */
-function matchScore(book: Book, words: string[]): number {
-  const haystack = `${book.title} ${book.author}`.toLowerCase()
-  return words.filter((w) => haystack.includes(w.toLowerCase())).length
+/**
+ * 걸린 키워드 수로 매긴 점수 — 많이 걸린 책을 위로 올리는 데 쓴다.
+ * 소개글까지 볼 때는 제목·저자 적중(2점)을 소개글 적중(1점)보다 무겁게 친다.
+ */
+function matchScore(book: Book, words: string[], inDescription: boolean): number {
+  const head = `${book.title} ${book.author}`.toLowerCase()
+  const desc = inDescription ? (book.description ?? '').toLowerCase() : ''
+  return words.reduce((sum, w) => {
+    const word = w.toLowerCase()
+    return sum + (head.includes(word) ? 2 : desc.includes(word) ? 1 : 0)
+  }, 0)
 }
 
 export const bookRepo = {
-  findAll(q?: { query?: string; category?: string }): Book[] {
+  /** inDescription: 소개글까지 검색한다(책벗 검색용 — 홈 검색은 제목/저자만 본다). */
+  findAll(q?: { query?: string; category?: string; inDescription?: boolean }): Book[] {
     const clauses: string[] = []
     const params: unknown[] = []
     // 검색어는 공백 단위로 쪼개 단어마다 제목/저자를 훑는다. 단어끼리는 OR라
     // 한 단어만 걸려도 결과에 나오고, 많이 걸린 책일수록 위로 정렬된다.
     const words = q?.query ? keywords(q.query) : []
+    const inDescription = Boolean(q?.inDescription)
     if (words.length) {
-      clauses.push(`(${words.map(() => '(title LIKE ? OR author LIKE ?)').join(' OR ')})`)
-      for (const word of words) params.push(`%${word}%`, `%${word}%`)
+      const match = inDescription ? '(title LIKE ? OR author LIKE ? OR description LIKE ?)' : '(title LIKE ? OR author LIKE ?)'
+      clauses.push(`(${words.map(() => match).join(' OR ')})`)
+      for (const word of words) params.push(...Array(inDescription ? 3 : 2).fill(`%${word}%`))
     }
     if (q?.category) {
       clauses.push('category = ?')
@@ -60,9 +70,9 @@ export const bookRepo = {
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
     const rows = getDb().prepare(`SELECT * FROM books ${where}`).all(...params) as BookRow[]
     const books = rows.map(toBook)
-    if (words.length < 2) return books
+    if (words.length < 2 && !inDescription) return books
     return books
-      .map((book, index) => ({ book, index, score: matchScore(book, words) }))
+      .map((book, index) => ({ book, index, score: matchScore(book, words, inDescription) }))
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map((entry) => entry.book)
   },
