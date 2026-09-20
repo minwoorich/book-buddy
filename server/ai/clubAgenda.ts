@@ -87,16 +87,16 @@ export async function generateAgenda(
 ): Promise<ClubAgendaItem[]> {
   if (!deps.anthropicApiKey || input.reviews.length === 0) return fallbackAgenda(input.bookTitle)
 
-  const setting = aiSettingsRepo.findByKey('club_agenda') ?? AI_DEFAULTS.club_agenda
-  const llm = new ChatAnthropic({
-    apiKey: deps.anthropicApiKey,
-    model: setting.model,
-    maxTokens: setting.maxTokens,
-    temperature: resolveTemperature(setting.model, setting.temperature),
-  })
-
   const startedAt = Date.now()
   try {
+    const setting = aiSettingsRepo.findByKey('club_agenda') ?? AI_DEFAULTS.club_agenda
+    const llm = new ChatAnthropic({
+      apiKey: deps.anthropicApiKey,
+      model: setting.model,
+      maxTokens: setting.maxTokens,
+      temperature: resolveTemperature(setting.model, setting.temperature),
+    })
+
     const res = await llm.invoke([
       { role: 'system', content: setting.systemPrompt },
       { role: 'user', content: buildAgendaPrompt(input.bookTitle, input.reviews) },
