@@ -6,10 +6,10 @@ const route = useRoute()
 const { user } = useCurrentUser()
 
 const clubId = computed(() => Number(route.params.id))
-const { data: club, refresh } = await useAsyncData<Club | null>(
+const { data: club, pending, error, refresh } = await useAsyncData<Club | null>(
   () => `club-${clubId.value}`,
   () => api<Club>(`/api/clubs/${clubId.value}`),
-  { default: () => null }
+  { default: () => null, watch: [clubId] }
 )
 
 const message = ref('')
@@ -23,6 +23,7 @@ const isGenericAgenda = computed(
 )
 
 async function respond(accept: boolean) {
+  if (sending.value) return
   sending.value = true
   try {
     await api(`/api/clubs/${clubId.value}/respond`, { method: 'POST', body: { accept } })
@@ -39,6 +40,11 @@ async function respond(accept: boolean) {
 <template>
   <div>
     <CommonAppHeader active="clubs" />
+    <main v-if="!club" class="wrap">
+      <NuxtLink class="back" to="/clubs">← 책모임</NuxtLink>
+      <p v-if="pending" class="empty">불러오는 중…</p>
+      <p v-else class="empty">{{ error ? apiErrorMessage(error) : '모임을 찾을 수 없어요' }}</p>
+    </main>
     <main v-if="club" class="wrap">
       <NuxtLink class="back" to="/clubs">← 책모임</NuxtLink>
       <h1>『{{ club.bookTitle }}』 책모임</h1>
@@ -88,6 +94,7 @@ async function respond(accept: boolean) {
 <style scoped>
 .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
 .back { font-size: 14px; color: var(--muted, #666); text-decoration: none; }
+.empty { margin-top: 16px; color: var(--muted, #666); font-size: 14px; }
 h1 { font-size: 22px; margin: 10px 0 4px; }
 .reason { color: var(--muted, #666); font-size: 14px; margin: 0 0 20px; }
 h2 { font-size: 16px; margin: 24px 0 8px; }
