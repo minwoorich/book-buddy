@@ -247,3 +247,53 @@ describe('toDbTime', () => {
     expect(stored.t > past).toBe(true)
   })
 })
+
+describe('2단계: done_at·votes·company', () => {
+  it('clubs.done_at 컬럼이 있고 markDone이 status·done_at을 같이 쓴다', () => {
+    const bookId = insertBook('하드씽')
+    const a = insertUser('김독서')
+    const club = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: a, role: 'host' }], inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+
+    clubRepo.markDone(club.id, '2026-09-25T10:00:00.000Z')
+    const found = clubRepo.findById(club.id)!
+    expect(found.status).toBe('done')
+    expect(found.doneAt).toBe('2026-09-25T10:00:00.000Z')
+  })
+
+  it('멤버에 company가 실리고 votes는 기본 빈 배열이다', () => {
+    const bookId = insertBook('하드씽')
+    const a = insertUser('김독서')
+    const club = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: a, role: 'host' }], inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    const found = clubRepo.findById(club.id)!
+    expect(found.members[0]?.company).toBe('바텍')
+    expect(found.votes).toEqual([])
+  })
+
+  it('쿨다운은 done_at 기준이다 — 4주 안에 끝난 모임의 멤버만 cooled', () => {
+    const bookId = insertBook('하드씽')
+    const recent = insertUser('최근종료')
+    const old = insertUser('오래전종료')
+    const c1 = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: recent, role: 'host' }], inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    const c2 = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: old, role: 'host' }], inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    clubRepo.markDone(c1.id, '2026-09-10T10:00:00.000Z') // 10일 전
+    clubRepo.markDone(c2.id, '2026-07-01T10:00:00.000Z') // 80일 전
+
+    const state = clubRepo.quotaState(new Date('2026-09-20T00:00:00Z'))
+    expect(state.cooledUserIds.has(recent)).toBe(true)
+    expect(state.cooledUserIds.has(old)).toBe(false)
+    // 끝난 모임은 busy가 아니다
+    expect(state.busyUserIds.has(recent)).toBe(false)
+  })
+})

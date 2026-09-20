@@ -1,5 +1,13 @@
 import { getDb } from '../db/connection'
-import type { Club, ClubAgendaItem, ClubInviteStatus, ClubMember, ClubMemberRole, ClubStatus } from '../../shared/types'
+import type {
+  Club,
+  ClubAgendaItem,
+  ClubInviteStatus,
+  ClubMember,
+  ClubMemberRole,
+  ClubStatus,
+  ClubVote,
+} from '../../shared/types'
 import type { CandidateReader } from '../utils/clubMatch'
 import type { QuotaState } from '../utils/clubSelection'
 import { CLUB_RULES } from '../utils/clubRules'
@@ -24,6 +32,7 @@ interface ClubRow {
   place_lng: number | null
   place_decided_at: string | null
   created_at: string
+  done_at: string | null
   canceled_reason: string | null
 }
 
@@ -32,6 +41,7 @@ interface MemberRow {
   user_id: number
   user_name: string
   department: string
+  company: string
   role: ClubMemberRole
   invite_status: ClubInviteStatus
   responded_at: string | null
@@ -66,13 +76,14 @@ function toMember(row: MemberRow): ClubMember {
     userId: row.user_id,
     userName: row.user_name,
     department: row.department,
+    company: row.company,
     role: row.role,
     inviteStatus: row.invite_status,
     respondedAt: row.responded_at,
   }
 }
 
-function toClub(row: ClubRow, members: ClubMember[]): Club {
+function toClub(row: ClubRow, members: ClubMember[], votes: ClubVote[]): Club {
   const hasPlace = row.place_kakao_id !== null && row.place_name !== null
   return {
     id: row.id,
@@ -92,6 +103,8 @@ function toClub(row: ClubRow, members: ClubMember[]): Club {
       : null,
     placeDecidedAt: row.place_decided_at,
     createdAt: row.created_at,
+    doneAt: row.done_at,
+    votes,
     canceledReason: row.canceled_reason,
     members,
   }
@@ -105,7 +118,7 @@ function membersByClub(clubIds: number[]): Map<number, ClubMember[]> {
   const placeholders = clubIds.map(() => '?').join(',')
   const rows = getDb()
     .prepare(
-      `SELECT m.*, u.name AS user_name, u.department AS department
+      `SELECT m.*, u.name AS user_name, u.department AS department, u.company AS company
        FROM club_members m JOIN users u ON u.id = m.user_id
        WHERE m.club_id IN (${placeholders})
        ORDER BY m.role = 'host' DESC, m.id ASC`
@@ -120,9 +133,27 @@ function membersByClub(clubIds: number[]): Map<number, ClubMember[]> {
   return out
 }
 
+/** 여러 모임의 투표를 한 번에 읽어 club_id로 묶는다(멤버와 같은 방식). */
+function votesByClub(clubIds: number[]): Map<number, ClubVote[]> {
+  const out = new Map<number, ClubVote[]>()
+  if (clubIds.length === 0) return out
+  const placeholders = clubIds.map(() => '?').join(',')
+  const rows = getDb()
+    .prepare(`SELECT club_id, user_id, slot_idx FROM club_votes WHERE club_id IN (${placeholders}) ORDER BY id ASC`)
+    .all(...clubIds) as { club_id: number; user_id: number; slot_idx: number }[]
+  for (const r of rows) {
+    const list = out.get(r.club_id) ?? []
+    list.push({ userId: r.user_id, slotIdx: r.slot_idx })
+    out.set(r.club_id, list)
+  }
+  return out
+}
+
 function hydrate(rows: ClubRow[]): Club[] {
-  const byClub = membersByClub(rows.map((r) => r.id))
-  return rows.map((r) => toClub(r, byClub.get(r.id) ?? []))
+  const ids = rows.map((r) => r.id)
+  const byClub = membersByClub(ids)
+  const votes = votesByClub(ids)
+  return rows.map((r) => toClub(r, byClub.get(r.id) ?? [], votes.get(r.id) ?? []))
 }
 
 export interface ProposalInput {
@@ -183,6 +214,11 @@ export const clubRepo = {
       .run(status, opts.canceledReason ?? null, id)
   },
 
+  /** 모임 종료 — 상태와 종료 시각을 함께 쓴다(쿨다운 기준). */
+  markDone(id: number, doneAtIso: string): void {
+    getDb().prepare(`UPDATE clubs SET status = 'done', done_at = ? WHERE id = ?`).run(doneAtIso, id)
+  },
+
   setInviteStatus(clubId: number, userId: number, status: ClubInviteStatus): void {
     getDb()
       .prepare(
@@ -210,10 +246,6 @@ export const clubRepo = {
    */
   quotaState(now: Date): QuotaState {
     const db = getDb()
-    // DB의 created_at과 비교하므로 SQLite 포맷으로 맞춘다(toDbTime 주석 참고).
-    const cooldownSince = toDbTime(
-      new Date(now.getTime() - CLUB_RULES.personCooldownWeeks * 7 * 24 * 60 * 60 * 1000)
-    )
     const bookSince = toDbTime(
       new Date(now.getTime() - CLUB_RULES.bookCooldownMonths * 30 * 24 * 60 * 60 * 1000)
     )
@@ -226,12 +258,16 @@ export const clubRepo = {
       )
       .all(...ACTIVE_STATUSES) as { id: number }[]
 
+    // done_at은 앱이 ISO로 쓰는 컬럼 — ISO끼리 비교한다(created_at과 달리 toDbTime을 쓰지 않는다).
+    const cooldownSinceIso = new Date(
+      now.getTime() - CLUB_RULES.personCooldownWeeks * 7 * 24 * 60 * 60 * 1000
+    ).toISOString()
     const cooled = db
       .prepare(
         `SELECT DISTINCT m.user_id AS id FROM club_members m JOIN clubs c ON c.id = m.club_id
-         WHERE c.status = 'done' AND c.created_at >= ?`
+         WHERE c.status = 'done' AND c.done_at IS NOT NULL AND c.done_at >= ?`
       )
-      .all(cooldownSince) as { id: number }[]
+      .all(cooldownSinceIso) as { id: number }[]
 
     const books = db
       .prepare(`SELECT DISTINCT book_id AS id FROM clubs WHERE status != 'canceled' AND created_at >= ?`)

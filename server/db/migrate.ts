@@ -110,6 +110,7 @@ export function migrate(db: Database.Database): void {
       place_kakao_id TEXT, place_name TEXT, place_lat REAL, place_lng REAL,
       place_decided_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      done_at TEXT,
       canceled_reason TEXT);
     CREATE TABLE IF NOT EXISTS club_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -193,6 +194,13 @@ export function migrate(db: Database.Database): void {
   const placeReviewColumns = db.prepare('PRAGMA table_info(place_reviews)').all() as { name: string }[]
   if (!placeReviewColumns.some((c) => c.name === 'image_paths')) {
     db.exec(`ALTER TABLE place_reviews ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]'`)
+  }
+
+  // 2단계: 모임 종료 시각. 사람 쿨다운("종료 후 4주")의 기준 — created_at으로 재면 5주 전에 만들어져
+  // 어제 끝난 모임의 멤버가 즉시 재초대된다. 앱이 ISO로 직접 쓰는 컬럼(비교도 ISO끼리).
+  const clubColumns = db.prepare('PRAGMA table_info(clubs)').all() as { name: string }[]
+  if (!clubColumns.some((c) => c.name === 'done_at')) {
+    db.exec(`ALTER TABLE clubs ADD COLUMN done_at TEXT`)
   }
 
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다

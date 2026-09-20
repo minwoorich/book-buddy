@@ -454,9 +454,15 @@ export interface ClubMember {
   userId: number
   userName: string
   department: string
+  company: string
   role: ClubMemberRole
   inviteStatus: ClubInviteStatus
   respondedAt: string | null
+}
+
+export interface ClubVote {
+  userId: number
+  slotIdx: number
 }
 
 export interface Club {
@@ -479,6 +485,10 @@ export interface Club {
   placeDecidedAt: string | null
   createdAt: string
   canceledReason: string | null
+  /** 모임 종료 시각(ISO). 사람 쿨다운의 기준. */
+  doneAt: string | null
+  /** 시간 투표. slotIdx는 candidateSlots의 인덱스. */
+  votes: ClubVote[]
   members: ClubMember[]
 }
 
