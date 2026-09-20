@@ -10,6 +10,7 @@ import { enrichAnswer, recentBookIdsFromHistory } from './enrich'
 import { resolveTemperature } from './defaults'
 import { createMessageExtractor } from './streamText'
 import { collectPlaceEvidence, toolMessageFromStreamEvent, type ToolMessageLike } from './placeEvidence'
+import { bookIdsFromTools } from './bookMention'
 import { createPlaceCollector, pickRecommendation, withPlaceAction, type PlaceCollector } from './placeCollector'
 import { makeSearchBooks } from './tools/searchBooks'
 import { makeGetBookDetail } from './tools/getBookDetail'
@@ -75,6 +76,16 @@ export interface AgentDeps {
 
 /** streamAgent가 진행 중 흘려보내는 이벤트. done/error는 엔드포인트가 별도로 보낸다. */
 export type AgentStreamEvent = { type: 'tool'; name: string; detail: string } | { type: 'delta'; text: string }
+
+/**
+ * 모델이 준 bookIds가 비어 있으면, 도구 결과로 확인된 책 중 본문이 실제로 부른 것을 채운다.
+ * 모델이 도구 호출 중간 턴에 추천 본문을 써 버리면 최종 턴에는 bookIds가 안 남아, 채팅에
+ * 책 카드가 하나도 뜨지 않았다(운영 재현). 모델이 제대로 준 경우엔 그대로 둔다.
+ */
+function withMentionedBooks(bookIds: number[], toolMessages: ToolMessageLike[], message: string): number[] {
+  if (bookIds.length > 0) return bookIds
+  return bookIdsFromTools(toolMessages, message)
+}
 
 /** 도구 루프가 recursionLimit에 닿았을 때 LangGraph가 던지는 에러인지 판별한다. */
 function isGraphRecursionError(e: unknown): boolean {
@@ -214,7 +225,11 @@ export async function runAgent(
   const places = collectPlaceEvidence(res.messages, enriched.message)
   // 같은 판정으로 "이번에 추천한 장소"를 정하고, /places 버튼이 사업장·추천 장소를 들고 가게 한다.
   const recommend = pickRecommendation(placeCollector.records(), enriched.message)
-  const answer = { ...enriched, actions: withPlaceAction(enriched.actions, recommend) }
+  const answer = {
+    ...enriched,
+    bookIds: withMentionedBooks(enriched.bookIds, res.messages, enriched.message),
+    actions: withPlaceAction(enriched.actions, recommend),
+  }
 
   return { answer, usage: { inputTokens, outputTokens, durationMs }, places, recommend }
 }
@@ -309,7 +324,11 @@ export async function streamAgent(
   const enriched = enrichAnswer(parseAiAnswer(fullText), { recentBookIds: recentBookIdsFromHistory(messages) })
   const places = collectPlaceEvidence(toolMessages, enriched.message)
   const recommend = pickRecommendation(placeCollector.records(), enriched.message)
-  const answer = { ...enriched, actions: withPlaceAction(enriched.actions, recommend) }
+  const answer = {
+    ...enriched,
+    bookIds: withMentionedBooks(enriched.bookIds, toolMessages, enriched.message),
+    actions: withPlaceAction(enriched.actions, recommend),
+  }
 
   return { answer, usage: { inputTokens, outputTokens, durationMs }, places, recommend }
 }
