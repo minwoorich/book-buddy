@@ -44,8 +44,9 @@ function bookTitleOf(bookId: number): string {
  * 주 1회 도는 매처. 최근 완독자를 훑어 모임 후보를 만들고, 쿼터를 통과한 것 중
  * 점수 상위 N건만 제안으로 남긴다.
  *
- * 쿼터 상태(busy)는 제안을 하나 만들 때마다 다시 읽는다 — 같은 사람이 한 번 실행에서
- * 두 모임에 묶이는 것을 막기 위해서다.
+ * 쿼터 상태(busy 등)는 실행당 한 번만 읽는다. 같은 실행 안에서 한 사람이 두 모임에
+ * 묶이는 것은 DB가 아니라 usedUserIds(실행 범위 Set)로 막는다 — 제안을 만들 때마다
+ * 그 멤버를 넣고, 다음 후보에서는 그들을 뺀 뒤 정원을 다시 검사한다.
  */
 export async function runMatcher(deps: { anthropicApiKey: string }, now: Date): Promise<MatchRunResult> {
   const byBook = clubRepo.findCandidateReaders(now)

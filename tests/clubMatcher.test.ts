@@ -52,6 +52,11 @@ function bookWithReaders(title: string, count: number, departments: string[] = [
   return bookId
 }
 
+/** 이미 있는 사용자를 다른 책의 완독자로도 만든다(같은 실행 안의 중복 배제 검증용). */
+function addReader(bookId: number, userId: number, daysAgo: number): void {
+  insertReturnedLoan(bookId, userId, daysAgo)
+}
+
 beforeEach(() => {
   initDb(':memory:')
 })
@@ -100,11 +105,13 @@ describe('runMatcher', () => {
     expect(clubRepo.findById(result.clubIds[0]!)?.members).toHaveLength(5)
   })
 
-  it('점수가 높은 책이 먼저 뽑힌다 (별점이 갈린 쪽)', async () => {
-    const plain = bookWithReaders('밋밋한책', 3, ['개발본부', '영업본부', '연구소'])
+  it('점수가 높은 책이 먼저 뽑힌다 (별점이 갈린 쪽) — bookId 순서만으로는 통과할 수 없게 배치', async () => {
+    // 논쟁적인책을 마지막에 만들어 bookId가 가장 크게 한다. 점수가 같다면 tie-break(bookId 오름차순)로
+    // 앞의 두 권이 뽑히고 논쟁적인책은 상한(2건)에 밀려 탈락해야 한다.
+    bookWithReaders('밋밋한책', 3, ['개발본부', '영업본부', '연구소'])
+    bookWithReaders('또다른책', 3, ['개발본부', '영업본부', '연구소'])
     const split = bookWithReaders('논쟁적인책', 3, ['개발본부', '영업본부', '연구소'])
 
-    // 논쟁적인책에만 갈리는 별점을 남긴다.
     const db = getDb()
     const readers = db.prepare(`SELECT user_id FROM loans WHERE book_id = ?`).all(split) as { user_id: number }[]
     const ratings = [5, 2, 4]
@@ -114,12 +121,35 @@ describe('runMatcher', () => {
       )
     })
 
-    // 상한을 넘기려고 세 번째 책을 추가해 경쟁시킨다.
-    bookWithReaders('또다른책', 3, ['개발본부', '영업본부', '연구소'])
-
     const result = await runMatcher(DEPS, NOW)
     const titles = result.clubIds.map((id) => clubRepo.findById(id)!.bookTitle)
-    expect(titles).toContain('논쟁적인책')
-    expect(plain).toBeGreaterThan(0)
+
+    expect(result.created).toBe(2)
+    // clubIds는 생성 순서 = 점수 순서. 별점이 갈린 책이 1순위여야 한다.
+    expect(titles[0]).toBe('논쟁적인책')
+    expect(titles).not.toContain('또다른책')
+  })
+
+  it('같은 실행 안에서 한 사람이 두 모임에 들어가지 않는다 (usedUserIds)', async () => {
+    // 책A: u1,u2,u3 / 책B: u1,u4,u5 — u1이 겹친다. 먼저 뽑힌 쪽이 u1을 가져가면
+    // 다른 쪽은 2명만 남아 정원 미달로 버려져야 한다.
+    const bookA = insertBook('책A')
+    const bookB = insertBook('책B')
+    const u1 = insertUser('겹치는사람', '개발본부')
+    const u2 = insertUser('A2', '영업본부')
+    const u3 = insertUser('A3', '연구소')
+    const u4 = insertUser('B4', '영업본부')
+    const u5 = insertUser('B5', '연구소')
+    ;[u1, u2, u3].forEach((u, i) => addReader(bookA, u, 5 + i))
+    ;[u1, u4, u5].forEach((u, i) => addReader(bookB, u, 5 + i))
+
+    const result = await runMatcher(DEPS, NOW)
+
+    expect(result.created).toBe(1)
+    expect(result.skipped).toBeGreaterThanOrEqual(1)
+    const members = clubRepo.findById(result.clubIds[0]!)!.members.map((m) => m.userId)
+    expect(members).toContain(u1)
+    // u1은 한 모임에만 있다 — 두 번째 제안은 만들어지지 않았다.
+    expect(clubRepo.listByStatus('proposed')).toHaveLength(1)
   })
 })
