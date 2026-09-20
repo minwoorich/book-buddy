@@ -1,4 +1,4 @@
-import { CLUB_RULES, CLUB_SCORE_WEIGHTS } from './clubRules'
+import { CLUB_RULES, CLUB_SCORE_WEIGHTS, CLUB_DESCRIBE_THRESHOLDS } from './clubRules'
 
 /** 매칭 후보 한 사람. DB를 모르는 순수 입력 — 레포지토리가 이 모양으로 만들어 넘긴다. */
 export interface CandidateReader {
@@ -91,7 +91,7 @@ export function scoreCandidate(readers: CandidateReader[], now: Date): ClubScore
 export function describeMatch(readers: CandidateReader[], breakdown: ClubScoreBreakdown): string {
   const parts: string[] = [`${readers.length}명이 최근 같은 책을 완독했어요`]
 
-  if (breakdown.ratingSpread > 0.2) {
+  if (breakdown.ratingSpread > CLUB_DESCRIBE_THRESHOLDS.notableRatingSpread) {
     const ratings = readers.map((r) => r.rating).filter((r): r is number => typeof r === 'number')
     parts.push(`별점이 ${Math.min(...ratings)}점에서 ${Math.max(...ratings)}점까지 갈려 토론할 거리가 있어요`)
   } else if (breakdown.reviewDensity > 0) {
@@ -101,7 +101,7 @@ export function describeMatch(readers: CandidateReader[], breakdown: ClubScoreBr
   const deptCount = new Set(readers.map((r) => r.department)).size
   parts.push(deptCount > 1 ? `부서가 ${deptCount}곳 섞여 있어요` : '같은 부서 구성이에요')
 
-  if (breakdown.newcomerBonus >= 0.5) parts.push('대부분 모임 참여가 처음이에요')
+  if (breakdown.newcomerBonus >= CLUB_DESCRIBE_THRESHOLDS.mostlyNewcomers) parts.push('대부분 모임 참여가 처음이에요')
 
   return parts.join(' · ')
 }

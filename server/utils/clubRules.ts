@@ -29,3 +29,14 @@ export const CLUB_SCORE_WEIGHTS = {
   deptDiversity: 0.15,
   newcomerBonus: 0.15,
 } as const
+
+/**
+ * describeMatch(승인 화면의 "왜 이 조합인지" 문구)가 어느 문장을 고를지 정하는 문턱값.
+ * 매칭 결과에는 영향이 없고 문구 선택에만 쓰인다 — 그래도 임계값은 한곳에 둔다.
+ */
+export const CLUB_DESCRIBE_THRESHOLDS = {
+  /** ratingSpread가 이 값을 넘으면 "별점이 갈려 토론할 거리가 있어요"를 쓴다. */
+  notableRatingSpread: 0.2,
+  /** newcomerBonus가 이 값 이상이면 "대부분 모임 참여가 처음이에요"를 덧붙인다. */
+  mostlyNewcomers: 0.5,
+} as const
