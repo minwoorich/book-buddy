@@ -12,6 +12,7 @@ export const ROUTE_CATALOG = `
 - /feed — 독서 피드
 - /places — 책 읽기 좋은 장소(회사 주변 카페·도서관·공원)
 - /reviews — 동료들의 리뷰 모아보기
+- /clubs — 책모임(같은 책을 읽은 동료와의 독서모임 초대·일정)
 - /notices — 공지사항
 - / — 홈(도서 검색)
 `.trim()

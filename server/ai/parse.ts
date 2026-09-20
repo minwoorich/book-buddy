@@ -55,7 +55,8 @@ function toBookIds(value: unknown): number[] {
  */
 const ALLOWED_ACTION_PATHS = [
   /^\/$/,
-  /^\/(my|calendar|rankings|reviews|feed|places|notices)$/,
+  /^\/(my|calendar|rankings|reviews|clubs|feed|places|notices)$/,
+  /^\/clubs\/\d+$/,
   /^\/books\/\d+(\?review=1)?$/,
 ]
 

@@ -35,4 +35,16 @@ describe('parseAiAnswer — 넓어진 화이트리스트', () => {
       '/books/3?review=1',
     ])
   })
+
+  it('책모임 경로(/clubs, /clubs/12)는 통과한다', () => {
+    const text =
+      '{"message":"m","bookIds":[],"actions":[' +
+      '{"type":"navigate","label":"모임","to":"/clubs"},' +
+      '{"type":"navigate","label":"모임 상세","to":"/clubs/12"}' +
+      ']}'
+    expect(parseAiAnswer(text).actions.map((a) => (a.type === 'navigate' ? a.to : ''))).toEqual([
+      '/clubs',
+      '/clubs/12',
+    ])
+  })
 })

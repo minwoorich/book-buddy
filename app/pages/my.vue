@@ -435,6 +435,14 @@ function requestMeta(r: PurchaseRequest): string {
         <ReadingCalendar :year="calYear" :month="calMonth" :loans="doneLoans ?? []" />
       </div>
 
+      <NuxtLink class="reviews-link" to="/reviews">
+        <span>
+          <b>리뷰 모아보기</b>
+          <em>동료들이 남긴 리뷰를 추천순·별점순·소속별로 봐요</em>
+        </span>
+        <span aria-hidden="true">→</span>
+      </NuxtLink>
+
       <div class="sec-head">
         <h2>내가 남긴 리뷰</h2>
         <div class="rule" />
@@ -537,4 +545,14 @@ function requestMeta(r: PurchaseRequest): string {
   .my-review .rv-body { flex: 1 1 200px; }
   .my-review .btn { margin-left: 52px; }
 }
+
+/* 리뷰 모아보기 진입점 — 상단 메뉴에서 리뷰를 내리면서 대신 둔 자리(책모임 메뉴 추가) */
+.reviews-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 28px; padding: 16px 18px;
+  border: 1px solid var(--line, #e8e8e8); border-radius: 12px;
+  text-decoration: none; color: inherit;
+}
+.reviews-link b { display: block; font-size: 15px; }
+.reviews-link em { display: block; margin-top: 3px; font-style: normal; font-size: 13px; color: var(--muted, #777); }
 </style>

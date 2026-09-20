@@ -9,7 +9,7 @@ const ALL_NAV_ITEMS = [
   { key: 'notices', label: '공지사항', to: '/notices' },
   { key: 'my', label: '내 서재', to: '/my' },
   { key: 'rankings', label: '랭킹', to: '/rankings' },
-  { key: 'reviews', label: '리뷰', to: '/reviews' },
+  { key: 'clubs', label: '모임', to: '/clubs' },
   { key: 'feed', label: '피드', to: '/feed' },
   { key: 'places', label: '장소', to: '/places' },
 ]
