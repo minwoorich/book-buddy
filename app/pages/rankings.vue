@@ -114,12 +114,16 @@ function pick(row: RankRow): void {
         <div class="page-head" style="margin-bottom:0;">
           <span class="eyebrow">READING LEADERBOARD</span>
           <h1>독서 랭킹</h1>
-          <p>대출-반납 기록(완독 권수) 기준으로 집계해요</p>
-          <p class="tiebreak">권수가 같으면 <b>그 권수를 먼저 채운 쪽</b>이 앞 순위예요</p>
-          <p v-if="updatedLabel" class="updated">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-            마지막 업데이트 <b>{{ updatedLabel }}</b> · 다음 업데이트 {{ nextUpdateLabel }} (30분마다 갱신)
-          </p>
+          <!-- 안내 문구 4줄이 제목만큼 자리를 먹어서, 작은 칩 하나로 접고 호버·포커스 때만 펼친다. -->
+          <div class="guide" tabindex="0" aria-describedby="rank-guide">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 16v-5" /><path d="M12 8h.01" /></svg>
+            집계 기준<span v-if="updatedLabel"> · {{ updatedLabel }} 업데이트</span>
+            <div id="rank-guide" class="guide-tip" role="tooltip">
+              <p>대출-반납 기록(<b>완독 권수</b>) 기준으로 집계해요</p>
+              <p>권수가 같으면 <b>그 권수를 먼저 채운 쪽</b>이 앞 순위예요</p>
+              <p v-if="updatedLabel">마지막 업데이트 <b>{{ updatedLabel }}</b> · 다음 업데이트 {{ nextUpdateLabel }} (30분마다 갱신)</p>
+            </div>
+          </div>
         </div>
         <div class="period">
           <span
@@ -185,10 +189,13 @@ function pick(row: RankRow): void {
 <style scoped>
 .head-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 8px; }
 .period { margin-left: auto; display: flex; gap: 8px; }
-.tiebreak { margin-top: 5px !important; font-size: 12.5px !important; color: var(--sub); }
-.tiebreak b { color: var(--ink); font-weight: 700; }
-.updated { display: flex; align-items: center; gap: 5px; margin-top: 8px !important; font-size: 12.5px !important; color: var(--sub); }
-.updated b { color: var(--ink); }
+.guide { position: relative; display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--sub); cursor: help; }
+.guide:hover, .guide:focus { border-color: var(--line-hover); color: var(--ink); outline: none; }
+.guide-tip { position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 270px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px var(--shadow-strong); text-align: left; opacity: 0; visibility: hidden; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease; }
+.guide:hover .guide-tip, .guide:focus .guide-tip { opacity: 1; visibility: visible; transform: none; }
+.guide-tip p { margin: 0 !important; font-size: 12.5px !important; line-height: 1.55; color: var(--sub); }
+.guide-tip p + p { margin-top: 5px !important; }
+.guide-tip b { color: var(--ink); font-weight: 700; }
 
 .rank-row { display: flex; align-items: center; gap: 16px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
 .rank-row:last-child { border-bottom: 0; }
