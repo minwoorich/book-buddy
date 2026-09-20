@@ -1,4 +1,4 @@
-import { clubService } from '../services/clubService'
+import { clubService } from '../../services/clubService'
 
 /**
  * 매일 아침 초대 기한을 정리한다.

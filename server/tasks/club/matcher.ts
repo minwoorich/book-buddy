@@ -1,4 +1,4 @@
-import { runMatcher } from '../services/clubMatcher'
+import { runMatcher } from '../../services/clubMatcher'
 
 /**
  * 주 1회(월 09:00 KST) 모임 후보를 찾아 제안을 만든다.
