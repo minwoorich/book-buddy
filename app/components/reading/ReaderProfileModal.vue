@@ -148,15 +148,21 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .close { position: absolute; top: 12px; right: 12px; border: 0; background: none; color: var(--sub); cursor: pointer; padding: 4px; line-height: 0; }
 .close:hover { color: var(--ink); }
 
-.who { display: flex; align-items: center; gap: 14px; padding-right: 30px; }
+.who { flex: none; display: flex; align-items: center; gap: 14px; padding-right: 30px; }
 .who .avatar { width: 52px; height: 52px; font-size: 20px; flex: none; }
 .who b { font-size: 17px; display: block; }
 .who .org { display: block; font-size: 12.5px; color: var(--sub); margin-top: 2px; }
 .who .tally { display: block; font-size: 13px; color: var(--sub); margin-top: 6px; }
 .who .tally b { display: inline; font-size: 13px; color: var(--ink); }
 
-.tabs { margin: 18px 0 0; }
-.list { overflow-y: auto; margin: 0 -6px; padding: 0 6px 14px; }
+/*
+ * .sheet는 flex 컬럼이라 내용이 max-height를 넘으면 flex 항목들이 기본값(shrink: 1)대로
+ * 같이 눌린다 — 완독 목록이 길면 탭 줄까지 찌그러져 글자가 잘리거나 아예 사라졌다.
+ * 머리(who)·탭은 줄어들지 않게 하고, 남는 높이를 목록이 받아 그 안에서만 스크롤한다.
+ * (min-height: 0이 없으면 flex 항목의 기본 min-height: auto 때문에 목록이 줄지 않는다.)
+ */
+.tabs { flex: none; margin: 18px 0 0; }
+.list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px 14px; }
 
 .row {
   width: 100%; display: flex; align-items: center; gap: 13px; text-align: left;
