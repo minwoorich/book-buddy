@@ -41,21 +41,27 @@ function onFocus() {
   void load()
 }
 
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') open.value = false
+}
+
 onMounted(() => {
   void load()
   timer = setInterval(load, POLL_MS)
   window.addEventListener('focus', onFocus)
+  window.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
   window.removeEventListener('focus', onFocus)
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
 <template>
   <div v-if="user" class="bell-wrap">
-    <button class="bell" :aria-label="`알림 ${unread}건`" @click="toggle">
+    <button class="bell" :aria-label="`알림 ${unread}건`" :aria-expanded="open" @click="toggle">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
@@ -63,7 +69,7 @@ onBeforeUnmount(() => {
       <span v-if="unread > 0" class="unread-count">{{ unread > 9 ? '9+' : unread }}</span>
     </button>
 
-    <div v-if="open" class="panel">
+    <div v-if="open" class="notif-panel">
       <p v-if="items.length === 0" class="empty">새 알림이 없어요.</p>
       <NuxtLink
         v-for="n in items"
@@ -84,7 +90,7 @@ onBeforeUnmount(() => {
 .bell-wrap { position: relative; }
 .bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; background: none; color: inherit; cursor: pointer; }
 .unread-count { position: absolute; top: 1px; right: 0; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; background: #e60012; color: #fff; font-size: 10px; line-height: 15px; font-weight: 700; }
-.panel { position: absolute; right: 0; top: 38px; width: 280px; max-height: 360px; overflow-y: auto; background: var(--bg, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); z-index: 50; }
+.notif-panel { position: absolute; right: 0; top: 38px; width: 280px; max-height: 360px; overflow-y: auto; background: var(--bg, #fff); border: 1px solid var(--line, #e5e5e5); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); z-index: 50; }
 .empty { padding: 16px; margin: 0; font-size: 13px; color: var(--muted, #888); }
 .item { display: block; padding: 10px 13px; border-bottom: 1px solid var(--line, #f0f0f0); text-decoration: none; color: inherit; }
 .item:last-child { border-bottom: none; }
@@ -92,6 +98,6 @@ onBeforeUnmount(() => {
 .item strong { display: block; font-size: 13px; }
 .item span { display: block; margin-top: 2px; font-size: 12px; color: var(--muted, #777); }
 @media (max-width: 640px) {
-  .panel { width: calc(100vw - 32px); right: -8px; }
+  .notif-panel { width: calc(100vw - 32px); right: -8px; }
 }
 </style>
