@@ -6,6 +6,7 @@ const api = useApi()
 const proposals = ref<Club[]>([])
 const loading = ref(false)
 const running = ref(false)
+const deciding = ref(false)
 const message = ref('')
 
 async function load() {
@@ -20,6 +21,8 @@ async function load() {
 }
 
 async function decide(club: Club, approve: boolean) {
+  if (deciding.value) return
+  deciding.value = true
   try {
     await api(`/api/admin/club-proposals/${club.id}/${approve ? 'approve' : 'reject'}`, { method: 'POST' })
     message.value = approve
@@ -28,6 +31,8 @@ async function decide(club: Club, approve: boolean) {
     await load()
   } catch (e) {
     message.value = apiErrorMessage(e)
+  } finally {
+    deciding.value = false
   }
 }
 
@@ -87,8 +92,8 @@ onMounted(load)
       </details>
 
       <div class="actions">
-        <button class="ok" @click="decide(club, true)">승인하고 초대 보내기</button>
-        <button class="no" @click="decide(club, false)">거절</button>
+        <button class="ok" :disabled="deciding" @click="decide(club, true)">승인하고 초대 보내기</button>
+        <button class="no" :disabled="deciding" @click="decide(club, false)">거절</button>
       </div>
     </article>
   </section>

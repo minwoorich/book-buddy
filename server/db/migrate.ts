@@ -216,7 +216,7 @@ export function migrate(db: Database.Database): void {
     seedSection.run(key, title, enabled, sortOrder)
   }
 
-  // AI 기능(chat/search/places) 기본 설정 3행 — 관리자가 편집한 뒤에도 재시딩 때마다 값을
+  // AI 기능(chat/search/places/club_agenda) 기본 설정 4행 — 관리자가 편집한 뒤에도 재시딩 때마다 값을
   // 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE feature_key)로 최초 1회만 채운다.
   const seedAiSetting = db.prepare(
     `INSERT OR IGNORE INTO ai_settings

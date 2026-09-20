@@ -8,7 +8,7 @@ export default defineEventHandler(
     const body = await readBody<{ ids?: unknown }>(event)
 
     const ids = Array.isArray(body?.ids)
-      ? body.ids.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+      ? body.ids.filter((v): v is number => typeof v === 'number' && Number.isFinite(v)).slice(0, 500) // IN (...) 파라미터 폭주 방지
       : undefined
 
     notificationRepo.markRead(me.id, ids)

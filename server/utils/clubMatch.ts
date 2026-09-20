@@ -5,11 +5,11 @@ export interface CandidateReader {
   userId: number
   userName?: string
   department: string
-  /** 완독(반납) 시각 ISO. */
+  /** 완독(반납) 시각. ISO 또는 SQLite datetime('now') 포맷(YYYY-MM-DD HH:MM:SS). 후자는 new Date()가 로컬 시간으로 해석한다 — 운영 컨테이너는 UTC라 무해하고, 이 모듈의 비교는 전부 상대 비교라 결과에 영향이 없다. */
   returnedAt: string
   /** 이 책에 남긴 별점. 리뷰가 없으면 null. */
   rating: number | null
-  /** 가장 최근에 참여한 모임의 시각 ISO. 이력이 없으면 null. */
+  /** 가장 최근에 참여한 모임의 시각. ISO 또는 SQLite datetime('now') 포맷(YYYY-MM-DD HH:MM:SS). 후자는 new Date()가 로컬 시간으로 해석한다 — 운영 컨테이너는 UTC라 무해하고, 이 모듈의 비교는 전부 상대 비교라 결과에 영향이 없다. 이력이 없으면 null. */
   lastClubAt: string | null
 }
 

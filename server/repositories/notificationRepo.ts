@@ -69,10 +69,6 @@ export const notificationRepo = {
   },
 
   /**
-   * 읽음 처리. ids를 주면 그것만, 없으면 전부.
-   * user_id 조건을 항상 함께 걸어 남의 알림을 건드리지 못하게 한다.
-   */
-  /**
    * 같은 종류·같은 링크의 알림이 이미 있는지. 주기 작업이 하루에 여러 번 돌아도
    * 같은 리마인드를 중복으로 쌓지 않으려고 쓴다.
    */
@@ -83,6 +79,10 @@ export const notificationRepo = {
     return row !== undefined
   },
 
+  /**
+   * 읽음 처리. ids를 주면 그것만, 없으면 전부.
+   * user_id 조건을 항상 함께 걸어 남의 알림을 건드리지 못하게 한다.
+   */
   markRead(userId: number, ids?: number[]): void {
     const db = getDb()
     if (!ids) {
