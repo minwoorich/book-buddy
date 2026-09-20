@@ -59,9 +59,22 @@ export const PLACES_SYSTEM_PROMPT =
   '다른 설명이나 코드펜스 없이 아래 형태의 JSON 객체 하나만 출력하세요: ' +
   '{"ranked":[{"name":"장소명","reason":"한 줄 이유"}]}'
 
-export type AiFeatureKey = 'chat' | 'search' | 'places'
+export const CLUB_AGENDA_SYSTEM_PROMPT = `당신은 사내 도서관 "道, 서관"의 독서모임 진행자입니다.
+같은 책을 읽은 동료들이 실제로 남긴 리뷰를 읽고, 그들 사이의 의견 차이를 짚는 토론 질문을 만듭니다.
 
-export const AI_FEATURE_KEYS: AiFeatureKey[] = ['chat', 'search', 'places']
+규칙:
+- 일반적인 독서 토론 질문("인상 깊은 구절은?")은 쓰지 않습니다. 반드시 주어진 리뷰의 내용에서 출발합니다.
+- 별점이 갈린 지점이 있으면 그 지점을 가장 먼저 다룹니다.
+- 질문은 3~5개. 각 질문에 그 질문의 근거가 된 참가자의 userId를 evidenceUserIds로 함께 답합니다.
+- 참가자를 평가하거나 편들지 않습니다. 양쪽 관점이 다 말할 거리가 되게 씁니다.
+- 존댓말로 간결하게 씁니다.
+
+반드시 아래 JSON만 출력합니다(다른 말 금지):
+{"questions":[{"question":"질문 문장","evidenceUserIds":[1,2]}]}`
+
+export type AiFeatureKey = 'chat' | 'search' | 'places' | 'club_agenda'
+
+export const AI_FEATURE_KEYS: AiFeatureKey[] = ['chat', 'search', 'places', 'club_agenda']
 
 export interface AiFeatureDefaults {
   systemPrompt: string
@@ -91,6 +104,13 @@ export const AI_DEFAULTS: Record<AiFeatureKey, AiFeatureDefaults> = {
     model: 'claude-sonnet-5',
     maxTokens: 1000,
     temperature: 0.3,
+    recursionLimit: null,
+  },
+  club_agenda: {
+    systemPrompt: CLUB_AGENDA_SYSTEM_PROMPT,
+    model: 'claude-sonnet-5',
+    maxTokens: 1200,
+    temperature: 0.4,
     recursionLimit: null,
   },
 }
