@@ -437,3 +437,59 @@ export interface QaFeedback {
   status: 'open' | 'resolved'
   createdAt: string
 }
+
+/** 책모임 상태. 전이 규칙은 설계서 §3 참고. */
+export type ClubStatus = 'proposed' | 'inviting' | 'scheduling' | 'confirmed' | 'done' | 'canceled'
+export type ClubInviteStatus = 'invited' | 'accepted' | 'declined'
+export type ClubMemberRole = 'host' | 'member'
+
+/** 에이전트가 참가자 리뷰를 읽고 만든 토론 질문 한 건과 그 근거. */
+export interface ClubAgendaItem {
+  question: string
+  /** 이 질문이 어느 사람의 리뷰에서 나왔는지. 리뷰가 없어 일반 질문으로 폴백하면 빈 배열. */
+  evidence: { userId: number; userName: string; quote: string }[]
+}
+
+export interface ClubMember {
+  userId: number
+  userName: string
+  department: string
+  role: ClubMemberRole
+  inviteStatus: ClubInviteStatus
+  respondedAt: string | null
+}
+
+export interface Club {
+  id: number
+  bookId: number
+  bookTitle: string
+  bookCoverUrl: string | null
+  status: ClubStatus
+  agenda: ClubAgendaItem[]
+  matchScore: number
+  /** 왜 이 조합인지 — 관리자 승인 화면에 그대로 보여준다. */
+  matchReason: string
+  /** 항상 시간순 정렬. */
+  candidateSlots: string[]
+  meetAt: string | null
+  inviteExpiresAt: string | null
+  voteExpiresAt: string | null
+  /** 내부 일정용 장소 확정. 실제 예약이 아니다. */
+  place: { kakaoId: string; name: string; lat: number; lng: number } | null
+  placeDecidedAt: string | null
+  createdAt: string
+  canceledReason: string | null
+  members: ClubMember[]
+}
+
+/** 앱 내 알림. DOM의 Notification과 이름이 겹치지 않게 AppNotification으로 둔다. */
+export interface AppNotification {
+  id: number
+  userId: number
+  type: string
+  title: string
+  body: string
+  link: string | null
+  readAt: string | null
+  createdAt: string
+}

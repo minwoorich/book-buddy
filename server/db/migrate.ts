@@ -92,6 +92,51 @@ export function migrate(db: Database.Database): void {
       image_paths TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(kakao_place_id, user_id));
+    -- 책모임: 같은 책을 완독한 3~5명을 에이전트가 묶어 만든 사내 독서모임.
+    -- place_*는 "내부 일정용 장소 확정"일 뿐 실제 예약이 아니다(외부 카페라 예약 수단이 없다).
+    CREATE TABLE IF NOT EXISTS clubs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER NOT NULL REFERENCES books(id),
+      status TEXT NOT NULL DEFAULT 'proposed'
+        CHECK (status IN ('proposed','inviting','scheduling','confirmed','done','canceled')),
+      agenda TEXT NOT NULL DEFAULT '[]',
+      match_score REAL NOT NULL DEFAULT 0,
+      match_reason TEXT NOT NULL DEFAULT '',
+      -- candidate_slots는 항상 시간순 정렬해서 저장한다(동점·무투표 시 가장 이른 슬롯을 뽑는 규칙의 전제).
+      candidate_slots TEXT NOT NULL DEFAULT '[]',
+      meet_at TEXT,
+      invite_expires_at TEXT,
+      vote_expires_at TEXT,
+      place_kakao_id TEXT, place_name TEXT, place_lat REAL, place_lng REAL,
+      place_decided_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      canceled_reason TEXT);
+    CREATE TABLE IF NOT EXISTS club_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      club_id INTEGER NOT NULL REFERENCES clubs(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('host','member')),
+      invite_status TEXT NOT NULL DEFAULT 'invited'
+        CHECK (invite_status IN ('invited','accepted','declined')),
+      responded_at TEXT,
+      UNIQUE(club_id, user_id));
+    CREATE TABLE IF NOT EXISTS club_votes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      club_id INTEGER NOT NULL REFERENCES clubs(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      slot_idx INTEGER NOT NULL,
+      UNIQUE(club_id, user_id, slot_idx));
+    -- 범용 알림. 책모임 전용으로 만들지 않는다 — 연체·예약 알림에 그대로 재사용한다.
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL,
+      title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
+      link TEXT,
+      read_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read_at);
+    CREATE INDEX IF NOT EXISTS idx_club_members_user ON club_members(user_id);
     CREATE TABLE IF NOT EXISTS home_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT, section_key TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL);
