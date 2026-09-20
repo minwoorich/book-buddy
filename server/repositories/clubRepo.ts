@@ -12,6 +12,7 @@ import type { CandidateReader } from '../utils/clubMatch'
 import type { QuotaState } from '../utils/clubSelection'
 import { CLUB_RULES } from '../utils/clubRules'
 import { toDbTime } from '../utils/dbTime'
+import { slotEndIso } from '../utils/clubSlots'
 
 interface ClubRow {
   id: number
@@ -320,5 +321,67 @@ export const clubRepo = {
       if (readers.length < CLUB_RULES.minMembers) byBook.delete(bookId)
     }
     return byBook
+  },
+
+  /** 후보 시간을 시간순으로 저장한다 — 동점·무투표 시 "가장 이른 슬롯" 규칙의 전제. */
+  setCandidateSlots(id: number, slots: string[], voteExpiresAtIso: string): void {
+    getDb()
+      .prepare(`UPDATE clubs SET candidate_slots = ?, vote_expires_at = ? WHERE id = ?`)
+      .run(JSON.stringify([...slots].sort()), voteExpiresAtIso, id)
+  },
+
+  confirm(id: number, meetAtIso: string): void {
+    getDb().prepare(`UPDATE clubs SET status = 'confirmed', meet_at = ? WHERE id = ?`).run(meetAtIso, id)
+  },
+
+  /** 한 사람의 표를 통째로 다시 쓴다(체크박스 다중 선택 저장). */
+  castVotes(clubId: number, userId: number, slotIdxs: number[]): void {
+    const db = getDb()
+    const run = db.transaction(() => {
+      db.prepare(`DELETE FROM club_votes WHERE club_id = ? AND user_id = ?`).run(clubId, userId)
+      const ins = db.prepare(`INSERT INTO club_votes (club_id, user_id, slot_idx) VALUES (?, ?, ?)`)
+      for (const idx of [...new Set(slotIdxs)].sort((a, b) => a - b)) ins.run(clubId, userId, idx)
+    })
+    run()
+  },
+
+  /** 참가자들이 수락한 다른 confirmed 모임의 시간 구간 — 슬롯 생성 시 충돌 회피용. */
+  busyIntervalsFor(userIds: number[], excludeClubId: number): { start: string; end: string }[] {
+    if (userIds.length === 0) return []
+    const placeholders = userIds.map(() => '?').join(',')
+    const rows = getDb()
+      .prepare(
+        `SELECT DISTINCT c.meet_at AS meetAt FROM clubs c JOIN club_members m ON m.club_id = c.id
+         WHERE c.status = 'confirmed' AND c.meet_at IS NOT NULL AND c.id != ?
+           AND m.invite_status = 'accepted' AND m.user_id IN (${placeholders})`
+      )
+      .all(excludeClubId, ...userIds) as { meetAt: string }[]
+    return rows.map((r) => ({ start: r.meetAt, end: slotEndIso(r.meetAt) }))
+  },
+
+  /** 아직 반납하지 않은 그 책 대출 중 가장 이른 반납 예정일. 없으면 null. */
+  earliestDueAtFor(bookId: number, userIds: number[]): string | null {
+    if (userIds.length === 0) return null
+    const placeholders = userIds.map(() => '?').join(',')
+    const row = getDb()
+      .prepare(
+        `SELECT MIN(due_at) AS dueAt FROM loans
+         WHERE book_id = ? AND returned_at IS NULL AND user_id IN (${placeholders})`
+      )
+      .get(bookId, ...userIds) as { dueAt: string | null }
+    return row.dueAt ?? null
+  },
+
+  reviewerIdsFor(bookId: number, userIds: number[]): Set<number> {
+    if (userIds.length === 0) return new Set()
+    const placeholders = userIds.map(() => '?').join(',')
+    const rows = getDb()
+      .prepare(`SELECT DISTINCT user_id AS id FROM reviews WHERE book_id = ? AND user_id IN (${placeholders})`)
+      .all(bookId, ...userIds) as { id: number }[]
+    return new Set(rows.map((r) => r.id))
+  },
+
+  adminUserIds(): number[] {
+    return (getDb().prepare(`SELECT id FROM users WHERE role = 'admin' ORDER BY id`).all() as { id: number }[]).map((r) => r.id)
   },
 }

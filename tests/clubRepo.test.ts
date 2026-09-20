@@ -297,3 +297,78 @@ describe('2단계: done_at·votes·company', () => {
     expect(state.busyUserIds.has(recent)).toBe(false)
   })
 })
+
+describe('2단계: 일정 메서드', () => {
+  function proposal(members: number[]) {
+    const bookId = insertBook('하드씽')
+    const club = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: members.map((userId, i) => ({ userId, role: i === 0 ? ('host' as const) : ('member' as const) })),
+      inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    return { bookId, club }
+  }
+
+  it('setCandidateSlots는 시간순으로 저장하고 vote_expires_at을 쓴다', () => {
+    const { club } = proposal([insertUser('A')])
+    clubRepo.setCandidateSlots(club.id, ['2026-09-30T09:30:00.000Z', '2026-09-28T03:00:00.000Z'], '2026-09-26T23:59:59.000Z')
+    const found = clubRepo.findById(club.id)!
+    expect(found.candidateSlots).toEqual(['2026-09-28T03:00:00.000Z', '2026-09-30T09:30:00.000Z'])
+    expect(found.voteExpiresAt).toBe('2026-09-26T23:59:59.000Z')
+  })
+
+  it('confirm은 status와 meet_at을 함께 쓴다', () => {
+    const { club } = proposal([insertUser('A')])
+    clubRepo.confirm(club.id, '2026-09-28T09:30:00.000Z')
+    const found = clubRepo.findById(club.id)!
+    expect(found.status).toBe('confirmed')
+    expect(found.meetAt).toBe('2026-09-28T09:30:00.000Z')
+  })
+
+  it('castVotes는 그 사람의 표를 통째로 바꾼다', () => {
+    const a = insertUser('A')
+    const { club } = proposal([a])
+    clubRepo.castVotes(club.id, a, [0, 2])
+    expect(clubRepo.findById(club.id)!.votes).toEqual([{ userId: a, slotIdx: 0 }, { userId: a, slotIdx: 2 }])
+    clubRepo.castVotes(club.id, a, [1])
+    expect(clubRepo.findById(club.id)!.votes).toEqual([{ userId: a, slotIdx: 1 }])
+  })
+
+  it('busyIntervalsFor는 수락한 다른 confirmed 모임의 구간만 준다', () => {
+    const a = insertUser('A')
+    const other = proposal([a]).club
+    clubRepo.setInviteStatus(other.id, a, 'accepted')
+    clubRepo.confirm(other.id, '2026-09-28T09:30:00.000Z') // 저녁 90분
+    const mine = proposal([a]).club
+
+    expect(clubRepo.busyIntervalsFor([a], mine.id)).toEqual([
+      { start: '2026-09-28T09:30:00.000Z', end: '2026-09-28T11:00:00.000Z' },
+    ])
+    // 자기 자신은 제외
+    expect(clubRepo.busyIntervalsFor([a], other.id)).toEqual([])
+  })
+
+  it('earliestDueAtFor는 반납 안 한 그 책 대출의 가장 이른 due_at', () => {
+    const a = insertUser('A')
+    const b = insertUser('B')
+    const { bookId } = proposal([a, b])
+    getDb().prepare(`INSERT INTO loans (book_id, user_id, due_at) VALUES (?, ?, ?)`).run(bookId, a, '2026-10-03T00:00:00.000Z')
+    getDb().prepare(`INSERT INTO loans (book_id, user_id, due_at) VALUES (?, ?, ?)`).run(bookId, b, '2026-09-29T00:00:00.000Z')
+    expect(clubRepo.earliestDueAtFor(bookId, [a, b])).toBe('2026-09-29T00:00:00.000Z')
+    expect(clubRepo.earliestDueAtFor(bookId, [insertUser('C')])).toBeNull()
+  })
+
+  it('reviewerIdsFor / adminUserIds', () => {
+    const a = insertUser('A')
+    const b = insertUser('B')
+    const { bookId } = proposal([a, b])
+    getDb().prepare(`INSERT INTO reviews (book_id, user_id, rating, content) VALUES (?, ?, 4, '좋았다')`).run(bookId, b)
+    expect([...clubRepo.reviewerIdsFor(bookId, [a, b])]).toEqual([b])
+
+    const admin = Number(getDb().prepare(
+      `INSERT INTO users (name, company, department, team, position, gender, birth_year, role)
+       VALUES ('도서관리자','바텍','경영지원','총무팀','매니저','F',1990,'admin')`
+    ).run().lastInsertRowid)
+    expect(clubRepo.adminUserIds()).toEqual([admin])
+  })
+})
