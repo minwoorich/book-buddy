@@ -39,7 +39,7 @@ describe('generateCandidateSlots', () => {
       expect(p.weekday).toBeGreaterThanOrEqual(1)
       expect(p.weekday).toBeLessThanOrEqual(5)
       expect(p.d).toBeGreaterThanOrEqual(28)
-      expect([`${p.h}:${p.min}`]).toEqual(expect.arrayContaining([expect.stringMatching(/^(12:0|18:30)$/)]))
+      expect(`${p.h}:${p.min}`).toMatch(/^(12:0|18:30)$/)
     }
   })
 

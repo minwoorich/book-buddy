@@ -3,6 +3,8 @@ import { CLUB_RULES } from './clubRules'
 /** 한국은 DST가 없다 — 고정 오프셋으로 계산한다. */
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
+/** 후보는 평일(월~금)만 — 달력 불변량이라 CLUB_RULES가 아니라 여기 둔다. */
+const WEEKDAYS_PER_WEEK = 5
 
 /** 모임 시간 창(스펙 §5.2). 시작 시각은 KST 벽시계. */
 export const SLOT_WINDOWS = [
@@ -74,7 +76,7 @@ export function generateCandidateSlots(c: SlotConstraints): string[] {
   const mp = kstParts(monday)
 
   const all: { iso: string; key: (typeof SLOT_WINDOWS)[number]['key'] }[] = []
-  for (let day = 0; day < 5; day += 1) {
+  for (let day = 0; day < WEEKDAYS_PER_WEEK; day += 1) {
     for (const w of SLOT_WINDOWS) {
       const start = kstDate(mp.y, mp.m, mp.d + day, w.startHour, w.startMinute)
       const end = new Date(start.getTime() + w.minutes * 60 * 1000)
