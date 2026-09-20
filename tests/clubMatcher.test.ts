@@ -75,6 +75,7 @@ describe('runMatcher', () => {
     expect(club.agenda[0]?.question).toBe('고정 질문')
     expect(club.matchReason).not.toBe('')
     expect(club.inviteExpiresAt).not.toBeNull()
+    expect(club.inviteExpiresAt).toMatch(/T23:59:59\.000Z$/)
   })
 
   it('완독자가 2명뿐인 책은 건너뛴다', async () => {

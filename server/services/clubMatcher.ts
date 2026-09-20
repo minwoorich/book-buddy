@@ -71,9 +71,12 @@ export async function runMatcher(deps: { anthropicApiKey: string }, now: Date): 
 
   scored.sort((a, b) => (b.score !== a.score ? b.score - a.score : a.bookId - b.bookId))
 
-  const inviteExpiresAt = new Date(
-    now.getTime() + CLUB_RULES.inviteDeadlineDays * 24 * 60 * 60 * 1000
-  ).toISOString()
+  // 매처(월 00:00 UTC)와 기한 작업(매일 00:00 UTC)이 같은 순간에 돌기 때문에, 마감을
+  // "실행 시각 + 72h"로 두면 리마인드·만료가 스케줄러 지터에 따라 하루씩 밀린다.
+  // 그날의 끝(23:59:59 UTC)으로 정규화해 어떤 작업 실행 순간과도 겹치지 않게 한다.
+  const deadline = new Date(now.getTime() + CLUB_RULES.inviteDeadlineDays * 24 * 60 * 60 * 1000)
+  deadline.setUTCHours(23, 59, 59, 0)
+  const inviteExpiresAt = deadline.toISOString()
 
   const clubIds: number[] = []
   const usedUserIds = new Set<number>()
