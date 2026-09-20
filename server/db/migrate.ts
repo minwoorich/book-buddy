@@ -88,6 +88,8 @@ export function migrate(db: Database.Database): void {
       kakao_place_id TEXT NOT NULL, place_name TEXT NOT NULL,
       user_id INTEGER NOT NULL REFERENCES users(id),
       tags TEXT NOT NULL, comment TEXT NOT NULL DEFAULT '',
+      -- image_paths: 후기에 첨부한 사진 경로 JSON 배열(최대 3장). qa_feedback과 같은 방식.
+      image_paths TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(kakao_place_id, user_id));
     CREATE TABLE IF NOT EXISTS home_sections (
@@ -141,6 +143,12 @@ export function migrate(db: Database.Database): void {
   if (!qaColumnNames.has('severity')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN severity TEXT NOT NULL DEFAULT 'minor'`)
   if (!qaColumnNames.has('detail')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN detail TEXT`)
   if (!qaColumnNames.has('image_paths')) db.exec(`ALTER TABLE qa_feedback ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]'`)
+
+  // 기존 DB 호환: 장소 후기의 사진 첨부(image_paths)가 없으면 추가한다.
+  const placeReviewColumns = db.prepare('PRAGMA table_info(place_reviews)').all() as { name: string }[]
+  if (!placeReviewColumns.some((c) => c.name === 'image_paths')) {
+    db.exec(`ALTER TABLE place_reviews ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]'`)
+  }
 
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
   // 값을 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE section_key)로 최초 1회만 채운다.

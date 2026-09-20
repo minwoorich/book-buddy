@@ -353,6 +353,8 @@ export interface PlaceReview {
   department: string
   tags: PlaceTagCode[]
   comment: string
+  /** 첨부 사진 경로(`/api/uploads/<name>`) 최대 3장. 없으면 빈 배열. */
+  images: string[]
   createdAt: string
   updatedAt: string
 }
@@ -365,9 +367,29 @@ export interface PlaceReviewSummary {
   tagCounts: Partial<Record<PlaceTagCode, number>>
   /** comment가 비어 있지 않은 최근 2건. */
   recent: Pick<PlaceReview, 'id' | 'userName' | 'department' | 'comment' | 'createdAt'>[]
+  /** 카드에 미리 보여줄 최근 사진 최대 3장. */
+  photos: string[]
+  /** 이 장소에 달린 사진 전체 장수(photos는 그중 일부). */
+  photoCount: number
   /** 요청한 사용자의 후기. 없으면 null. */
-  mine: Pick<PlaceReview, 'tags' | 'comment'> | null
+  mine: Pick<PlaceReview, 'tags' | 'comment' | 'images'> | null
 }
+
+/** 후기 시트에서 쓰는 한 장소의 후기 전체. `GET /api/place-reviews/{kakaoId}`. */
+export interface PlaceReviewDetail {
+  kakaoPlaceId: string
+  total: number
+  tagCounts: Partial<Record<PlaceTagCode, number>>
+  /** 최신순 전체 후기. 내 후기가 있으면 맨 앞에 온다. */
+  reviews: PlaceReviewEntry[]
+  /** 요청한 사용자의 후기 id. 없으면 null — 목록에서 "내 후기"를 표시하는 데 쓴다. */
+  mineId: number | null
+}
+
+export type PlaceReviewEntry = Pick<
+  PlaceReview,
+  'id' | 'userName' | 'department' | 'tags' | 'comment' | 'images' | 'createdAt' | 'updatedAt'
+>
 
 /**
  * 사내 후기가 쌓인 장소 1곳의 집계(AI 추천 도구용). 카카오 검색 없이 place_reviews만으로

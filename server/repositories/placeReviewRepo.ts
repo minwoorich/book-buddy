@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection'
-import type { PlaceReview, PlaceReviewSummary, ReviewedPlace } from '../../shared/types'
+import type { PlaceReview, PlaceReviewDetail, PlaceReviewSummary, ReviewedPlace } from '../../shared/types'
 import { isPlaceTagCode, type PlaceTagCode } from '../../shared/constants/placeTags'
 import type { PlaceReviewInput } from '../utils/placeReview'
 
@@ -12,6 +12,7 @@ interface PlaceReviewRow {
   department: string
   tags: string
   comment: string
+  image_paths: string
   created_at: string
   updated_at: string
 }
@@ -29,6 +30,16 @@ function parseTags(raw: string): PlaceTagCode[] {
   }
 }
 
+/** image_paths(JSON 문자열)를 경로 배열로. 깨진 값은 사진 없음으로 본다. */
+function parseImages(raw: string | null): string[] {
+  try {
+    const arr = JSON.parse(raw ?? '[]')
+    return Array.isArray(arr) ? arr.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 function toPlaceReview(row: PlaceReviewRow): PlaceReview {
   return {
     id: row.id,
@@ -39,25 +50,35 @@ function toPlaceReview(row: PlaceReviewRow): PlaceReview {
     department: row.department,
     tags: parseTags(row.tags),
     comment: row.comment,
+    images: parseImages(row.image_paths),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
 }
 
 const RECENT_MAX = 2
+/** 목록 카드에 미리 띄울 사진 수 — 썸네일 1장 + "+N" 배지에 쓴다. */
+const PHOTO_PREVIEW_MAX = 3
 
 export const placeReviewRepo = {
   /** 1인 1후기 — (kakao_place_id, user_id) 충돌 시 내용을 덮어쓴다. */
   upsert(kakaoPlaceId: string, userId: number, input: PlaceReviewInput): PlaceReview {
     getDb()
       .prepare(
-        `INSERT INTO place_reviews (kakao_place_id, place_name, user_id, tags, comment)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO place_reviews (kakao_place_id, place_name, user_id, tags, comment, image_paths)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(kakao_place_id, user_id) DO UPDATE SET
            place_name = excluded.place_name, tags = excluded.tags, comment = excluded.comment,
-           updated_at = datetime('now')`
+           image_paths = excluded.image_paths, updated_at = datetime('now')`
       )
-      .run(kakaoPlaceId, input.placeName, userId, JSON.stringify(input.tags), input.comment)
+      .run(
+        kakaoPlaceId,
+        input.placeName,
+        userId,
+        JSON.stringify(input.tags),
+        input.comment,
+        JSON.stringify(input.images ?? [])
+      )
     return this.findMine(kakaoPlaceId, userId) as PlaceReview
   },
 
@@ -68,12 +89,50 @@ export const placeReviewRepo = {
     return row ? toPlaceReview(row) : undefined
   },
 
-  /** 내 후기 삭제. 지운 행이 있으면 true. */
-  remove(kakaoPlaceId: string, userId: number): boolean {
-    const result = getDb()
+  /**
+   * 내 후기 삭제. 지운 후기에 달려 있던 사진 경로를 돌려준다(호출부가 파일까지 정리하도록).
+   * 지울 후기가 없으면 null — 삭제 0건과 "사진 없는 후기를 지웠다"를 구분해야 한다.
+   */
+  removeMine(kakaoPlaceId: string, userId: number): string[] | null {
+    const mine = this.findMine(kakaoPlaceId, userId)
+    if (!mine) return null
+    getDb()
       .prepare('DELETE FROM place_reviews WHERE kakao_place_id = ? AND user_id = ?')
       .run(kakaoPlaceId, userId)
-    return result.changes > 0
+    return mine.images
+  },
+
+  /**
+   * 후기 시트용 — 한 장소의 후기 전체. 내 후기는 수정 진입점이라 항상 맨 위에 두고,
+   * 나머지는 최신순 그대로 둔다.
+   */
+  detailByPlace(kakaoPlaceId: string, meId: number): PlaceReviewDetail {
+    const rows = getDb()
+      .prepare(`${SELECT} WHERE r.kakao_place_id = ? ORDER BY r.updated_at DESC, r.id DESC`)
+      .all(kakaoPlaceId) as PlaceReviewRow[]
+
+    const tagCounts: PlaceReviewDetail['tagCounts'] = {}
+    let mineId: number | null = null
+    const reviews = rows.map((row) => {
+      const review = toPlaceReview(row)
+      for (const tag of review.tags) tagCounts[tag] = (tagCounts[tag] ?? 0) + 1
+      if (review.userId === meId) mineId = review.id
+      return {
+        id: review.id,
+        userName: review.userName,
+        department: review.department,
+        tags: review.tags,
+        comment: review.comment,
+        images: review.images,
+        createdAt: review.createdAt,
+        updatedAt: review.updatedAt,
+      }
+    })
+    if (mineId !== null) {
+      const at = reviews.findIndex((r) => r.id === mineId)
+      if (at > 0) reviews.unshift(reviews.splice(at, 1)[0]!)
+    }
+    return { kakaoPlaceId, total: reviews.length, tagCounts, reviews, mineId }
   },
 
   /**
@@ -89,7 +148,7 @@ export const placeReviewRepo = {
 
     const byPlace = new Map<string, PlaceReviewSummary>()
     for (const id of ids) {
-      byPlace.set(id, { kakaoPlaceId: id, total: 0, tagCounts: {}, recent: [], mine: null })
+      byPlace.set(id, { kakaoPlaceId: id, total: 0, tagCounts: {}, recent: [], photos: [], photoCount: 0, mine: null })
     }
     for (const row of rows) {
       const summary = byPlace.get(row.kakao_place_id)
@@ -106,7 +165,14 @@ export const placeReviewRepo = {
           createdAt: review.createdAt,
         })
       }
-      if (review.userId === meId) summary.mine = { tags: review.tags, comment: review.comment }
+      // rows가 최신순이라 앞에서부터 담으면 photos도 최신순이 된다.
+      summary.photoCount += review.images.length
+      for (const image of review.images) {
+        if (summary.photos.length < PHOTO_PREVIEW_MAX) summary.photos.push(image)
+      }
+      if (review.userId === meId) {
+        summary.mine = { tags: review.tags, comment: review.comment, images: review.images }
+      }
     }
     return ids.map((id) => byPlace.get(id) as PlaceReviewSummary)
   },

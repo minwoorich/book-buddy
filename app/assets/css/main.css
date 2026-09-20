@@ -158,6 +158,27 @@ a:hover { color: var(--red-dark); }
 .btn.sm { font-size: 12.5px; padding: 6px 12px; }
 .chip { font-size: 13px; color: var(--sub); border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 14px; cursor: pointer; background: transparent; display: inline-block; }
 .chip.on { color: var(--red); border-color: var(--red); background: var(--red-tint); font-weight: 600; }
+/*
+ * 장소 후기 태그 배지 — `🔌 콘센트 있어요`. 글자만 나란히 두면 태그 경계가 흐려 한 덩어리로
+ * 읽혀서, 이모지 + 연한 빨강 바탕의 각진 직사각형으로 구분한다(알약이 아니라 반경 3px).
+ *
+ * 좁은 자리에서는 배지가 통째로 잘리는 대신 제 글자를 말줄임으로 줄인다 — 컨테이너가 배지
+ * 한가운데를 잘라내면 "채…"처럼 깨져 보인다. flex 안에서 쓰려면 부모에 overflow만 걸면 된다.
+ */
+.tag-badge {
+  display: inline-block; max-width: 100%; min-width: 0; flex: 0 1 auto;
+  font-size: 11.5px; line-height: 1.5; color: var(--red-text); background: var(--red-tint);
+  border-radius: 3px; padding: 2px 7px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tag-badge b { font-weight: 700; color: var(--red-dark); margin-left: 1px; }
+/*
+ * 배지를 늘어놓는 자리. 기본은 여러 줄로 흐른다. 한 줄에 가둬야 하는 곳(목록 카드 요약)은
+ * 그쪽에서 `flex-wrap: nowrap; overflow: hidden`으로 덮어쓴다.
+ * 수식 클래스를 `.wrap`으로 두면 안 된다 — 페이지 컨테이너 `.wrap`(padding: 40px 24px 90px)에
+ * 걸려 배지 줄마다 빈 띠가 생긴다.
+ */
+.tag-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 4px; }
 .input { font: inherit; font-size: 14.5px; color: var(--ink); background: var(--card); border: 1px solid var(--line-strong); border-radius: 3px; padding: 10px 14px; outline: 0; width: 100%; }
 .input:focus { border-color: var(--red); }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }

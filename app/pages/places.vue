@@ -229,6 +229,15 @@ function onReviewChanged(summary: PlaceReviewSummary) {
   reviewSummaries.value = next
 }
 
+// ── 후기 시트
+// 목록 카드와 지도 요약 카드 양쪽에서 같은 시트를 연다. 카드 안에서 후기를 다 보여주던 예전
+// 방식은 카드를 길게 만들고(PC는 한 화면에 두세 장), 모바일에선 페이지를 끝없이 늘렸다.
+const reviewSheetPlace = ref<Place | null>(null)
+
+function openReviewSheet(place: Place) {
+  if (place.kakaoId) reviewSheetPlace.value = place
+}
+
 // 실제 검색 결과가 하나도 없으면(키 미설정으로 503이거나, 로그인 전) 예시로 대체한다.
 // 추천 모드일 땐 fetchedPlaces가 비어 있는 게 정상이므로 예시로 흘러가면 안 된다.
 const isFallback = computed(() => !pickMode.value && fetchedPlaces.value.length === 0)
@@ -301,7 +310,9 @@ function showInList() {
 
 /** Esc로 요약 카드 닫기 — 모달은 아니지만 "떠 있는 것은 Esc로 닫힌다"는 기대를 맞춘다. */
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && selectedKey.value) selectedKey.value = null
+  // 후기 시트가 떠 있으면 Esc는 시트 몫이다(시트가 스스로 닫는다) — 뒤의 요약 카드까지
+  // 같이 닫히면 한 번의 Esc로 두 겹이 사라진다.
+  if (e.key === 'Escape' && !reviewSheetPlace.value && selectedKey.value) selectedKey.value = null
 }
 
 /** 좁은 화면에선 카드가 지도 아래를 덮는다 — 지도가 핀을 그만큼 위로 올려 세우게 알려준다. */
@@ -415,6 +426,7 @@ watch(displayList, () => {
             :summary="selectedPlace.kakaoId ? (reviewSummaries.get(selectedPlace.kakaoId) ?? null) : null"
             @close="selectedKey = null"
             @detail="showInList"
+            @reviews="selectedPlace && openReviewSheet(selectedPlace)"
           />
         </div>
 
@@ -431,11 +443,10 @@ watch(displayList, () => {
             <button type="button" class="top" :aria-pressed="selectedKey === placeKey(place)" @click="toggleSelect(place)">
               <span class="no">{{ i + 1 }}</span>
               <b>{{ place.name }}</b>
-              <span class="cat">{{ place.category }}</span>
+              <span v-if="isFallback" class="badge no">예시</span>
               <span v-if="place.distanceM" class="dist">{{ formatDistance(place.distanceM) }}</span>
-              <span v-if="isFallback" class="badge no" style="margin-left:auto;">예시</span>
             </button>
-            <div class="meta">{{ place.address }}</div>
+            <div class="meta">{{ place.category }} · {{ place.address }}</div>
             <div v-if="place.reason" class="why">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="stroke: var(--red-dark)" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
               {{ place.reason }}
@@ -447,12 +458,20 @@ watch(displayList, () => {
             <ReadingPlaceReviewPanel
               :place="place"
               :summary="place.kakaoId ? (reviewSummaries.get(place.kakaoId) ?? null) : null"
-              @changed="onReviewChanged"
+              @open="openReviewSheet(place)"
             />
           </div>
         </div>
       </div>
     </div>
+
+    <ReadingPlaceReviewSheet
+      v-if="reviewSheetPlace"
+      :key="reviewSheetPlace.kakaoId"
+      :place="reviewSheetPlace"
+      @close="reviewSheetPlace = null"
+      @changed="onReviewChanged"
+    />
   </div>
 </template>
 
@@ -515,15 +534,20 @@ watch(displayList, () => {
 /* 지도 핀과 짝이 맞는다는 표시 — 왼쪽 붉은 띠 + 강조 테두리. */
 .place.is-selected { border-color: var(--red); box-shadow: 0 3px 14px rgba(181, 0, 14, .18); }
 .place.is-selected .no { background: var(--red); color: #fff; border-radius: 4px; padding: 0 6px; }
-/* 카드 윗줄은 button이지만 시각적으로는 원래의 한 줄 그대로다. */
+/*
+ * 카드 윗줄은 button이지만 시각적으로는 원래의 한 줄 그대로다.
+ * 이름이 길면 이름만 두 줄로 흐르고 거리는 오른쪽에 붙어 있게 한다 — 예전엔 카테고리가 이름 옆에서
+ * 같이 눌려 "매머드익스프레 스"처럼 글자가 깨졌다. 카테고리는 아래 주소 줄로 내렸다.
+ */
 .place .top {
   display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; width: 100%;
   font: inherit; text-align: left; color: inherit; background: none; border: 0; padding: 0; cursor: pointer;
 }
+.place .top b { flex: 1; min-width: 0; }
+.place .top .dist { flex: none; margin-left: auto; }
 .place .top:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; border-radius: 3px; }
 .place .no { font-family: var(--font-display); color: var(--red); font-weight: 700; font-size: 16px; }
 .place b { font-size: 15.5px; }
-.place .cat { font-size: 12px; color: var(--sub); }
 .place .dist { font-size: 12px; color: var(--red); font-weight: 700; }
 .place .meta { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; }
 .place .why { background: var(--red-tint); border-radius: 3px; padding: 8px 11px; font-size: 12.5px; line-height: 1.55; color: var(--red-text); display: flex; gap: 8px; }
@@ -549,7 +573,6 @@ watch(displayList, () => {
   .search-bar input { flex: 1 1 100%; }
   .map-stage { height: 300px; }
   .pl-layout :deep(.map) { min-height: 300px; height: 300px; }
-  .place .top { flex-wrap: wrap; row-gap: 2px; }
   .hint { margin-top: -8px; }
 }
 </style>
