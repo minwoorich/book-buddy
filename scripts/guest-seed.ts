@@ -35,6 +35,8 @@ if (args.includes('--remove')) {
     DELETE FROM reservations WHERE user_id IN (${list});
     DELETE FROM loans WHERE user_id IN (${list});
     DELETE FROM qa_feedback WHERE user_id IN (${list});
+    DELETE FROM notifications WHERE user_id IN (${list});
+    DELETE FROM club_members WHERE user_id IN (${list});
     DELETE FROM users WHERE id IN (${list});
   `)
   console.log(`게스트 ${ids.length}명 삭제 완료`)
