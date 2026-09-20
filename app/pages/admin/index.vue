@@ -249,6 +249,14 @@ function onBookRegistered() {
           <div class="panel" style="padding: 8px 14px;">
             <AdminHomeSectionEditor />
           </div>
+
+          <div class="sec-head">
+            <h2>책모임 제안</h2>
+            <div class="rule" />
+          </div>
+          <div class="panel">
+            <AdminClubProposalQueue />
+          </div>
         </div>
 
         <div>
