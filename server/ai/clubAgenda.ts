@@ -88,8 +88,10 @@ export async function generateAgenda(
   if (!deps.anthropicApiKey || input.reviews.length === 0) return fallbackAgenda(input.bookTitle)
 
   const startedAt = Date.now()
+  let model = AI_DEFAULTS.club_agenda.model
   try {
     const setting = aiSettingsRepo.findByKey('club_agenda') ?? AI_DEFAULTS.club_agenda
+    model = setting.model
     const llm = new ChatAnthropic({
       apiKey: deps.anthropicApiKey,
       model: setting.model,
@@ -117,6 +119,12 @@ export async function generateAgenda(
     const items = parseAgenda(text, input.reviews)
     return items.length > 0 ? items : fallbackAgenda(input.bookTitle)
   } catch {
+    // 실패도 흔적을 남긴다 — 0토큰 행이 있어야 관리자 사용량 화면에서 "아젠다 생성이 멈췄다"를 알 수 있다.
+    try {
+      aiUsageRepo.insert('club_agenda', 0, model, 0, 0, Date.now() - startedAt)
+    } catch {
+      // 사용량 기록 실패까지 매처를 멈추게 하지는 않는다.
+    }
     return fallbackAgenda(input.bookTitle)
   }
 }
