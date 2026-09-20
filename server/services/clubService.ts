@@ -31,6 +31,21 @@ function reassignHostIfNeeded(club: Club): void {
   if (next) clubRepo.setHost(club.id, next.userId)
 }
 
+/**
+ * 정원 미달 취소 — 상태를 canceled로 바꾸고 수락자에게만 안내한다.
+ * respond(즉시 미달)와 expireInvites(기한 만료)가 같은 문구를 쓰므로 한곳에 둔다.
+ */
+function cancelForLackOfMembers(club: Club, recipientIds: number[], reason: string): void {
+  clubRepo.updateStatus(club.id, 'canceled', { canceledReason: reason })
+  notificationRepo.insertMany(
+    recipientIds,
+    'club_canceled',
+    `『${club.bookTitle}』 책모임이 열리지 않았어요`,
+    '이번에는 인원이 모이지 않았어요. 다음 기회에 다시 제안드릴게요.',
+    '/clubs'
+  )
+}
+
 export const clubService = {
   /** 관리자 승인 — 여기서 처음으로 사람에게 초대가 나간다. */
   approveProposal(clubId: number): Club {
@@ -72,15 +87,10 @@ export const clubService = {
     const afterHostFix = requireClub(clubId)
 
     if (stillPossible(afterHostFix) < CLUB_RULES.minMembers) {
-      clubRepo.updateStatus(club.id, 'canceled', {
-        canceledReason: `정원(${CLUB_RULES.minMembers}명)을 채우지 못했어요`,
-      })
-      notificationRepo.insertMany(
+      cancelForLackOfMembers(
+        club,
         acceptedMembers(afterHostFix).map((m) => m.userId),
-        'club_canceled',
-        `『${club.bookTitle}』 책모임이 열리지 않았어요`,
-        '이번에는 인원이 모이지 않았어요. 다음 기회에 다시 제안드릴게요.',
-        '/clubs'
+        `정원(${CLUB_RULES.minMembers}명)을 채우지 못했어요`
       )
       return requireClub(clubId)
     }
@@ -111,15 +121,10 @@ export const clubService = {
         continue
       }
 
-      clubRepo.updateStatus(club.id, 'canceled', {
-        canceledReason: `응답 기한(${CLUB_RULES.inviteDeadlineDays}일) 안에 정원을 채우지 못했어요`,
-      })
-      notificationRepo.insertMany(
+      cancelForLackOfMembers(
+        club,
         accepted.map((m) => m.userId),
-        'club_canceled',
-        `『${club.bookTitle}』 책모임이 열리지 않았어요`,
-        '이번에는 인원이 모이지 않았어요. 다음 기회에 다시 제안드릴게요.',
-        '/clubs'
+        `응답 기한(${CLUB_RULES.inviteDeadlineDays}일) 안에 정원을 채우지 못했어요`
       )
     }
 
