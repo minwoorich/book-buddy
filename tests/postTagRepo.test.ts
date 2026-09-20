@@ -70,12 +70,12 @@ describe('postRepo 태그 연동', () => {
     expect(all.find((p) => p.id === a.id)?.tags).toEqual(['옥상', '독서'])
     expect(all.find((p) => p.id === b.id)?.tags).toEqual(['카페', '독서'])
 
-    expect(postRepo.listAll(me, { tag: '옥상' }).map((p) => p.id)).toEqual([a.id])
-    expect(postRepo.listAll(me, { tag: '독서' })).toHaveLength(2)
-    expect(postRepo.listAll(me, { tag: '없는태그' })).toEqual([])
+    expect(postRepo.listAll(me, { tags: ['옥상'] }).map((p) => p.id)).toEqual([a.id])
+    expect(postRepo.listAll(me, { tags: ['독서'] })).toHaveLength(2)
+    expect(postRepo.listAll(me, { tags: ['없는태그'] })).toEqual([])
     // 대소문자 무시
     postTagRepo.replace(b.id, ['Book'])
-    expect(postRepo.listAll(me, { tag: 'book' }).map((p) => p.id)).toEqual([b.id])
+    expect(postRepo.listAll(me, { tags: ['book'] }).map((p) => p.id)).toEqual([b.id])
   })
 
   it('remove는 태그까지 지운다', () => {

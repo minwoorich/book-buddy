@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractHashtags, mergeTags, normalizeTag, normalizeTags, parseTagsField } from '../shared/utils/hashtags'
+import { extractHashtags, mergeTags, normalizeTag, normalizeTags, parseTagQuery, toggleTag, parseTagsField } from '../shared/utils/hashtags'
 
 describe('hashtags 유틸', () => {
   it('normalizeTag은 앞의 #·공백·기호를 걷어내고 글자·숫자·밑줄만 남긴다', () => {
@@ -33,5 +33,23 @@ describe('hashtags 유틸', () => {
     expect(parseTagsField('독서, #옥상 ,,')).toEqual(['독서', '옥상'])
     expect(parseTagsField(undefined)).toEqual([])
     expect(parseTagsField('{"a":1}')).toEqual([])
+  })
+
+  it('parseTagQuery는 ?tag= 한 개·여러 개·쉼표 묶음을 모두 태그 목록으로 만든다', () => {
+    expect(parseTagQuery('옥상')).toEqual(['옥상'])
+    expect(parseTagQuery('#옥상')).toEqual(['옥상'])
+    expect(parseTagQuery(['옥상', '#완독'])).toEqual(['옥상', '완독'])
+    expect(parseTagQuery('옥상,완독')).toEqual(['옥상', '완독'])
+    expect(parseTagQuery(['옥상', 'Book', 'book', ''])).toEqual(['옥상', 'Book'])
+    expect(parseTagQuery(undefined)).toEqual([])
+  })
+
+  it('toggleTag은 없으면 뒤에 붙이고 있으면(대소문자 무시) 빼낸다', () => {
+    expect(toggleTag([], '옥상')).toEqual(['옥상'])
+    expect(toggleTag(['옥상'], '완독')).toEqual(['옥상', '완독'])
+    expect(toggleTag(['옥상', '완독'], '옥상')).toEqual(['완독'])
+    expect(toggleTag(['Book'], 'book')).toEqual([])
+    expect(toggleTag(['옥상'], '#옥상')).toEqual([])
+    expect(toggleTag(['옥상'], '  ')).toEqual(['옥상'])
   })
 })

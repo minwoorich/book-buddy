@@ -81,9 +81,9 @@ export const postRepo = {
   /**
    * 최신순 피드. meId가 있으면 likedByMe도 채운다.
    * mine=true면 내가 올린 게시물만(QA #60) — meId가 없으면 빈 목록.
-   * tag가 있으면 그 해시태그가 달린 게시물만(대소문자 무시).
+   * tags가 있으면 그중 하나라도 달린 게시물만(OR, 대소문자 무시).
    */
-  listAll(meId?: number, opts: { mine?: boolean; tag?: string } = {}): PostWithMeta[] {
+  listAll(meId?: number, opts: { mine?: boolean; tags?: string[] } = {}): PostWithMeta[] {
     if (opts.mine && !meId) return []
     const where: string[] = []
     const params: (number | string)[] = [meId ?? 0]
@@ -91,9 +91,13 @@ export const postRepo = {
       where.push('p.user_id = ?')
       params.push(meId ?? 0)
     }
-    if (opts.tag) {
-      where.push('EXISTS(SELECT 1 FROM post_tags pt WHERE pt.post_id = p.id AND pt.tag = ? COLLATE NOCASE)')
-      params.push(opts.tag)
+    if (opts.tags?.length) {
+      // EXISTS라 태그가 여러 개 겹쳐도 같은 글이 두 번 나오지 않는다.
+      const holes = opts.tags.map(() => '?').join(', ')
+      where.push(
+        `EXISTS(SELECT 1 FROM post_tags pt WHERE pt.post_id = p.id AND pt.tag COLLATE NOCASE IN (${holes}))`
+      )
+      params.push(...opts.tags)
     }
     const mineClause = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const rows = getDb()

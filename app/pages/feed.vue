@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Book, Post } from '#shared/types'
+import { toggleTag } from '#shared/utils/hashtags'
 
 type PostWithMeta = Post & {
   userName: string
@@ -15,8 +16,9 @@ const { user } = useCurrentUser()
 
 // 내 게시물만 모아보기(QA #60) — 켜면 서버가 내 글만 최신순으로 돌려준다.
 const mineOnly = ref(false)
-// 해시태그 필터 — 게시물의 태그를 누르면 그 태그 글만 본다.
-const activeTag = ref('')
+// 해시태그 필터 — 여러 개 고를 수 있고, 하나라도 달린 글을 보여준다(OR).
+const activeTags = ref<string[]>([])
+const activeKeys = computed(() => new Set(activeTags.value.map((t) => t.toLowerCase())))
 
 const { data: posts, refresh } = await useAsyncData<PostWithMeta[]>(
   'feed-posts',
@@ -25,11 +27,11 @@ const { data: posts, refresh } = await useAsyncData<PostWithMeta[]>(
       ? api<PostWithMeta[]>('/api/posts', {
           query: {
             ...(mineOnly.value ? { mine: '1' } : {}),
-            ...(activeTag.value ? { tag: activeTag.value } : {}),
+            ...(activeTags.value.length ? { tag: activeTags.value } : {}),
           },
         })
       : Promise.resolve([]),
-  { default: () => [], watch: [mineOnly, activeTag] }
+  { default: () => [], watch: [mineOnly, activeTags] }
 )
 
 // 태그 바에 띄울 인기 태그(피드 전체 기준) — 필터를 걸어도 목록이 사라지지 않게 따로 받는다.
@@ -42,13 +44,13 @@ const { data: popularTags } = await useAsyncData<{ tag: string; count: number }[
 const composerOpen = ref(false)
 
 function selectTag(tag: string) {
-  activeTag.value = activeTag.value.toLowerCase() === tag.toLowerCase() ? '' : tag
+  activeTags.value = toggleTag(activeTags.value, tag)
   if (import.meta.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function handleCreated() {
   composerOpen.value = false
-  activeTag.value = ''
+  activeTags.value = []
   await refresh()
 }
 </script>
@@ -83,20 +85,24 @@ async function handleCreated() {
           </span>
         </button>
 
-        <div v-if="activeTag || popularTags.length" class="tagbar">
+        <div v-if="activeTags.length || popularTags.length" class="tagbar">
           <button
-            v-if="activeTag"
-            type="button" class="tb-chip on" @click="activeTag = ''"
-          >#{{ activeTag }} <span class="tb-x" aria-hidden="true">×</span></button>
+            v-if="activeTags.length > 1"
+            type="button" class="tb-chip clear" @click="activeTags = []"
+          >모두 해제</button>
+          <button
+            v-for="tag in activeTags"
+            :key="`on-${tag}`" type="button" class="tb-chip on" @click="selectTag(tag)"
+          >#{{ tag }} <span class="tb-x" aria-hidden="true">×</span></button>
           <button
             v-for="t in popularTags"
-            v-show="t.tag.toLowerCase() !== activeTag.toLowerCase()"
+            v-show="!activeKeys.has(t.tag.toLowerCase())"
             :key="t.tag" type="button" class="tb-chip" @click="selectTag(t.tag)"
           >#{{ t.tag }} <small>{{ t.count }}</small></button>
         </div>
 
         <p v-if="!posts?.length" class="hint">
-          <template v-if="activeTag">#{{ activeTag }} 태그가 달린 게시물이 아직 없어요.</template>
+          <template v-if="activeTags.length">{{ activeTags.map((t) => `#${t}`).join(', ') }} 태그가 달린 게시물이 아직 없어요.</template>
           <template v-else-if="mineOnly">아직 내가 올린 게시물이 없어요. 첫 독서 순간을 남겨보세요.</template>
           <template v-else>아직 올라온 피드가 없어요. 첫 독서 순간을 남겨보세요.</template>
         </p>
@@ -139,6 +145,8 @@ async function handleCreated() {
 .tb-chip:hover { color: var(--red); border-color: var(--red); }
 .tb-chip.on { background: var(--red); border-color: var(--red); color: #fff; }
 .tb-chip.on .tb-x { opacity: .8; margin-left: 2px; }
+/* 태그를 여러 개 걸었을 때만 나오는 초기화 칩 — 빨간 칩들과 구분되게 점선 테두리. */
+.tb-chip.clear { border-style: dashed; color: var(--sub); font-weight: 500; }
 
 /* 데스크톱에는 헤더 버튼이 보이므로 FAB은 모바일에서만. 챗봇 FAB(우하단)과 겹치지 않게 위로 띄운다. */
 .feed-fab { display: none; }

@@ -61,3 +61,20 @@ export function parseTagsField(raw: string | null | undefined): string[] {
   if (text.startsWith('{')) return []
   return normalizeTags(text.split(/[,\n]/))
 }
+
+/** 쿼리스트링 태그 파싱: `?tag=옥상`, `?tag=옥상&tag=완독`, `?tag=옥상,완독`을 모두 받는다. */
+export function parseTagQuery(raw: unknown): string[] {
+  const items = Array.isArray(raw) ? raw : [raw]
+  return normalizeTags(
+    items.flatMap((item) => (typeof item === 'string' ? item.split(',') : []))
+  )
+}
+
+/** 태그 칩 토글: 이미 고른 태그면 빼고, 아니면 뒤에 붙인다(대소문자 무시). */
+export function toggleTag(selected: string[], raw: string): string[] {
+  const tag = normalizeTag(raw)
+  if (!tag) return selected
+  const key = tag.toLowerCase()
+  const without = selected.filter((t) => t.toLowerCase() !== key)
+  return without.length < selected.length ? without : normalizeTags([...selected, tag])
+}

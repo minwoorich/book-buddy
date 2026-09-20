@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { initDb, getDb } from '../server/db/connection'
 import { postImageRepo } from '../server/repositories/postImageRepo'
 import { postRepo } from '../server/repositories/postRepo'
+import { postTagRepo } from '../server/repositories/postTagRepo'
 
 function insertUser(name: string): number {
   const result = getDb()
@@ -56,6 +57,31 @@ describe('postRepo (QA #59·#60)', () => {
     expect(postImageRepo.listByPost(post.id)).toEqual([])
     expect(getDb().prepare('SELECT COUNT(*) AS c FROM post_likes').get()).toEqual({ c: 0 })
     expect(getDb().prepare('SELECT COUNT(*) AS c FROM post_comments').get()).toEqual({ c: 0 })
+  })
+
+  it('tags를 여러 개 넘기면 하나라도 달린 글이 중복 없이 나온다', () => {
+    const me = insertUser('나')
+    const rooftop = postRepo.insert(me, '/api/uploads/a.jpg', '옥상 글', null)
+    postTagRepo.replace(rooftop.id, ['옥상'])
+    const done = postRepo.insert(me, '/api/uploads/b.jpg', '완독 글', null)
+    postTagRepo.replace(done.id, ['완독'])
+    const both = postRepo.insert(me, '/api/uploads/c.jpg', '둘 다', null)
+    postTagRepo.replace(both.id, ['옥상', '완독'])
+    const none = postRepo.insert(me, '/api/uploads/d.jpg', '태그 없음', null)
+
+    const ids = postRepo.listAll(me, { tags: ['옥상', '완독'] }).map((p) => p.id)
+    expect(ids).toEqual([both.id, done.id, rooftop.id])
+    expect(ids).not.toContain(none.id)
+  })
+
+  it('tags 필터는 대소문자를 무시하고, 빈 배열이면 전체를 돌려준다', () => {
+    const me = insertUser('나')
+    const post = postRepo.insert(me, '/api/uploads/a.jpg', '북클럽', null)
+    postTagRepo.replace(post.id, ['BookClub'])
+    postRepo.insert(me, '/api/uploads/b.jpg', '다른 글', null)
+
+    expect(postRepo.listAll(me, { tags: ['bookclub'] }).map((p) => p.id)).toEqual([post.id])
+    expect(postRepo.listAll(me, { tags: [] })).toHaveLength(2)
   })
 
   it('없는 게시물을 remove하면 빈 배열이다', () => {
