@@ -2,7 +2,7 @@
 import type { Place, PlaceReviewSummary } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
 import { placeKey } from '#shared/utils/placeKey'
-import { formatDistance, hasCoords, kakaoMapUrl } from '~/utils/place'
+import { cardCoverPx, formatDistance, hasCoords, kakaoMapUrl } from '~/utils/place'
 import { scrollWithin } from '~/utils/scrollWithin'
 
 type PlaceWithReason = Place & { reason: string }
@@ -303,8 +303,23 @@ function showInList() {
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && selectedKey.value) selectedKey.value = null
 }
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+/** 좁은 화면에선 카드가 지도 아래를 덮는다 — 지도가 핀을 그만큼 위로 올려 세우게 알려준다. */
+const viewportWidth = ref(1280)
+const mapCardCover = computed(() => cardCoverPx(viewportWidth.value))
+function onResize() {
+  viewportWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  onResize()
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('resize', onResize)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', onResize)
+})
 
 // 목록이 통째로 바뀌면(검색·사업장 변경·내 위치) 예전 선택은 의미가 없다.
 watch(displayList, () => {
@@ -388,6 +403,7 @@ watch(displayList, () => {
             :accuracy-m="accuracyM"
             :base="office"
             :selected="selectedKey"
+            :card-cover-px="mapCardCover"
             :picking-location="pickingLocation"
             @select="onMapSelect"
             @pick="onPickLocation"

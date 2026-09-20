@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Place } from '../shared/types'
-import { formatDistance, hasCoords, kakaoMapUrl } from '../app/utils/place'
+import { cardCoverPx, formatDistance, hasCoords, kakaoMapUrl } from '../app/utils/place'
 
 /** 장소 카드와 지도 위 요약 카드가 함께 쓰는 표시용 헬퍼. */
 
@@ -41,6 +41,17 @@ describe('formatDistance', () => {
   it('거리가 없으면 빈 문자열', () => {
     expect(formatDistance(undefined)).toBe('')
     expect(formatDistance(0)).toBe('')
+  })
+})
+
+describe('cardCoverPx', () => {
+  it('PC는 카드가 지도 구석에만 떠서 핀을 비키지 않아도 된다', () => {
+    expect(cardCoverPx(1280)).toBe(0)
+  })
+
+  it('태블릿·모바일은 카드가 덮는 만큼 핀을 올려 세운다', () => {
+    expect(cardCoverPx(800)).toBe(160)
+    expect(cardCoverPx(390)).toBe(180)
   })
 })
 

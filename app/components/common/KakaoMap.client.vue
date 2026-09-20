@@ -18,6 +18,8 @@ const props = defineProps<{
   base?: VatechOffice
   /** 목록에서 선택된 장소의 placeKey — 해당 핀을 키우고 맨 위로 올린다. */
   selected?: string | null
+  /** 지도 아래쪽이 요약 카드에 가려지는 높이(px). 선택한 핀을 그만큼 위로 올려 세운다. */
+  cardCoverPx?: number
   /** 지도를 클릭해 내 위치를 직접 찍는 보정 모드. */
   pickingLocation?: boolean
 }>()
@@ -431,6 +433,22 @@ watch(
 )
 
 /**
+ * 선택한 핀을 화면 어디에 세울지. 요약 카드가 지도 아래를 덮는 만큼(cardCoverPx)
+ * 지도 중심을 아래로 내려, 핀이 카드 위쪽 빈 곳에 오도록 한다.
+ *
+ * 화면 좌표로 바꿔 옮긴 뒤 다시 좌표로 되돌린다 — panTo 후 panBy를 또 부르면 애니메이션이
+ * 두 번 겹쳐 지도가 출렁인다.
+ */
+function focusPosition(pos: any): any {
+  const cover = props.cardCoverPx ?? 0
+  const kakao = (window as any).kakao
+  if (!cover || !mapInstance || !kakao?.maps?.Point) return pos
+  const projection = mapInstance.getProjection()
+  const point = projection.containerPointFromCoords(pos)
+  return projection.coordsFromContainerPoint(new kakao.maps.Point(point.x, point.y + cover / 2))
+}
+
+/**
  * 목록에서 장소를 고르면 그 핀을 강조하고 지도를 그 지점으로 부드럽게 옮긴다.
  * 핀을 다시 그리지 않고 선택된/해제된 핀의 클래스와 z축만 갈아 끼운다(깜빡임 방지).
  */
@@ -444,7 +462,7 @@ watch(
       pin.overlay.setZIndex(pinZIndex(pin.no, isSelected))
     }
     const target = pins.find((p) => p.key === key)
-    if (target) mapInstance.panTo(target.overlay.getPosition())
+    if (target) mapInstance.panTo(focusPosition(target.overlay.getPosition()))
   }
 )
 

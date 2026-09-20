@@ -17,3 +17,15 @@ export function formatDistance(m?: number): string {
   if (!m) return ''
   return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`
 }
+
+/**
+ * 요약 카드가 지도 아래쪽을 덮는 높이(px). 지도는 선택한 핀을 이만큼 위로 올려 세워
+ * 카드 뒤에 숨지 않게 한다.
+ *
+ * 좁은 화면일수록 카드가 가로로 꽉 차고 지도도 낮아(380~300px) 가림이 심하다.
+ * PC(>900px)에서는 카드가 지도 왼쪽 아래 구석에만 뜨고 핀은 가운데라 겹치지 않는다.
+ */
+export function cardCoverPx(viewportWidth: number): number {
+  if (viewportWidth > 900) return 0
+  return viewportWidth <= 640 ? 180 : 160
+}
