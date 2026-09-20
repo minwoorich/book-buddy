@@ -20,13 +20,13 @@ function stillPossible(club: Club): number {
 }
 
 /**
- * 호스트가 거절했으면 수락자 중에서 다시 세운다. 수락자가 없으면 그대로 둔다 —
- * 어차피 정원 미달로 취소될 운명이라 여기서 억지로 정할 이유가 없다.
+ * scheduling으로 넘어가기 직전에 호스트가 수락자인지 보장한다. 호스트가 거절했거나
+ * 아직 응답하지 않았으면 수락자 중 첫 사람을 호스트로 세운다. 2단계의 장소 확정이
+ * host-only이므로, 거절자가 호스트로 남으면 그 모임은 영원히 장소를 정할 수 없다.
  */
-function reassignHostIfNeeded(club: Club): void {
+function ensureAcceptedHost(club: Club): void {
   const host = club.members.find((m) => m.role === 'host')
-  if (host && host.inviteStatus !== 'declined') return
-
+  if (host && host.inviteStatus === 'accepted') return
   const next = acceptedMembers(club)[0]
   if (next) clubRepo.setHost(club.id, next.userId)
 }
@@ -82,25 +82,23 @@ export const clubService = {
     clubRepo.setInviteStatus(club.id, userId, accept ? 'accepted' : 'declined')
     const updated = requireClub(clubId)
 
-    if (!accept) reassignHostIfNeeded(updated)
-
-    const afterHostFix = requireClub(clubId)
-
-    if (stillPossible(afterHostFix) < CLUB_RULES.minMembers) {
+    if (stillPossible(updated) < CLUB_RULES.minMembers) {
       cancelForLackOfMembers(
-        club,
-        acceptedMembers(afterHostFix).map((m) => m.userId),
+        updated,
+        acceptedMembers(updated).map((m) => m.userId),
         `정원(${CLUB_RULES.minMembers}명)을 채우지 못했어요`
       )
       return requireClub(clubId)
     }
 
-    if (acceptedMembers(afterHostFix).length >= CLUB_RULES.minMembers) {
+    if (acceptedMembers(updated).length >= CLUB_RULES.minMembers) {
+      ensureAcceptedHost(updated)
+      // TODO(2단계): vote_expires_at 설정 + club_vote_request 알림 — scheduling 진입 지점
       clubRepo.updateStatus(club.id, 'scheduling')
       return requireClub(clubId)
     }
 
-    return afterHostFix
+    return updated
   },
 
   /**
@@ -117,6 +115,8 @@ export const clubService = {
 
       const accepted = acceptedMembers(club)
       if (accepted.length >= CLUB_RULES.minMembers) {
+        ensureAcceptedHost(club)
+        // TODO(2단계): vote_expires_at 설정 + club_vote_request 알림 — scheduling 진입 지점
         clubRepo.updateStatus(club.id, 'scheduling')
         continue
       }

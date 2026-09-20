@@ -100,14 +100,35 @@ describe('clubService.respond', () => {
     expect(after.canceledReason).toContain('정원')
   })
 
-  it('호스트가 거절하면 수락자 중에서 호스트를 다시 지정한다', () => {
+  it('호스트가 거절하면 scheduling 진입 시 수락자 중에서 호스트를 다시 지정한다', () => {
     const { club, userIds } = makeProposal(4)
     clubService.approveProposal(club.id)
     clubService.respond(club.id, userIds[1]!, true)
 
     const after = clubService.respond(club.id, userIds[0]!, false)
-    const host = after.members.find((m) => m.role === 'host')
+    expect(after.status).toBe('inviting')
+
+    clubService.respond(club.id, userIds[2]!, true)
+    const final = clubService.respond(club.id, userIds[3]!, true)
+
+    expect(final.status).toBe('scheduling')
+    const host = final.members.find((m) => m.role === 'host')
     expect(host?.userId).toBe(userIds[1])
+  })
+
+  it('호스트가 먼저 거절하고 나머지가 수락해 정원이 차면, 수락자가 호스트가 된 채 scheduling으로 간다', () => {
+    const { club, userIds } = makeProposal(4)
+    clubService.approveProposal(club.id)
+    clubService.respond(club.id, userIds[0]!, false)
+    clubService.respond(club.id, userIds[1]!, true)
+    clubService.respond(club.id, userIds[2]!, true)
+    const after = clubService.respond(club.id, userIds[3]!, true)
+
+    expect(after.status).toBe('scheduling')
+    const host = after.members.find((m) => m.role === 'host')
+    expect(host?.inviteStatus).toBe('accepted')
+    expect(host?.userId).toBe(userIds[1])
+    expect(after.members.filter((m) => m.role === 'host')).toHaveLength(1)
   })
 
   it('멤버가 아닌 사람은 403', () => {
@@ -166,6 +187,20 @@ describe('clubService.expireInvites', () => {
 
     expect(clubService.expireInvites(new Date('2026-09-20T00:00:00Z'))).toBe(0)
     expect(clubRepo.findById(club.id)?.status).toBe('inviting')
+  })
+
+  it('기한 만료로 scheduling에 들어갈 때도 호스트는 수락자여야 한다', () => {
+    const { club, userIds } = makeProposal(5, '2026-09-19T00:00:00Z')
+    clubService.approveProposal(club.id)
+    clubService.respond(club.id, userIds[1]!, true)
+    clubService.respond(club.id, userIds[2]!, true)
+    clubService.respond(club.id, userIds[3]!, true)
+    // 호스트(userIds[0])는 응답하지 않은 채 기한이 지난다.
+    clubService.expireInvites(new Date('2026-09-20T00:00:00Z'))
+
+    const after = clubRepo.findById(club.id)!
+    expect(after.status).toBe('scheduling')
+    expect(after.members.find((m) => m.role === 'host')?.inviteStatus).toBe('accepted')
   })
 })
 
