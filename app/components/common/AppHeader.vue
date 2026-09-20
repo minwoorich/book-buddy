@@ -53,6 +53,7 @@ async function handleLogout() {
         <NuxtLink v-if="user?.role === 'admin'" :class="{ on: activeKey === 'admin' }" to="/admin">관리자</NuxtLink>
       </div>
       <div v-if="user" class="me-zone">
+        <CommonNotificationBell />
         <CommonThemeToggle />
         <CommonA11yMenu />
         <NuxtLink class="me" to="/my" title="마이페이지로 이동">
