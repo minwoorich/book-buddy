@@ -19,6 +19,10 @@ export const CLUB_RULES = {
   voteDeadlineDays: 2,
   /** 이 기간 안에 모임 이력이 없으면 "미참여"로 보고 가점한다. */
   newcomerWindowDays: 90,
+  /** 시간 후보 개수. */
+  slotCandidates: 3,
+  /** 후보 주(다음 주 월요일)까지 최소 이만큼은 남아 있어야 한다 — 부족하면 그다음 주. */
+  minLeadDays: 3,
 } as const
 
 /** 모임 점수 가중치. 합은 1. 별점 분산이 최대 가중인 것이 이 설계의 판단이다(설계서 §4.3). */
