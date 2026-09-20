@@ -14,6 +14,15 @@ export default defineNuxtConfig({
       ],
     },
   },
+  nitro: {
+    experimental: { tasks: true },
+    scheduledTasks: {
+      // KST 09:00 = UTC 00:00. 월요일 아침에 한 주치 모임 후보를 찾는다.
+      '0 0 * * 1': ['club:matcher'],
+      // 매일 아침 초대 기한을 정리한다.
+      '0 0 * * *': ['club:deadlines'],
+    },
+  },
   runtimeConfig: {
     anthropicApiKey: '',
     kakaoRestKey: '',
