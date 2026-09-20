@@ -2,6 +2,8 @@
 import type { Place, PlaceReviewSummary } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
 import { placeKey } from '#shared/utils/placeKey'
+import { formatDistance, hasCoords, kakaoMapUrl } from '~/utils/place'
+import { scrollWithin } from '~/utils/scrollWithin'
 
 type PlaceWithReason = Place & { reason: string }
 
@@ -254,15 +256,55 @@ function toggleSelect(place: Place) {
   selectedKey.value = selectedKey.value === key ? null : key
 }
 
-/** 지도 핀 클릭 — 목록에서 해당 카드를 찾아 보이는 곳까지 스크롤한다. */
+/** 선택된 장소 — 지도 위 요약 카드의 내용이자, 목록에서 몇 번인지의 기준. */
+const selectedIndex = computed(() =>
+  selectedKey.value === null ? -1 : displayList.value.findIndex((p) => placeKey(p) === selectedKey.value)
+)
+const selectedPlace = computed(() => (selectedIndex.value < 0 ? null : displayList.value[selectedIndex.value]!))
+
+function cardEl(key: string): HTMLElement | null {
+  return listEl.value?.querySelector<HTMLElement>(`[data-place-key="${CSS.escape(key)}"]`) ?? null
+}
+
+/**
+ * 지도 핀 클릭 — 지도 위에 요약 카드만 띄운다.
+ *
+ * 예전에는 목록 카드로 scrollIntoView를 했는데, 그건 창까지 같이 움직인다. 모바일은 지도 아래로
+ * 목록이 길게 이어지는 구조라 페이지가 맨 아래까지 내려가 지도가 사라졌다(다시 올려야 했다).
+ * PC는 목록이 자체 스크롤 영역이라, 창은 두고 목록 안에서만 보이게 맞춘다.
+ */
 function onMapSelect(key: string) {
+  // 같은 핀을 다시 누르면 카드를 닫는다(목록 카드의 토글과 같은 규칙).
+  if (selectedKey.value === key) {
+    selectedKey.value = null
+    return
+  }
   selectedKey.value = key
   void nextTick(() => {
-    const card = listEl.value?.querySelector<HTMLElement>(`[data-place-key="${CSS.escape(key)}"]`)
-    // block:'nearest' — 이미 보이는 카드면 화면이 튀지 않는다.
-    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const el = cardEl(key)
+    // 모바일(.plist가 overflow: visible)에서는 컨테이너가 스크롤되지 않으니 그대로 둔다.
+    if (el && listEl.value && listEl.value.scrollHeight > listEl.value.clientHeight) {
+      scrollWithin(listEl.value, el)
+    }
   })
 }
+
+/** 요약 카드의 "목록에서 자세히 보기" — 이때만 페이지를 움직인다(사용자가 스스로 누른 경우). */
+function showInList() {
+  const key = selectedKey.value
+  if (!key) return
+  const el = cardEl(key)
+  if (!el || !listEl.value) return
+  if (listEl.value.scrollHeight > listEl.value.clientHeight) scrollWithin(listEl.value, el)
+  else el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/** Esc로 요약 카드 닫기 — 모달은 아니지만 "떠 있는 것은 Esc로 닫힌다"는 기대를 맞춘다. */
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && selectedKey.value) selectedKey.value = null
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 // 목록이 통째로 바뀌면(검색·사업장 변경·내 위치) 예전 선택은 의미가 없다.
 watch(displayList, () => {
@@ -271,21 +313,6 @@ watch(displayList, () => {
   }
 })
 
-/** (0,0)은 폴백 예시의 좌표 없음 표시 — 지도 링크를 만들 수 없다. */
-function hasCoords(place: Place): boolean {
-  return place.lat !== 0 || place.lng !== 0
-}
-
-/** "카카오맵에서 보기"는 장소 상세 페이지(placeUrl, 카카오 리뷰가 있는 곳)를 우선하고, 없으면 좌표 링크. */
-function kakaoMapUrl(place: Place, kind: 'map' | 'to'): string {
-  if (kind === 'map' && place.placeUrl) return place.placeUrl
-  return `https://map.kakao.com/link/${kind}/${encodeURIComponent(place.name)},${place.lat},${place.lng}`
-}
-
-function formatDistance(m?: number): string {
-  if (!m) return ''
-  return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`
-}
 </script>
 
 <template>
@@ -352,17 +379,28 @@ function formatDistance(m?: number): string {
       <p v-if="isFallback" class="hint">장소 검색을 사용할 수 없어 예시 장소를 보여드려요.</p>
 
       <div class="pl-layout">
-        <CommonKakaoMap
-          :places="displayList"
-          :app-key="kakaoJsKey"
-          :my-location="myLocation"
-          :accuracy-m="accuracyM"
-          :base="office"
-          :selected="selectedKey"
-          :picking-location="pickingLocation"
-          @select="onMapSelect"
-          @pick="onPickLocation"
-        />
+        <!-- 지도와 그 위에 겹치는 요약 카드를 한 덩어리로 묶는다(카드는 position: absolute). -->
+        <div class="map-stage">
+          <CommonKakaoMap
+            :places="displayList"
+            :app-key="kakaoJsKey"
+            :my-location="myLocation"
+            :accuracy-m="accuracyM"
+            :base="office"
+            :selected="selectedKey"
+            :picking-location="pickingLocation"
+            @select="onMapSelect"
+            @pick="onPickLocation"
+          />
+          <ReadingPlaceSummaryCard
+            v-if="selectedPlace"
+            :place="selectedPlace"
+            :no="selectedIndex + 1"
+            :summary="selectedPlace.kakaoId ? (reviewSummaries.get(selectedPlace.kakaoId) ?? null) : null"
+            @close="selectedKey = null"
+            @detail="showInList"
+          />
+        </div>
 
         <div ref="listEl" class="plist">
           <div
@@ -420,6 +458,8 @@ function formatDistance(m?: number): string {
 /* 지도와 목록을 한 화면 높이(560px)에 맞추고, 목록은 그 안에서 스크롤(QA #58) —
    예전엔 지도 620px + 목록이 끝없이 아래로 늘어나 페이지가 길어졌다. */
 .pl-layout { display: flex; gap: 22px; align-items: stretch; height: 560px; }
+/* 지도 + 그 위 요약 카드를 담는 칸. 카드가 absolute로 얹히니 기준(relative)이 된다. */
+.map-stage { position: relative; flex: 1; min-width: 0; display: flex; }
 .pl-layout :deep(.map) { min-height: 0; height: 100%; }
 .place-head { display: flex; align-items: flex-end; gap: 20px; }
 
@@ -480,6 +520,7 @@ function formatDistance(m?: number): string {
 
 @media (max-width: 900px) {
   .pl-layout { flex-direction: column; height: auto; }
+  .map-stage { flex: none; height: 380px; }
   .pl-layout :deep(.map) { min-height: 380px; height: 380px; width: 100%; }
   .plist { width: 100%; overflow: visible; padding-right: 0; }
 }
@@ -490,6 +531,7 @@ function formatDistance(m?: number): string {
   .office-pick { flex: 1 1 100%; }
   .office-pick select { width: 100%; }
   .search-bar input { flex: 1 1 100%; }
+  .map-stage { height: 300px; }
   .pl-layout :deep(.map) { min-height: 300px; height: 300px; }
   .place .top { flex-wrap: wrap; row-gap: 2px; }
   .hint { margin-top: -8px; }
