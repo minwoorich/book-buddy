@@ -274,18 +274,18 @@ describe('scheduling 진입', () => {
 describe('clubService.vote', () => {
   it('수락자만, scheduling에서만, 유효한 인덱스만', () => {
     const { club, userIds } = scheduled()
-    expect(() => clubService.vote(club.id, userIds[3]!, [0])).toThrow(ApiError) // 미응답자
-    expect(() => clubService.vote(club.id, userIds[0]!, [7])).toThrow(ApiError) // 범위 밖
-    expect(() => clubService.vote(club.id, userIds[0]!, [])).toThrow(ApiError) // 빈 선택
-    const after = clubService.vote(club.id, userIds[0]!, [0, 1])
+    expect(() => clubService.vote(club.id, userIds[3]!, [0], NOW)).toThrow(ApiError) // 미응답자
+    expect(() => clubService.vote(club.id, userIds[0]!, [7], NOW)).toThrow(ApiError) // 범위 밖
+    expect(() => clubService.vote(club.id, userIds[0]!, [], NOW)).toThrow(ApiError) // 빈 선택
+    const after = clubService.vote(club.id, userIds[0]!, [0, 1], NOW)
     expect(after.votes).toEqual([{ userId: userIds[0], slotIdx: 0 }, { userId: userIds[0], slotIdx: 1 }])
   })
 
   it('수락자 전원이 투표하면 즉시 최다 득표 슬롯으로 확정하고 club_confirmed를 보낸다', () => {
     const { club, userIds } = scheduled()
-    clubService.vote(club.id, userIds[0]!, [1])
-    clubService.vote(club.id, userIds[1]!, [1, 2])
-    const after = clubService.vote(club.id, userIds[2]!, [2])
+    clubService.vote(club.id, userIds[0]!, [1], NOW)
+    clubService.vote(club.id, userIds[1]!, [1, 2], NOW)
+    const after = clubService.vote(club.id, userIds[2]!, [2], NOW)
     expect(after.status).toBe('confirmed')
     expect(after.meetAt).toBe(club.candidateSlots[1])
     const n = notificationRepo.listForUser(userIds[0]!)[0]
@@ -295,16 +295,22 @@ describe('clubService.vote', () => {
 
   it('동점이면 가장 이른 슬롯', () => {
     const { club, userIds } = scheduled()
-    clubService.vote(club.id, userIds[0]!, [2])
-    clubService.vote(club.id, userIds[1]!, [0])
-    const after = clubService.vote(club.id, userIds[2]!, [1])
+    clubService.vote(club.id, userIds[0]!, [2], NOW)
+    clubService.vote(club.id, userIds[1]!, [0], NOW)
+    const after = clubService.vote(club.id, userIds[2]!, [1], NOW)
     expect(after.meetAt).toBe(club.candidateSlots[0])
   })
 
   it('scheduling이 아니면 투표할 수 없다', () => {
     const { club, userIds } = scheduled()
     clubRepo.confirm(club.id, club.candidateSlots[0]!)
-    expect(() => clubService.vote(club.id, userIds[0]!, [0])).toThrow(ApiError)
+    expect(() => clubService.vote(club.id, userIds[0]!, [0], NOW)).toThrow(ApiError)
+  })
+
+  it('마감이 지나면 투표할 수 없다 (400)', () => {
+    const { club, userIds } = scheduled()
+    const after = new Date(new Date(club.voteExpiresAt!).getTime() + 1000)
+    expect(() => clubService.vote(club.id, userIds[0]!, [0], after)).toThrow(ApiError)
   })
 })
 
@@ -321,6 +327,28 @@ describe('clubService.closeVotes', () => {
     const { club } = scheduled()
     expect(clubService.closeVotes(NOW)).toBe(0)
     expect(clubRepo.findById(club.id)!.status).toBe('scheduling')
+  })
+
+  it('후보 시간이 모두 지난 뒤에 마감을 처리하면 확정 대신 취소하고 수락자에게 알린다', () => {
+    const { club, userIds } = scheduled()
+    const lastSlot = club.candidateSlots[club.candidateSlots.length - 1]!
+    const late = new Date(new Date(lastSlot).getTime() + 60 * 60 * 1000)
+    expect(clubService.closeVotes(late)).toBe(1)
+    const after = clubRepo.findById(club.id)!
+    expect(after.status).toBe('canceled')
+    expect(after.canceledReason).toContain('시간')
+    expect(notificationRepo.listForUser(userIds[0]!)[0]?.type).toBe('club_canceled')
+    expect(notificationRepo.listForUser(userIds[3]!).some((n) => n.type === 'club_canceled')).toBe(false)
+  })
+
+  it('일부 후보만 지났으면 남은 미래 슬롯 중에서 확정한다', () => {
+    const { club, userIds } = scheduled()
+    clubService.vote(club.id, userIds[0]!, [0], NOW) // 첫 슬롯에 표
+    const afterFirst = new Date(new Date(club.candidateSlots[0]!).getTime() + 60 * 60 * 1000)
+    clubService.closeVotes(afterFirst)
+    const after = clubRepo.findById(club.id)!
+    expect(after.status).toBe('confirmed')
+    expect(after.meetAt).toBe(club.candidateSlots[1]) // 지난 0번 대신 남은 것 중 가장 이른 1번
   })
 })
 
@@ -350,5 +378,17 @@ describe('clubService.remindTomorrow / finishPast', () => {
     const after = clubRepo.findById(club.id)!
     expect(after.status).toBe('done')
     expect(after.doneAt).toBe('2026-09-22T09:30:00.000Z')
+  })
+})
+
+describe('clubService.runDeadlines', () => {
+  it('빈 DB에서는 전부 0을 준다', () => {
+    expect(clubService.runDeadlines(NOW)).toEqual({
+      handled: 0,
+      closed: 0,
+      finished: 0,
+      reminded: 0,
+      remindedTomorrow: 0,
+    })
   })
 })

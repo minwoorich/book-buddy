@@ -3,7 +3,7 @@ import { notificationRepo } from '../repositories/notificationRepo'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
-import { formatKst } from '../../shared/utils/clubTime'
+import { formatKst, formatKstDate } from '../../shared/utils/clubTime'
 import type { Club, ClubMember } from '../../shared/types'
 
 function requireClub(clubId: number): Club {
@@ -85,21 +85,39 @@ function enterScheduling(club: Club, now: Date): void {
     ids,
     'club_vote_request',
     `『${club.bookTitle}』 책모임 시간을 골라주세요`,
-    `후보 ${slots.length}개 중 가능한 시간을 모두 골라주세요. ${formatKst(voteExpiresAt)}에 마감돼요.`,
+    `후보 ${slots.length}개 중 가능한 시간을 모두 골라주세요. ${formatKstDate(new Date(new Date(voteExpiresAt).getTime() + 1000).toISOString())} 아침 9시에 마감돼요.`,
     `/clubs/${club.id}`
   )
 }
 
-/** 득표 집계 → 최다 득표, 동점·무투표면 가장 이른 슬롯(candidate_slots는 시간순). */
-function pickSlot(club: Club): string {
+/**
+ * 득표 집계 → 최다 득표, 동점·무투표면 가장 이른 슬롯(candidate_slots는 시간순).
+ * 이미 지난 슬롯은 후보에서 뺀다 — 마감 처리(주기 작업·수동 실행)가 며칠 늦게 돌 수도 있으므로,
+ * 그사이 지나버린 시간을 "확정"으로 내보내면 안 된다. 남은 미래 슬롯이 없으면 null.
+ */
+function pickSlot(club: Club, now: Date): string | null {
   const counts = club.candidateSlots.map((_, i) => club.votes.filter((v) => v.slotIdx === i).length)
-  let best = 0
-  for (let i = 1; i < counts.length; i += 1) if (counts[i]! > counts[best]!) best = i
-  return club.candidateSlots[best]!
+  let best: number | null = null
+  for (let i = 0; i < club.candidateSlots.length; i += 1) {
+    if (new Date(club.candidateSlots[i]!) <= now) continue
+    if (best === null || counts[i]! > counts[best]!) best = i
+  }
+  return best === null ? null : club.candidateSlots[best]!
 }
 
-function confirmClub(club: Club): void {
-  const meetAt = pickSlot(club)
+function confirmClub(club: Club, now: Date): void {
+  const meetAt = pickSlot(club, now)
+  if (meetAt === null) {
+    clubRepo.updateStatus(club.id, 'canceled', { canceledReason: '투표가 끝나기 전에 후보 시간이 모두 지났어요' })
+    notificationRepo.insertMany(
+      acceptedMembers(club).map((m) => m.userId),
+      'club_canceled',
+      `『${club.bookTitle}』 책모임이 열리지 못했어요`,
+      '후보 시간이 모두 지나 시간을 정하지 못했어요. 다음 기회에 다시 제안드릴게요.',
+      '/clubs'
+    )
+    return
+  }
   clubRepo.confirm(club.id, meetAt)
   const where = club.place ? ` · ${club.place.name}` : ''
   notificationRepo.insertMany(
@@ -240,10 +258,10 @@ export const clubService = {
   },
 
   /** 시간 투표 — 수락자만, scheduling에서만. 전원이 투표했으면 즉시 확정한다. */
-  vote(clubId: number, userId: number, slotIdxs: number[]): Club {
+  vote(clubId: number, userId: number, slotIdxs: number[], now: Date = new Date()): Club {
     const club = requireClub(clubId)
     if (club.status !== 'scheduling') throw new ApiError(400, '지금은 투표할 수 있는 상태가 아니에요')
-    if (club.voteExpiresAt && club.voteExpiresAt <= new Date().toISOString()) throw new ApiError(400, '투표가 마감됐어요')
+    if (club.voteExpiresAt && club.voteExpiresAt <= now.toISOString()) throw new ApiError(400, '투표가 마감됐어요')
     const me = club.members.find((m) => m.userId === userId)
     if (!me || me.inviteStatus !== 'accepted') throw new ApiError(403, '참여를 수락한 사람만 투표할 수 있어요')
     if (slotIdxs.length === 0) throw new ApiError(400, '가능한 시간을 하나 이상 골라주세요')
@@ -255,7 +273,7 @@ export const clubService = {
 
     const voters = new Set(updated.votes.map((v) => v.userId))
     const everyoneVoted = acceptedMembers(updated).every((m) => voters.has(m.userId))
-    if (everyoneVoted) confirmClub(updated)
+    if (everyoneVoted) confirmClub(updated, now)
     return requireClub(clubId)
   },
 
@@ -265,7 +283,7 @@ export const clubService = {
     let closed = 0
     for (const club of clubRepo.listByStatus('scheduling')) {
       if (!club.voteExpiresAt || club.voteExpiresAt > nowIso) continue
-      confirmClub(club)
+      confirmClub(club, now)
       closed += 1
     }
     return closed
@@ -308,5 +326,20 @@ export const clubService = {
       finished += 1
     }
     return finished
+  },
+
+  /**
+   * 기한 관련 작업을 정해진 순서로 한 번에 돌린다 — 주기 작업(club:deadlines)과
+   * 관리자 "기한 작업 지금 실행"이 같은 순서를 쓰게 한다.
+   * 순서가 중요하다: 만료·마감·종료를 먼저 정리하고 리마인드를 보낸다 —
+   * 반대면 오늘 취소·종료될 모임에도 "내일" 알림이 나간다.
+   */
+  runDeadlines(now: Date): { handled: number; closed: number; finished: number; reminded: number; remindedTomorrow: number } {
+    const handled = clubService.expireInvites(now)
+    const closed = clubService.closeVotes(now)
+    const finished = clubService.finishPast(now)
+    const reminded = clubService.remindExpiringInvites(now)
+    const remindedTomorrow = clubService.remindTomorrow(now)
+    return { handled, closed, finished, reminded, remindedTomorrow }
   },
 }
