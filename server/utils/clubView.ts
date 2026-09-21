@@ -36,7 +36,10 @@ export function groupClubsForUser(clubs: Club[], userId: number): GroupedClubs {
       continue
     }
     if (club.status === 'scheduling') {
-      grouped.needsResponse.push(club)
+      // 기한 안에 응답하지 않은 사람은 이 모임에 더 관여하지 않는다(상세는 볼 수 있다).
+      if (me.inviteStatus !== 'accepted') continue
+      const voted = club.votes.some((v) => v.userId === userId)
+      ;(voted ? grouped.active : grouped.needsResponse).push(club)
       continue
     }
     grouped.active.push(club)
