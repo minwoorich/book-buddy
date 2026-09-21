@@ -48,6 +48,12 @@ describe('generateCandidateSlots', () => {
     expect(slots.every((s) => kstParts(new Date(s)).h === 18)).toBe(true)
   })
 
+  it('하루에 몰리지 않게 서로 다른 날짜에서 먼저 고른다', () => {
+    const slots = generateCandidateSlots(base)
+    const days = new Set(slots.map((s) => kstParts(new Date(s)).d))
+    expect(days.size).toBe(3)
+  })
+
   it('다른 모임과 겹치는 시간은 제외한다', () => {
     const monLunch = kstDate(2026, 9, 28, 12, 0).toISOString()
     const slots = generateCandidateSlots({

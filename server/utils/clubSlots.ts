@@ -89,8 +89,26 @@ export function generateCandidateSlots(c: SlotConstraints): string[] {
   const ordered = c.preferEvening
     ? [...all.filter((s) => s.key === 'evening'), ...all.filter((s) => s.key !== 'evening')]
     : all
-  return ordered
-    .slice(0, CLUB_RULES.slotCandidates)
-    .map((s) => s.iso)
-    .sort()
+
+  // 하루에 후보가 몰리지 않게, 먼저 서로 다른 KST 날짜에서 하나씩 고르고
+  // 그래도 모자라면 순서대로 남은 슬롯으로 채운다.
+  const seenDays = new Set<string>()
+  const picked: typeof ordered = []
+  for (const s of ordered) {
+    if (picked.length >= CLUB_RULES.slotCandidates) break
+    const p = kstParts(new Date(s.iso))
+    const dayKey = `${p.y}-${p.m}-${p.d}`
+    if (seenDays.has(dayKey)) continue
+    seenDays.add(dayKey)
+    picked.push(s)
+  }
+  if (picked.length < CLUB_RULES.slotCandidates) {
+    for (const s of ordered) {
+      if (picked.length >= CLUB_RULES.slotCandidates) break
+      if (picked.includes(s)) continue
+      picked.push(s)
+    }
+  }
+
+  return picked.map((s) => s.iso).sort()
 }
