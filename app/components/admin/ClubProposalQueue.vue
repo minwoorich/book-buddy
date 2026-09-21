@@ -6,6 +6,7 @@ const api = useApi()
 const proposals = ref<Club[]>([])
 const loading = ref(false)
 const running = ref(false)
+const runningDeadlines = ref(false)
 const deciding = ref(false)
 const message = ref('')
 
@@ -50,6 +51,23 @@ async function runNow() {
   }
 }
 
+async function runDeadlinesNow() {
+  runningDeadlines.value = true
+  message.value = ''
+  try {
+    const result = await api<{ handled: number; closed: number; finished: number; reminded: number; remindedTomorrow: number }>(
+      '/api/admin/clubs/run-deadlines',
+      { method: 'POST' }
+    )
+    message.value = `기한 처리 — 초대 만료 ${result.handled} · 투표 마감 ${result.closed} · 종료 ${result.finished} · 알림 ${result.reminded + result.remindedTomorrow}명`
+    await load()
+  } catch (e) {
+    message.value = apiErrorMessage(e)
+  } finally {
+    runningDeadlines.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -58,6 +76,9 @@ onMounted(load)
     <header class="queue-head">
       <button class="run" :disabled="running" @click="runNow">
         {{ running ? '찾는 중…' : '매처 지금 실행' }}
+      </button>
+      <button class="run" :disabled="runningDeadlines" @click="runDeadlinesNow">
+        {{ runningDeadlines ? '처리 중…' : '기한 작업 지금 실행' }}
       </button>
     </header>
 
