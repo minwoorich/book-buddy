@@ -41,6 +41,19 @@ export function parseQueryUserId(value: unknown): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
+/** 라우트 파라미터 문자열 → 양의 정수. 그 외는 400. (h3 이벤트 없이 테스트할 수 있게 분리.) */
+export function parseIdParam(raw: string | undefined, label: string): number {
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) throw new ApiError(400, `잘못된 ${label}예요`)
+  const n = Number(raw)
+  if (!Number.isSafeInteger(n) || n <= 0) throw new ApiError(400, `잘못된 ${label}예요`)
+  return n
+}
+
+/** `[id]` 라우트 파라미터를 읽어 양의 정수로. 다섯 곳에서 같은 두 줄을 반복하던 것을 모았다. */
+export function requireIdParam(event: H3Event, label = '번호', name = 'id'): number {
+  return parseIdParam(getRouterParam(event, name), label)
+}
+
 /**
  * API 핸들러 래퍼. ApiError를 h3의 createError로 변환해 statusCode/message가
  * 응답에 그대로 실리게 한다. 외부 SDK 에러는 502로 감싸고(toHttpError 참고),
