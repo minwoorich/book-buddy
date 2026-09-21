@@ -2,7 +2,7 @@ import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
-import { generateCandidateSlots } from '../utils/clubSlots'
+import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
 import { formatKst } from '../../shared/utils/clubTime'
 import type { Club, ClubMember } from '../../shared/types'
 
@@ -39,6 +39,13 @@ function endOfDayUtc(date: Date): Date {
   const d = new Date(date)
   d.setUTCHours(23, 59, 59, 0)
   return d
+}
+
+/** 같은 KST 달력 날짜인가 — 리마인드는 "모임 전날"이라는 날짜 개념이지 24시간 창이 아니다. */
+function sameKstDate(a: Date, b: Date): boolean {
+  const p = kstParts(a)
+  const q = kstParts(b)
+  return p.y === q.y && p.m === q.m && p.d === q.d
 }
 
 /**
@@ -236,10 +243,12 @@ export const clubService = {
   vote(clubId: number, userId: number, slotIdxs: number[]): Club {
     const club = requireClub(clubId)
     if (club.status !== 'scheduling') throw new ApiError(400, '지금은 투표할 수 있는 상태가 아니에요')
+    if (club.voteExpiresAt && club.voteExpiresAt <= new Date().toISOString()) throw new ApiError(400, '투표가 마감됐어요')
     const me = club.members.find((m) => m.userId === userId)
     if (!me || me.inviteStatus !== 'accepted') throw new ApiError(403, '참여를 수락한 사람만 투표할 수 있어요')
+    if (slotIdxs.length === 0) throw new ApiError(400, '가능한 시간을 하나 이상 골라주세요')
     const valid = slotIdxs.filter((i) => Number.isInteger(i) && i >= 0 && i < club.candidateSlots.length)
-    if (valid.length === 0 || valid.length !== slotIdxs.length) throw new ApiError(400, '가능한 시간을 하나 이상 골라주세요')
+    if (valid.length !== slotIdxs.length) throw new ApiError(400, '없는 시간 후보예요')
 
     clubRepo.castVotes(club.id, userId, valid)
     const updated = requireClub(clubId)
@@ -262,13 +271,17 @@ export const clubService = {
     return closed
   },
 
-  /** 모임이 24시간 안이면 수락자에게 전날 리마인드(중복 방지). 보낸 사람 수 반환. */
+  /**
+   * 모임 전날(KST 달력 기준)이면 수락자에게 리마인드(중복 방지). 보낸 사람 수 반환.
+   * 주기 작업이 매일 09:00 KST에 한 번 돌아 "내일" 열리는 모임을 찾는다 — 24시간 창이 아니다.
+   */
   remindTomorrow(now: Date): number {
-    const nowIso = now.toISOString()
-    const soonIso = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
     let sent = 0
     for (const club of clubRepo.listByStatus('confirmed')) {
-      if (!club.meetAt || club.meetAt <= nowIso || club.meetAt > soonIso) continue
+      if (!club.meetAt) continue
+      const meetAt = new Date(club.meetAt)
+      if (meetAt <= now || !sameKstDate(meetAt, tomorrow)) continue
       const link = `/clubs/${club.id}`
       const targets = acceptedMembers(club).filter((m) => !notificationRepo.has(m.userId, 'club_reminder', link))
       if (targets.length === 0) continue

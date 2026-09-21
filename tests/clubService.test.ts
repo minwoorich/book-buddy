@@ -300,6 +300,12 @@ describe('clubService.vote', () => {
     const after = clubService.vote(club.id, userIds[2]!, [1])
     expect(after.meetAt).toBe(club.candidateSlots[0])
   })
+
+  it('scheduling이 아니면 투표할 수 없다', () => {
+    const { club, userIds } = scheduled()
+    clubRepo.confirm(club.id, club.candidateSlots[0]!)
+    expect(() => clubService.vote(club.id, userIds[0]!, [0])).toThrow(ApiError)
+  })
 })
 
 describe('clubService.closeVotes', () => {
@@ -325,11 +331,13 @@ describe('clubService.remindTomorrow / finishPast', () => {
     return { club: clubRepo.findById(club.id)!, userIds }
   }
 
-  it('모임 24시간 안이면 참가자(수락자)에게 club_reminder를 한 번만 보낸다', () => {
-    const { club, userIds } = confirmedAt('2026-09-22T09:30:00.000Z')
-    const t = new Date('2026-09-21T10:00:00Z')
-    expect(clubService.remindTomorrow(t)).toBe(3)
-    expect(clubService.remindTomorrow(t)).toBe(0)
+  it('전날 09:00 KST 실행에서 수락자에게 club_reminder를 한 번만 보내고, 당일·이틀 전에는 보내지 않는다', () => {
+    const { club, userIds } = confirmedAt('2026-09-22T09:30:00.000Z') // 화 18:30 KST
+    const runAt = (iso: string) => clubService.remindTomorrow(new Date(iso))
+    expect(runAt('2026-09-20T00:00:00Z')).toBe(0) // 일 09:00 KST — 이틀 전
+    expect(runAt('2026-09-21T00:00:00Z')).toBe(3) // 월 09:00 KST — 전날
+    expect(runAt('2026-09-21T00:00:00Z')).toBe(0) // 같은 날 재실행 — 중복 없음
+    expect(runAt('2026-09-22T00:00:00Z')).toBe(0) // 화 09:00 KST — 당일
     expect(notificationRepo.listForUser(userIds[0]!)[0]?.type).toBe('club_reminder')
     expect(notificationRepo.listForUser(userIds[3]!).some((n) => n.type === 'club_reminder')).toBe(false)
     expect(clubRepo.findById(club.id)!.status).toBe('confirmed')
