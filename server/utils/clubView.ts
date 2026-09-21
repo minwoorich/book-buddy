@@ -16,6 +16,8 @@ export interface GroupedClubs {
  *
  * 관리자 승인 전(proposed)인 제안과 내가 거절한 모임은 어디에도 넣지 않는다 —
  * 전자는 아직 사람에게 알린 적이 없고, 후자는 이미 내 손을 떠났다.
+ * inviting을 지나 scheduling·confirmed·done·canceled로 넘어간 뒤에도, 기한 안에
+ * 응답하지 않아 그 흐름에서 빠진 사람은 계속 보이지 않는다(상세는 볼 수 있다).
  */
 export function groupClubsForUser(clubs: Club[], userId: number): GroupedClubs {
   const grouped: GroupedClubs = { invites: [], needsResponse: [], active: [], past: [] }
@@ -26,18 +28,19 @@ export function groupClubsForUser(clubs: Club[], userId: number): GroupedClubs {
     const me = club.members.find((m) => m.userId === userId)
     if (!me || me.inviteStatus === 'declined') continue
 
-    if (club.status === 'done' || club.status === 'canceled') {
-      grouped.past.push(club)
-      continue
-    }
     if (club.status === 'inviting') {
       if (me.inviteStatus === 'invited') grouped.invites.push(club)
       else grouped.active.push(club)
       continue
     }
+
+    if (me.inviteStatus !== 'accepted') continue
+
+    if (club.status === 'done' || club.status === 'canceled') {
+      grouped.past.push(club)
+      continue
+    }
     if (club.status === 'scheduling') {
-      // 기한 안에 응답하지 않은 사람은 이 모임에 더 관여하지 않는다(상세는 볼 수 있다).
-      if (me.inviteStatus !== 'accepted') continue
       const voted = club.votes.some((v) => v.userId === userId)
       ;(voted ? grouped.active : grouped.needsResponse).push(club)
       continue

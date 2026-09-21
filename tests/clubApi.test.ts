@@ -104,4 +104,11 @@ describe('groupClubsForUser', () => {
     const grouped = groupClubsForUser([club({ id: 1, status: 'proposed' })], 1)
     expect([...grouped.invites, ...grouped.needsResponse, ...grouped.active, ...grouped.past]).toHaveLength(0)
   })
+
+  it('confirmed/done/canceled도 수락하지 않은 사람에게는 보이지 않는다', () => {
+    for (const status of ['confirmed', 'done', 'canceled'] as const) {
+      const g = groupClubsForUser([club({ id: 1, status })], 1) // 기본 멤버는 invited
+      expect([...g.invites, ...g.needsResponse, ...g.active, ...g.past]).toHaveLength(0)
+    }
+  })
 })

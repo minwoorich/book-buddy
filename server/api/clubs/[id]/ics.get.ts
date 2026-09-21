@@ -14,7 +14,8 @@ export default defineEventHandler(
     const id = requireIdParam(event, '모임 번호')
     const club = clubRepo.findById(id)
     if (!club) throw new ApiError(404, '모임을 찾을 수 없어요')
-    if (!club.members.some((m) => m.userId === me.id)) throw new ApiError(403, '참여 중인 모임만 내려받을 수 있어요')
+    if (!club.members.some((m) => m.userId === me.id && m.inviteStatus === 'accepted'))
+      throw new ApiError(403, '참여를 수락한 사람만 내려받을 수 있어요')
     if (club.status !== 'confirmed' && club.status !== 'done') throw new ApiError(400, '아직 시간이 정해지지 않았어요')
     if (!club.meetAt) throw new ApiError(400, '아직 시간이 정해지지 않았어요')
 
