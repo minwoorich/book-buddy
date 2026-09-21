@@ -2,6 +2,8 @@ import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
+import { generateCandidateSlots } from '../utils/clubSlots'
+import { formatKst } from '../../shared/utils/clubTime'
 import type { Club, ClubMember } from '../../shared/types'
 
 function requireClub(clubId: number): Club {
@@ -20,15 +22,86 @@ function stillPossible(club: Club): number {
 }
 
 /**
- * scheduling으로 넘어가기 직전에 호스트가 수락자인지 보장한다. 호스트가 거절했거나
- * 아직 응답하지 않았으면 수락자 중 첫 사람을 호스트로 세운다. 2단계의 장소 확정이
- * host-only이므로, 거절자가 호스트로 남으면 그 모임은 영원히 장소를 정할 수 없다.
+ * scheduling으로 넘어가기 직전에 호스트가 수락자인지 보장한다. 아니면 수락자 중
+ * 그 책에 리뷰를 쓴 사람을 먼저, 없으면 첫 수락자를 호스트로 세운다(스펙 §6).
  */
 function ensureAcceptedHost(club: Club): void {
   const host = club.members.find((m) => m.role === 'host')
   if (host && host.inviteStatus === 'accepted') return
-  const next = acceptedMembers(club)[0]
+  const accepted = acceptedMembers(club)
+  const reviewers = clubRepo.reviewerIdsFor(club.bookId, accepted.map((m) => m.userId))
+  const next = accepted.find((m) => reviewers.has(m.userId)) ?? accepted[0]
   if (next) clubRepo.setHost(club.id, next.userId)
+}
+
+/** 그날의 끝(23:59:59 UTC) — 매처·기한 작업이 도는 00:00 UTC와 겹치지 않게 하는 관례(1단계). */
+function endOfDayUtc(date: Date): Date {
+  const d = new Date(date)
+  d.setUTCHours(23, 59, 59, 0)
+  return d
+}
+
+/**
+ * 조율중 진입 — 호스트 보장, 충돌 회피 슬롯 생성, 투표 마감 설정, 투표 요청 알림.
+ * 슬롯이 하나도 안 나오면 모임을 취소하고 관리자에게만 알린다(스펙 §12).
+ */
+function enterScheduling(club: Club, now: Date): void {
+  ensureAcceptedHost(club)
+  const accepted = acceptedMembers(club)
+  const ids = accepted.map((m) => m.userId)
+  const slots = generateCandidateSlots({
+    now,
+    busy: clubRepo.busyIntervalsFor(ids, club.id),
+    mustEndBefore: clubRepo.earliestDueAtFor(club.bookId, ids),
+    preferEvening: new Set(accepted.map((m) => m.company)).size > 1,
+  })
+
+  if (slots.length === 0) {
+    clubRepo.updateStatus(club.id, 'canceled', { canceledReason: '가능한 시간을 찾지 못했어요' })
+    notificationRepo.insertMany(
+      clubRepo.adminUserIds(),
+      'club_no_slots',
+      `『${club.bookTitle}』 책모임이 시간을 찾지 못해 취소됐어요`,
+      '참가자 일정과 반납 예정일이 겹쳐 다음 주 후보가 없었어요.',
+      '/admin'
+    )
+    return
+  }
+
+  const byDeadline = endOfDayUtc(new Date(now.getTime() + CLUB_RULES.voteDeadlineDays * 24 * 60 * 60 * 1000))
+  const beforeFirstSlot = new Date(new Date(slots[0]!).getTime() - 24 * 60 * 60 * 1000)
+  const voteExpiresAt = new Date(Math.min(byDeadline.getTime(), beforeFirstSlot.getTime())).toISOString()
+
+  clubRepo.setCandidateSlots(club.id, slots, voteExpiresAt)
+  clubRepo.updateStatus(club.id, 'scheduling')
+  notificationRepo.insertMany(
+    ids,
+    'club_vote_request',
+    `『${club.bookTitle}』 책모임 시간을 골라주세요`,
+    `후보 ${slots.length}개 중 가능한 시간을 모두 골라주세요. ${formatKst(voteExpiresAt)}에 마감돼요.`,
+    `/clubs/${club.id}`
+  )
+}
+
+/** 득표 집계 → 최다 득표, 동점·무투표면 가장 이른 슬롯(candidate_slots는 시간순). */
+function pickSlot(club: Club): string {
+  const counts = club.candidateSlots.map((_, i) => club.votes.filter((v) => v.slotIdx === i).length)
+  let best = 0
+  for (let i = 1; i < counts.length; i += 1) if (counts[i]! > counts[best]!) best = i
+  return club.candidateSlots[best]!
+}
+
+function confirmClub(club: Club): void {
+  const meetAt = pickSlot(club)
+  clubRepo.confirm(club.id, meetAt)
+  const where = club.place ? ` · ${club.place.name}` : ''
+  notificationRepo.insertMany(
+    acceptedMembers(club).map((m) => m.userId),
+    'club_confirmed',
+    `『${club.bookTitle}』 책모임 시간이 정해졌어요`,
+    `${formatKst(meetAt)}${where}`,
+    `/clubs/${club.id}`
+  )
 }
 
 /**
@@ -71,7 +144,7 @@ export const clubService = {
   },
 
   /** 초대 수락/거절. 정원이 차면 조율중으로, 성립 불가가 확정되면 취소로 넘어간다. */
-  respond(clubId: number, userId: number, accept: boolean): Club {
+  respond(clubId: number, userId: number, accept: boolean, now: Date = new Date()): Club {
     const club = requireClub(clubId)
     if (club.status !== 'inviting') throw new ApiError(400, '지금은 응답할 수 있는 상태가 아니에요')
 
@@ -92,9 +165,7 @@ export const clubService = {
     }
 
     if (acceptedMembers(updated).length >= CLUB_RULES.minMembers) {
-      ensureAcceptedHost(updated)
-      // TODO(2단계): vote_expires_at 설정 + club_vote_request 알림 — scheduling 진입 지점
-      clubRepo.updateStatus(club.id, 'scheduling')
+      enterScheduling(updated, now)
       return requireClub(clubId)
     }
 
@@ -114,13 +185,8 @@ export const clubService = {
       handled += 1
 
       const accepted = acceptedMembers(club)
-      if (accepted.length >= CLUB_RULES.minMembers) {
-        ensureAcceptedHost(club)
-        // TODO(2단계): vote_expires_at 설정 + club_vote_request 알림 — scheduling 진입 지점
-        clubRepo.updateStatus(club.id, 'scheduling')
-        continue
-      }
-
+      // 수락이 정원을 채우는 순간 respond가 스스로 scheduling으로 넘기므로,
+      // 기한이 지난 inviting 모임은 항상 정원 미달이다 — 취소만 한다.
       cancelForLackOfMembers(
         club,
         accepted.map((m) => m.userId),
@@ -164,5 +230,70 @@ export const clubService = {
     }
 
     return sent
+  },
+
+  /** 시간 투표 — 수락자만, scheduling에서만. 전원이 투표했으면 즉시 확정한다. */
+  vote(clubId: number, userId: number, slotIdxs: number[]): Club {
+    const club = requireClub(clubId)
+    if (club.status !== 'scheduling') throw new ApiError(400, '지금은 투표할 수 있는 상태가 아니에요')
+    const me = club.members.find((m) => m.userId === userId)
+    if (!me || me.inviteStatus !== 'accepted') throw new ApiError(403, '참여를 수락한 사람만 투표할 수 있어요')
+    const valid = slotIdxs.filter((i) => Number.isInteger(i) && i >= 0 && i < club.candidateSlots.length)
+    if (valid.length === 0 || valid.length !== slotIdxs.length) throw new ApiError(400, '가능한 시간을 하나 이상 골라주세요')
+
+    clubRepo.castVotes(club.id, userId, valid)
+    const updated = requireClub(clubId)
+
+    const voters = new Set(updated.votes.map((v) => v.userId))
+    const everyoneVoted = acceptedMembers(updated).every((m) => voters.has(m.userId))
+    if (everyoneVoted) confirmClub(updated)
+    return requireClub(clubId)
+  },
+
+  /** 투표 마감이 지난 모임을 확정한다. 처리 건수 반환. */
+  closeVotes(now: Date): number {
+    const nowIso = now.toISOString()
+    let closed = 0
+    for (const club of clubRepo.listByStatus('scheduling')) {
+      if (!club.voteExpiresAt || club.voteExpiresAt > nowIso) continue
+      confirmClub(club)
+      closed += 1
+    }
+    return closed
+  },
+
+  /** 모임이 24시간 안이면 수락자에게 전날 리마인드(중복 방지). 보낸 사람 수 반환. */
+  remindTomorrow(now: Date): number {
+    const nowIso = now.toISOString()
+    const soonIso = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
+    let sent = 0
+    for (const club of clubRepo.listByStatus('confirmed')) {
+      if (!club.meetAt || club.meetAt <= nowIso || club.meetAt > soonIso) continue
+      const link = `/clubs/${club.id}`
+      const targets = acceptedMembers(club).filter((m) => !notificationRepo.has(m.userId, 'club_reminder', link))
+      if (targets.length === 0) continue
+      const where = club.place ? ` · ${club.place.name}` : ''
+      notificationRepo.insertMany(
+        targets.map((m) => m.userId),
+        'club_reminder',
+        `내일 『${club.bookTitle}』 책모임이 있어요`,
+        `${formatKst(club.meetAt)}${where}`,
+        link
+      )
+      sent += targets.length
+    }
+    return sent
+  },
+
+  /** 모임 시각이 지난 confirmed 모임을 done으로. done_at = 모임 시각. 처리 건수 반환. */
+  finishPast(now: Date): number {
+    const nowIso = now.toISOString()
+    let finished = 0
+    for (const club of clubRepo.listByStatus('confirmed')) {
+      if (!club.meetAt || club.meetAt > nowIso) continue
+      clubRepo.markDone(club.id, club.meetAt)
+      finished += 1
+    }
+    return finished
   },
 }
