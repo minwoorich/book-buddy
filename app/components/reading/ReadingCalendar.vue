@@ -110,6 +110,7 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
       <span><span class="k" />완독한 책 (반납일 기준)</span>
       <span><span class="k due-k" />반납 예정</span>
       <span><span class="k club-k" />책모임 <em>(점선은 투표 중인 후보)</em></span>
+      <span>표지를 클릭하면 책 상세로 이동</span>
     </div>
   </div>
 </template>

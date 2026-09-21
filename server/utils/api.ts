@@ -49,7 +49,7 @@ export function parseIdParam(raw: string | undefined, label: string): number {
   return n
 }
 
-/** `[id]` 라우트 파라미터를 읽어 양의 정수로. 다섯 곳에서 같은 두 줄을 반복하던 것을 모았다. */
+/** `[id]` 라우트 파라미터를 읽어 양의 정수로. 네 곳에서 같은 두 줄을 반복하던 것을 모았다. */
 export function requireIdParam(event: H3Event, label = '번호', name = 'id'): number {
   return parseIdParam(getRouterParam(event, name), label)
 }

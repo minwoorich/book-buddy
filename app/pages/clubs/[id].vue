@@ -62,8 +62,10 @@ async function downloadIcs() {
     const a = document.createElement('a')
     a.href = url
     a.download = `club-${clubId.value}.ics`
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   } catch (e) {
     message.value = apiErrorMessage(e)
   }
