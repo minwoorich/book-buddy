@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { Club } from '#shared/types'
+import { formatKst } from '#shared/utils/clubTime'
 
 const props = defineProps<{ club: Club; showDeadline?: boolean }>()
 
-/** 응답 기한까지 남은 일수. 지났거나 기한이 없으면 null. */
+/** 응답(초대)·투표 마감까지 남은 일수. 지났거나 없으면 null. */
 const daysLeft = computed(() => {
-  if (!props.club.inviteExpiresAt) return null
-  const diff = new Date(props.club.inviteExpiresAt).getTime() - Date.now()
-  if (diff <= 0) return null
-  return Math.ceil(diff / (24 * 60 * 60 * 1000))
+  const until = props.club.status === 'scheduling' ? props.club.voteExpiresAt : props.club.inviteExpiresAt
+  if (!until) return null
+  const diff = new Date(until).getTime() - Date.now()
+  return diff <= 0 ? null : Math.ceil(diff / (24 * 60 * 60 * 1000))
 })
 
 const statusLabel = computed(() => {
@@ -31,9 +32,9 @@ const statusLabel = computed(() => {
       <p class="meta">
         {{ club.members.length }}명
         <span class="sep">·</span>{{ statusLabel }}
-        <span v-if="showDeadline && daysLeft !== null" class="dday">D-{{ daysLeft }}</span>
+        <span v-if="(showDeadline || club.status === 'scheduling') && daysLeft !== null" class="dday">D-{{ daysLeft }}</span>
       </p>
-      <p v-if="club.meetAt" class="when">{{ club.meetAt }}<span v-if="club.place"> · {{ club.place.name }}</span></p>
+      <p v-if="club.meetAt" class="when">{{ formatKst(club.meetAt) }}<span v-if="club.place"> · {{ club.place.name }}</span></p>
       <p v-else-if="club.status === 'canceled' && club.canceledReason" class="why">{{ club.canceledReason }}</p>
     </div>
   </NuxtLink>
