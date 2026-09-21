@@ -11,7 +11,7 @@ import type {
 import type { CandidateReader } from '../utils/clubMatch'
 import type { QuotaState } from '../utils/clubSelection'
 import { CLUB_RULES } from '../utils/clubRules'
-import { toDbTime } from '../utils/dbTime'
+import { toDbTime, fromDbTime } from '../utils/dbTime'
 import { slotEndIso } from '../utils/clubSlots'
 
 interface ClubRow {
@@ -255,7 +255,7 @@ export const clubRepo = {
     const busy = db
       .prepare(
         `SELECT DISTINCT m.user_id AS id FROM club_members m JOIN clubs c ON c.id = m.club_id
-         WHERE c.status IN (${activePlaceholders})`
+         WHERE c.status IN (${activePlaceholders}) AND m.invite_status != 'declined'`
       )
       .all(...ACTIVE_STATUSES) as { id: number }[]
 
@@ -266,7 +266,7 @@ export const clubRepo = {
     const cooled = db
       .prepare(
         `SELECT DISTINCT m.user_id AS id FROM club_members m JOIN clubs c ON c.id = m.club_id
-         WHERE c.status = 'done' AND c.done_at IS NOT NULL AND c.done_at >= ?`
+         WHERE c.status = 'done' AND c.done_at IS NOT NULL AND c.done_at >= ? AND m.invite_status = 'accepted'`
       )
       .all(cooldownSinceIso) as { id: number }[]
 
@@ -369,7 +369,7 @@ export const clubRepo = {
          WHERE book_id = ? AND returned_at IS NULL AND user_id IN (${placeholders})`
       )
       .get(bookId, ...userIds) as { dueAt: string | null }
-    return row.dueAt ?? null
+    return row.dueAt ? fromDbTime(row.dueAt) : null
   },
 
   reviewerIdsFor(bookId: number, userIds: number[]): Set<number> {

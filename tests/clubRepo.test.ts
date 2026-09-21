@@ -234,6 +234,31 @@ describe('clubRepo.quotaState', () => {
 
     expect(clubRepo.quotaState(NOW).busyUserIds.has(a)).toBe(false)
   })
+
+  it('busy·cooled는 실제로 참여한 사람만 잡는다 — 거절했거나 응답 안 한 사람은 제외', () => {
+    const bookId = insertBook('하드씽')
+    const decliner = insertUser('거절함')
+    const host = insertUser('호스트')
+    const active = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: host, role: 'host' }, { userId: decliner, role: 'member' }],
+      inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    clubRepo.setInviteStatus(active.id, decliner, 'declined')
+
+    const neverResponded = insertUser('무응답')
+    const done = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: neverResponded, role: 'host' }],
+      inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    clubRepo.markDone(done.id, '2026-09-10T10:00:00.000Z')
+
+    const state = clubRepo.quotaState(NOW)
+    expect(state.busyUserIds.has(decliner)).toBe(false)
+    expect(state.busyUserIds.has(host)).toBe(true)
+    expect(state.cooledUserIds.has(neverResponded)).toBe(false)
+  })
 })
 
 describe('toDbTime', () => {
@@ -287,6 +312,8 @@ describe('2단계: done_at·votes·company', () => {
       bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
       members: [{ userId: old, role: 'host' }], inviteExpiresAt: '2026-09-23T00:00:00Z',
     })
+    clubRepo.setInviteStatus(c1.id, recent, 'accepted')
+    clubRepo.setInviteStatus(c2.id, old, 'accepted')
     clubRepo.markDone(c1.id, '2026-09-10T10:00:00.000Z') // 10일 전
     clubRepo.markDone(c2.id, '2026-07-01T10:00:00.000Z') // 80일 전
 
@@ -356,6 +383,13 @@ describe('2단계: 일정 메서드', () => {
     getDb().prepare(`INSERT INTO loans (book_id, user_id, due_at) VALUES (?, ?, ?)`).run(bookId, b, '2026-09-29T00:00:00.000Z')
     expect(clubRepo.earliestDueAtFor(bookId, [a, b])).toBe('2026-09-29T00:00:00.000Z')
     expect(clubRepo.earliestDueAtFor(bookId, [insertUser('C')])).toBeNull()
+  })
+
+  it('earliestDueAtFor는 시드 스크립트가 쓰는 SQLite datetime 포맷도 ISO로 바꿔 준다', () => {
+    const a = insertUser('A')
+    const { bookId } = proposal([a])
+    getDb().prepare(`INSERT INTO loans (book_id, user_id, due_at) VALUES (?, ?, ?)`).run(bookId, a, '2026-09-29 00:00:00')
+    expect(clubRepo.earliestDueAtFor(bookId, [a])).toBe('2026-09-29T00:00:00.000Z')
   })
 
   it('reviewerIdsFor / adminUserIds', () => {

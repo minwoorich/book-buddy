@@ -7,3 +7,8 @@
 export function toDbTime(date: Date): string {
   return date.toISOString().slice(0, 19).replace('T', ' ')
 }
+
+/** SQLite datetime 포맷('YYYY-MM-DD HH:MM:SS', UTC)이면 ISO로 바꾼다. 이미 ISO면 그대로. */
+export function fromDbTime(value: string): string {
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(' ', 'T')}.000Z` : value
+}
