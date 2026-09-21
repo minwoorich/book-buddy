@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { MAX_ACTIVE_LOANS } from '#shared/constants/loan'
-import type { Book, Loan, PurchaseRequest, RankRow, RankSnapshot, Reservation, Review, Wishlist } from '#shared/types'
+import type { Book, Club, Loan, PurchaseRequest, RankRow, RankSnapshot, Reservation, Review, Wishlist } from '#shared/types'
+import { buildCalendarEvents } from '~/utils/calendarEvents'
 
 type LoanWithBook = Loan & { book: Book }
 type WishlistWithBook = Wishlist & { book: Book }
@@ -19,6 +20,21 @@ const { data: doneLoans, refresh: refreshDone } = await useAsyncData<LoanWithBoo
   'my-done-loans',
   () => (user.value ? api<LoanWithBook[]>('/api/loans', { query: { returned: true } }) : Promise.resolve([])),
   { default: () => [] }
+)
+
+interface GroupedClubs { invites: Club[]; needsResponse: Club[]; active: Club[]; past: Club[] }
+const { data: myClubs, refresh: refreshClubs } = await useAsyncData<GroupedClubs>(
+  'my-clubs-for-calendar',
+  () => (user.value ? api<GroupedClubs>('/api/clubs') : Promise.resolve({ invites: [], needsResponse: [], active: [], past: [] })),
+  { default: () => ({ invites: [], needsResponse: [], active: [], past: [] }) }
+)
+
+const calendarEvents = computed(() =>
+  buildCalendarEvents({
+    doneLoans: doneLoans.value ?? [],
+    activeLoans: activeLoans.value ?? [],
+    clubs: [...(myClubs.value?.needsResponse ?? []), ...(myClubs.value?.active ?? [])],
+  })
 )
 
 const { data: wishlists, refresh: refreshWishlists } = await useAsyncData<WishlistWithBook[]>(
@@ -91,11 +107,12 @@ async function refreshAll() {
     refreshReservations(),
     refreshPurchaseRequests(),
     refreshMyReviews(),
+    refreshClubs(),
   ])
 }
 
-// ── 도서 달력(QA #72): 별도 페이지 대신 내 서재 안 섹션. 완독 목록(doneLoans)을 그대로 넘기면
-// ReadingCalendar가 날짜별로 알아서 꽂는다. ─────────────────────────────
+// ── 도서 달력(QA #72): 별도 페이지 대신 내 서재 안 섹션. buildCalendarEvents가 완독·반납
+// 예정·모임(확정/후보)을 한 배열로 묶어주면 ReadingCalendar가 날짜별로 알아서 꽂는다. ────
 const calNow = new Date()
 const calYear = ref(calNow.getFullYear())
 const calMonth = ref(calNow.getMonth() + 1) // 1~12
@@ -432,7 +449,7 @@ function requestMeta(r: PurchaseRequest): string {
           </div>
           <button type="button" class="chip" :class="{ on: isCurrentMonth }" :disabled="isCurrentMonth" @click="goThisMonth">이달</button>
         </div>
-        <ReadingCalendar :year="calYear" :month="calMonth" :loans="doneLoans ?? []" />
+        <ReadingCalendar :year="calYear" :month="calMonth" :events="calendarEvents" />
       </div>
 
       <NuxtLink class="reviews-link" to="/reviews">

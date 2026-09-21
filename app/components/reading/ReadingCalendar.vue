@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import type { Book, Loan } from '#shared/types'
-
-type LoanWithBook = Loan & { book: Book }
+import type { CalendarEvent, LoanWithBook } from '~/utils/calendarEvents'
 
 const props = defineProps<{
   year: number
   month: number
-  loans: LoanWithBook[]
+  events: CalendarEvent[]
 }>()
 
 function sameLocalDate(a: Date, b: Date): boolean {
@@ -26,13 +24,18 @@ function buildMonthCells(year: number, month: number): { date: Date; inMonth: bo
   })
 }
 
-/** 각 칸에 그 날짜(로컬 연·월·일)로 반납된 loan들을 매칭해 붙인다. */
+/** 각 칸에 그 날짜(로컬 연·월·일)로 매칭되는 이벤트를 종류별로 나눠 붙인다. */
 const cells = computed(() => {
   const base = buildMonthCells(props.year, props.month)
-  return base.map((cell) => ({
-    ...cell,
-    dayLoans: props.loans.filter((l) => l.returnedAt && sameLocalDate(parseDbDate(l.returnedAt), cell.date)),
-  }))
+  return base.map((cell) => {
+    const todays = props.events.filter((e) => sameLocalDate(e.at, cell.date))
+    return {
+      ...cell,
+      dayLoans: todays.filter((e): e is Extract<CalendarEvent, { kind: 'done' }> => e.kind === 'done').map((e) => e.loan),
+      dayDue: todays.filter((e): e is Extract<CalendarEvent, { kind: 'due' }> => e.kind === 'due').map((e) => e.loan),
+      dayClubs: todays.filter((e): e is Extract<CalendarEvent, { kind: 'club' }> => e.kind === 'club'),
+    }
+  })
 })
 
 const today = new Date()
@@ -43,7 +46,7 @@ function isToday(d: Date): boolean {
 // 한 날짜에 완독이 여러 권이면 ‹ › 로 표지를 넘겨본다(QA #47). 키 = 셀 인덱스.
 const coverIndex = ref<Record<number, number>>({})
 watch(
-  () => [props.year, props.month, props.loans] as const,
+  () => [props.year, props.month, props.events] as const,
   () => {
     coverIndex.value = {}
   }
@@ -74,6 +77,7 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
         :class="{ dim: !cell.inMonth, sun: cell.date.getDay() === 0, today: isToday(cell.date) }"
       >
         <span class="n">{{ cell.date.getDate() }}</span>
+        <span v-if="cell.dayDue.length" class="due" :title="cell.dayDue.map((l) => l.book.title).join(', ')">반납 예정 {{ cell.dayDue.length }}</span>
         <template v-if="cell.dayLoans.length">
           <span class="done">완독</span>
           <NuxtLink class="cv-link" :to="`/books/${activeLoanOf(i, cell.dayLoans).book.id}`">
@@ -89,11 +93,23 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
             <span class="more">{{ (coverIndex[i] ?? 0) + 1 }}/{{ cell.dayLoans.length }}</span>
           </template>
         </template>
+        <NuxtLink
+          v-for="ev in cell.dayClubs"
+          :key="`${ev.clubId}-${ev.at.getTime()}`"
+          class="club"
+          :class="{ tentative: ev.tentative }"
+          :to="`/clubs/${ev.clubId}`"
+          :title="`${ev.title} 책모임 ${ev.time}${ev.place ? ' · ' + ev.place : ''}${ev.tentative ? ' (후보)' : ''}`"
+        >
+          <span class="club-time">{{ ev.time }}</span>
+          <span class="club-title">『{{ ev.title }}』</span>
+        </NuxtLink>
       </div>
     </div>
     <div class="legend">
       <span><span class="k" />완독한 책 (반납일 기준)</span>
-      <span>표지를 클릭하면 책 상세로 이동</span>
+      <span><span class="k due-k" />반납 예정</span>
+      <span><span class="k club-k" />책모임 <em>(점선은 투표 중인 후보)</em></span>
     </div>
   </div>
 </template>
@@ -126,6 +142,15 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
 .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12.5px; color: var(--sub); align-items: center; }
 .legend .k { display: inline-block; width: 12px; height: 17px; border-radius: 1px 3px 3px 1px; background: #33465C; box-shadow: 1px 2px 4px var(--shadow-strong); margin-right: 6px; vertical-align: -3px; }
 
+.day .due { display: block; margin-top: 6px; font-size: 10.5px; color: var(--warn, #b26a00); border-left: 3px solid var(--warn, #e0a200); padding-left: 5px; line-height: 1.3; }
+.day .club { display: flex; gap: 4px; align-items: baseline; margin-top: 6px; padding: 3px 6px; border-radius: 4px; background: var(--red-tint, #fdecee); color: var(--red-text, #b3000e); font-size: 11px; text-decoration: none; overflow: hidden; }
+.day .club.tentative { background: transparent; border: 1px dashed var(--red, #e60012); }
+.day .club-time { font-weight: 700; flex: none; }
+.day .club-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legend .k.due-k { background: transparent; border-left: 3px solid var(--warn, #e0a200); width: 9px; box-shadow: none; }
+.legend .k.club-k { background: var(--red-tint, #fdecee); border: 1px solid var(--red, #e60012); box-shadow: none; }
+.legend em { font-style: normal; color: var(--muted); }
+
 @media (max-width: 640px) {
   .dow { font-size: 11px; letter-spacing: 0; }
   .day { min-height: 74px; padding: 4px; }
@@ -137,5 +162,8 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
   .day .cv-nav.prev { left: 1px; }
   .day .cv-nav.next { right: 1px; }
   .legend { flex-wrap: wrap; gap: 6px 14px; font-size: 12px; }
+  .day .due { font-size: 0; border-left-width: 3px; height: 8px; margin-top: 3px; }
+  .day .club { padding: 2px 4px; font-size: 9.5px; }
+  .day .club-title { display: none; }
 }
 </style>
