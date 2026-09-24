@@ -436,6 +436,15 @@ describe('clubService.setPlace', () => {
     expect(() => clubService.setPlace(club.id, host, { ...PLACE, name: '' }, NOW)).toThrow(ApiError)
     expect(() => clubService.setPlace(club.id, host, { ...PLACE, lat: NaN }, NOW)).toThrow(ApiError)
   })
+
+  it('좌표 범위를 벗어나면 400, (0,0)은 통과한다', () => {
+    const { club } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    const zero = clubService.setPlace(club.id, host, { ...PLACE, lat: 0, lng: 0 }, NOW)
+    expect(zero.place).toEqual({ ...PLACE, lat: 0, lng: 0 })
+    expect(() => clubService.setPlace(club.id, host, { ...PLACE, lat: 91 }, NOW)).toThrow(ApiError)
+    expect(() => clubService.setPlace(club.id, host, { ...PLACE, lng: -181 }, NOW)).toThrow(ApiError)
+  })
 })
 
 describe('clubService.placeCandidates', () => {
@@ -470,6 +479,21 @@ describe('clubService.placeCandidates', () => {
     const { club, userIds } = scheduled()
     await expect(clubService.placeCandidates(club.id, userIds[0]!, { kakaoRestKey: '' })).rejects.toThrow(ApiError)
   })
+
+  it('done 모임에서는 400 — 카카오 검색을 부르지 않는다', async () => {
+    const { club } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    clubRepo.confirm(club.id, '2026-09-29T09:30:00.000Z')
+    clubRepo.markDone(club.id, '2026-09-29T09:30:00.000Z')
+    let called = false
+    const search: typeof fakeSearch = async (key, query) => {
+      called = true
+      return fakeSearch(key, query)
+    }
+
+    await expect(clubService.placeCandidates(club.id, host, { kakaoRestKey: 'x', search })).rejects.toThrow(ApiError)
+    expect(called).toBe(false)
+  })
 })
 
 describe('clubService.requestPlaceReviews', () => {
@@ -495,5 +519,28 @@ describe('clubService.requestPlaceReviews', () => {
 
   it('runDeadlines가 reviewRequested를 포함한다', () => {
     expect(clubService.runDeadlines(NOW)).toMatchObject({ reviewRequested: 0 })
+  })
+
+  it('cron을 며칠 놓쳐도(종료 +3일에 처음 실행) 창(7일) 안이면 요청이 나간다', () => {
+    const { club, userIds } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    clubRepo.confirm(club.id, '2026-09-29T09:30:00.000Z')
+    clubService.setPlace(club.id, host, PLACE, new Date('2026-09-25T00:00:00Z'))
+    clubRepo.markDone(club.id, '2026-09-29T09:30:00.000Z') // 화 18:30 KST 종료
+
+    // 9/30·10/1 cron이 안 돌고 10/2에 처음 돌았다고 가정(종료 +3일).
+    expect(clubService.requestPlaceReviews(new Date('2026-10-02T00:00:00Z'))).toBe(3)
+    expect(notificationRepo.listForUser(userIds[0]!).some((n) => n.type === 'club_review_request')).toBe(true)
+  })
+
+  it('창을 넘기면(종료 +8일) 더 이상 요청하지 않는다', () => {
+    const { club, userIds } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    clubRepo.confirm(club.id, '2026-09-29T09:30:00.000Z')
+    clubService.setPlace(club.id, host, PLACE, new Date('2026-09-25T00:00:00Z'))
+    clubRepo.markDone(club.id, '2026-09-29T09:30:00.000Z') // 화 18:30 KST 종료
+
+    expect(clubService.requestPlaceReviews(new Date('2026-10-07T00:00:00Z'))).toBe(0)
+    expect(notificationRepo.listForUser(userIds[0]!).some((n) => n.type === 'club_review_request')).toBe(false)
   })
 })

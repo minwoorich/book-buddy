@@ -452,4 +452,16 @@ describe('3단계: 장소 메서드', () => {
     clubRepo.markDone(without.id, '2026-09-29T09:30:00.000Z')
     expect(clubRepo.listDoneWithPlace().map((c) => c.id)).toEqual([withPlace.id])
   })
+
+  it('listDoneWithPlace(sinceIso)는 그 시각 이후에 끝난 모임만 준다', () => {
+    const { club: recent } = proposal()
+    const { club: old } = proposal()
+    clubRepo.setPlace(recent.id, PLACE, '2026-09-24T00:00:00.000Z')
+    clubRepo.setPlace(old.id, PLACE, '2026-08-01T00:00:00.000Z')
+    clubRepo.markDone(recent.id, '2026-09-29T09:30:00.000Z')
+    clubRepo.markDone(old.id, '2026-08-10T09:30:00.000Z')
+
+    expect(clubRepo.listDoneWithPlace('2026-09-01T00:00:00.000Z').map((c) => c.id)).toEqual([recent.id])
+    expect(new Set(clubRepo.listDoneWithPlace().map((c) => c.id))).toEqual(new Set([recent.id, old.id]))
+  })
 })

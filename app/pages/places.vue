@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Club, Place, PlaceReviewSummary, UpcomingClubPlace } from '#shared/types'
+import type { Club, GroupedClubs, Place, PlaceCandidatesResult, PlaceReviewSummary, UpcomingClubPlace } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
 import type { VatechOffice } from '#shared/constants/company'
-import { formatKstDate } from '#shared/utils/clubTime'
+import { formatKstDate, placeLocked } from '#shared/utils/clubTime'
 import { placeKey } from '#shared/utils/placeKey'
 import { cardCoverPx, formatDistance, hasCoords, kakaoMapUrl } from '~/utils/place'
 import { scrollWithin } from '~/utils/scrollWithin'
@@ -106,9 +106,6 @@ const origin = computed(() => myLocation.value ?? { lat: office.value.lat, lng: 
 
 // ── 모임 모드: `/places?forClub=12`로 들어오면 참가자 중간 지점 기준·모임 점수식으로 정렬된
 // 후보만 보여준다. 검색·사업장 변경 등 사용자가 목록을 직접 부르면 추천 모드처럼 풀린다.
-interface PlaceCandidate extends Place { reason: string; score: number; reviewTotal: number }
-interface PlaceCandidatesResult { midpoint: { lat: number; lng: number }; memberCount: number; candidates: PlaceCandidate[] }
-
 const forClubId = ref<number | null>(Number.isInteger(Number(route.query.forClub)) && Number(route.query.forClub) > 0 ? Number(route.query.forClub) : null)
 const forClub = ref<Club | null>(null)
 const candidateResult = ref<PlaceCandidatesResult | null>(null)
@@ -145,11 +142,15 @@ function exitForClub() {
 
 // ── 내가 진행 중인 모임(호스트·장소를 고를 수 있는 상태) — 일반 목록의 카드에 "모임 장소로" 버튼을 붙인다.
 // 쿼터(동시 1개 참여) 덕에 그런 모임은 최대 하나다.
-const myClubs = ref<{ needsResponse: Club[]; active: Club[] }>({ needsResponse: [], active: [] })
+const myClubs = ref<GroupedClubs>({ invites: [], needsResponse: [], active: [], past: [] })
 const hostableClub = computed<Club | null>(() => {
-  if (forClub.value) return forClub.value
+  const isHostable = (c: Club) =>
+    c.members.some((m) => m.userId === user.value?.id && m.role === 'host') &&
+    (c.status === 'scheduling' || c.status === 'confirmed') &&
+    !placeLocked(c, new Date())
+  if (forClub.value) return isHostable(forClub.value) ? forClub.value : null
   const mine = [...myClubs.value.needsResponse, ...myClubs.value.active]
-  return mine.find((c) => c.members.some((m) => m.userId === user.value?.id && m.role === 'host') && (c.status === 'scheduling' || c.status === 'confirmed')) ?? null
+  return mine.find(isHostable) ?? null
 })
 const amHostOfForClub = computed(() => !!forClub.value && forClub.value.members.some((m) => m.userId === user.value?.id && m.role === 'host'))
 const clubActionLabel = computed(() => {
@@ -233,7 +234,7 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
 
 onMounted(() => {
   if (user.value) {
-    void api<{ needsResponse: Club[]; active: Club[] }>('/api/clubs').then((g) => { myClubs.value = g }).catch(() => {})
+    void api<GroupedClubs>('/api/clubs').then((g) => { myClubs.value = g }).catch(() => {})
     void api<UpcomingClubPlace[]>('/api/clubs/upcoming-places').then((list) => { upcoming.value = new Map(list.map((u) => [u.kakaoId, u])) }).catch(() => {})
   }
   openReviewFromQuery()

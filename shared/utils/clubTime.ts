@@ -3,6 +3,8 @@
  * Intl 대신 고정 오프셋(+09:00)으로 계산한다: 한국은 DST가 없고, 이 함수는 Node·브라우저 어디서
  * 실행돼도 같은 문자열을 내야 한다.
  */
+import type { Club } from '../types'
+
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
@@ -40,4 +42,18 @@ export function formatKstTime(iso: string): string {
 /** "9/25(금) 19:00" */
 export function formatKst(iso: string): string {
   return `${formatKstDate(iso)} ${formatKstTime(iso)}`
+}
+
+/**
+ * 모임 KST 당일부터는 장소를 잠근다 — 당일에 바뀌면 사람이 헛걸음한다(스펙 §9).
+ * 서버(clubService)와 화면(clubs/[id].vue·places.vue)이 같은 규칙을 쓴다.
+ * meetAt이 없으면(아직 시간 미정) 잠기지 않는다.
+ */
+export function placeLocked(club: Pick<Club, 'meetAt'>, now: Date): boolean {
+  if (!club.meetAt) return false
+  const meet = new Date(club.meetAt)
+  if (meet <= now) return true
+  const a = kstParts(now)
+  const b = kstParts(meet)
+  return a.y === b.y && a.m === b.m && a.d === b.d
 }

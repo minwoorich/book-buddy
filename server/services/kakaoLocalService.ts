@@ -60,7 +60,7 @@ function toPlace(raw: KakaoLocalRawItem): Place {
     lng,
     lat,
     // distance는 x/y(기준 좌표)를 준 검색에서만 내려오는 미터 문자열이다.
-    ...(Number.isFinite(distance) && distance > 0 ? { distanceM: distance } : {}),
+    ...(Number.isFinite(distance) && distance >= 0 ? { distanceM: distance } : {}),
     // id는 장소 후기의 안정 키, place_url은 카카오맵 상세(리뷰가 있는 페이지) 링크.
     ...(raw.id ? { kakaoId: raw.id } : {}),
     ...(raw.place_url ? { placeUrl: raw.place_url } : {}),

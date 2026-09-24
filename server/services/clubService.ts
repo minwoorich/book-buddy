@@ -6,9 +6,9 @@ import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
 import { describeMeetingPlace, scoreMeetingPlace } from '../utils/clubPlace'
-import { formatKst, formatKstDate } from '../../shared/utils/clubTime'
+import { formatKst, formatKstDate, placeLocked } from '../../shared/utils/clubTime'
 import { midpointOf, officeForCompany } from '../../shared/constants/company'
-import type { Club, ClubMember, Place } from '../../shared/types'
+import type { Club, ClubMember, DeadlineRunResult, Place, PlaceCandidate, PlaceCandidatesResult } from '../../shared/types'
 
 function requireClub(clubId: number): Club {
   const club = clubRepo.findById(clubId)
@@ -160,29 +160,7 @@ export interface ClubPlaceInput {
   lng: number
 }
 
-export interface PlaceCandidate extends Place {
-  reason: string
-  score: number
-  reviewTotal: number
-}
-
-export interface PlaceCandidatesResult {
-  midpoint: { lat: number; lng: number }
-  memberCount: number
-  candidates: PlaceCandidate[]
-}
-
 type SearchFn = typeof kakaoLocalService.search
-
-/** 모임 KST 당일부터는 장소를 잠근다 — 당일에 바뀌면 사람이 헛걸음한다(스펙 §9). */
-function placeLocked(club: Club, now: Date): boolean {
-  if (!club.meetAt) return false
-  const meet = new Date(club.meetAt)
-  if (meet <= now) return true
-  const a = kstParts(now)
-  const b = kstParts(meet)
-  return a.y === b.y && a.m === b.m && a.d === b.d
-}
 
 export const clubService = {
   /** 관리자 승인 — 여기서 처음으로 사람에게 초대가 나간다. */
@@ -376,7 +354,16 @@ export const clubService = {
     if (club.status !== 'scheduling' && club.status !== 'confirmed') throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
     if (placeLocked(club, now)) throw new ApiError(400, '모임 당일에는 장소를 바꿀 수 없어요')
     if (!place.kakaoId?.trim() || !place.name?.trim()) throw new ApiError(400, '장소 정보가 비어 있어요')
-    if (!Number.isFinite(place.lat) || !Number.isFinite(place.lng)) throw new ApiError(400, '장소 좌표가 올바르지 않아요')
+    if (
+      !Number.isFinite(place.lat) ||
+      !Number.isFinite(place.lng) ||
+      place.lat < -90 ||
+      place.lat > 90 ||
+      place.lng < -180 ||
+      place.lng > 180
+    ) {
+      throw new ApiError(400, '장소 좌표가 올바르지 않아요')
+    }
 
     clubRepo.setPlace(club.id, { kakaoId: place.kakaoId.trim(), name: place.name.trim(), lat: place.lat, lng: place.lng }, now.toISOString())
     const updated = requireClub(clubId)
@@ -402,6 +389,7 @@ export const clubService = {
   ): Promise<PlaceCandidatesResult> {
     const club = requireClub(clubId)
     if (!club.members.some((m) => m.userId === userId)) throw new ApiError(403, '참여 중인 모임만 볼 수 있어요')
+    if (club.status !== 'scheduling' && club.status !== 'confirmed') throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
     if (!deps.kakaoRestKey) throw new ApiError(503, '장소 검색을 사용할 수 없어요')
 
     const accepted = acceptedMembers(club)
@@ -427,17 +415,26 @@ export const clubService = {
   },
 
   /**
-   * 사후 후기 요청(플라이휠) — 장소가 있던 모임이 끝난 다음 날(KST), 그 장소에 아직 후기를
-   * 쓰지 않은 수락자에게 한 번. 링크에 이름·좌표를 실어 장소 페이지가 시트를 바로 열게 한다
-   * (카카오에 id 단건 조회가 없다). 보낸 사람 수를 돌려준다.
+   * 사후 후기 요청(플라이휠) — 장소가 있던 모임이 끝난 다음 날(KST)부터
+   * CLUB_RULES.reviewRequestWindowDays일 안, 그 장소에 아직 후기를 쓰지 않은 수락자에게 한 번.
+   * 정확히 "그 하루"가 아니라 창(window)으로 판정한다 — croner는 놓친 실행을 따라잡지 않으므로
+   * 등호 비교면 cron 한 번을 놓친 모임은 영구히 요청을 못 받는다. 이미 있는
+   * notificationRepo.has(link) + placeReviewRepo.findMine 이중 dedup이 멱등성을 보장하므로
+   * 창 안에서 매일 다시 돌아도 한 번만 나간다. 링크에 이름·좌표를 실어 장소 페이지가 시트를
+   * 바로 열게 한다(카카오에 id 단건 조회가 없다). 보낸 사람 수를 돌려준다.
    */
   requestPlaceReviews(now: Date): number {
     const today = kstParts(now)
+    const todayUtcDate = Date.UTC(today.y, today.m - 1, today.d)
+    // 창(window) + 하루 여유만큼만 거슬러 올라가 스캔 범위를 줄인다.
+    const sinceIso = new Date(now.getTime() - (CLUB_RULES.reviewRequestWindowDays + 1) * 24 * 60 * 60 * 1000).toISOString()
     let sent = 0
-    for (const club of clubRepo.listDoneWithPlace()) {
+    for (const club of clubRepo.listDoneWithPlace(sinceIso)) {
       if (!club.doneAt || !club.place) continue
-      const nextDay = kstParts(new Date(new Date(club.doneAt).getTime() + 24 * 60 * 60 * 1000))
-      if (nextDay.y !== today.y || nextDay.m !== today.m || nextDay.d !== today.d) continue
+      const doneDate = kstParts(new Date(club.doneAt))
+      const doneUtcDate = Date.UTC(doneDate.y, doneDate.m - 1, doneDate.d)
+      const daysSinceDone = Math.round((todayUtcDate - doneUtcDate) / (24 * 60 * 60 * 1000))
+      if (daysSinceDone < 1 || daysSinceDone > CLUB_RULES.reviewRequestWindowDays) continue
 
       const p = club.place
       const link = `/places?review=${encodeURIComponent(p.kakaoId)}&name=${encodeURIComponent(p.name)}&lat=${p.lat}&lng=${p.lng}`
@@ -463,7 +460,7 @@ export const clubService = {
    * 순서가 중요하다: 만료·마감·종료를 먼저 정리하고 리마인드를 보낸다 —
    * 반대면 오늘 취소·종료될 모임에도 "내일" 알림이 나간다.
    */
-  runDeadlines(now: Date): { handled: number; closed: number; finished: number; reminded: number; remindedTomorrow: number; reviewRequested: number } {
+  runDeadlines(now: Date): DeadlineRunResult {
     const handled = clubService.expireInvites(now)
     const closed = clubService.closeVotes(now)
     const finished = clubService.finishPast(now)

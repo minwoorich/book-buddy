@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Club, Place } from '#shared/types'
-import { formatKst, kstParts } from '#shared/utils/clubTime'
+import { formatKst, placeLocked as isPlaceLocked } from '#shared/utils/clubTime'
 import { kakaoMapUrl } from '~/utils/place'
 
 const api = useApi()
@@ -21,16 +21,8 @@ const me = computed(() => club.value?.members.find((m) => m.userId === user.valu
 const canRespond = computed(() => club.value?.status === 'inviting' && me.value?.inviteStatus === 'invited')
 
 const isHost = computed(() => me.value?.role === 'host')
-/** 모임 KST 당일부터는 장소가 잠긴다(서버와 같은 규칙). */
-const placeLocked = computed(() => {
-  const meetAt = club.value?.meetAt
-  if (!meetAt) return false
-  const meet = new Date(meetAt)
-  if (meet <= new Date()) return true
-  const a = kstParts(new Date())
-  const b = kstParts(meet)
-  return a.y === b.y && a.m === b.m && a.d === b.d
-})
+/** 모임 KST 당일부터는 장소가 잠긴다(서버와 같은 규칙 — shared/utils/clubTime의 placeLocked). */
+const placeLocked = computed(() => (club.value ? isPlaceLocked(club.value, new Date()) : false))
 const canPickPlace = computed(
   () => isHost.value && (club.value?.status === 'scheduling' || club.value?.status === 'confirmed') && !placeLocked.value
 )
@@ -44,6 +36,20 @@ const placeForMap = computed<Place | null>(() =>
 const isGenericAgenda = computed(
   () => (club.value?.agenda.length ?? 0) > 0 && club.value!.agenda.every((a) => a.evidence.length === 0)
 )
+
+/**
+ * 장소가 아직 없을 때 "어디서" 줄 문구. 진행자가 실제로 고를 수 있는 상태(scheduling·confirmed)
+ * 에서만 "진행자가 장소를 고르는 중이에요"를 쓴다 — inviting은 아직 아무도 고르는 중이 아니고,
+ * done·canceled는 더 이상 고를 일이 없다.
+ */
+const wherePlaceholder = computed(() => {
+  const status = club.value?.status
+  if (status === 'scheduling' || status === 'confirmed') {
+    return isHost.value ? '아직 장소를 정하지 않았어요' : '진행자가 장소를 고르는 중이에요'
+  }
+  if (status === 'inviting') return '초대 응답이 모이면 정해져요'
+  return '정해지지 않았어요'
+})
 
 const canVote = computed(() => club.value?.status === 'scheduling' && me.value?.inviteStatus === 'accepted')
 const picked = ref<number[]>([])
@@ -130,7 +136,7 @@ async function respond(accept: boolean) {
             {{ club.place.name }} <span class="note">(장소 확정)</span>
             <a v-if="placeForMap" class="map-link" :href="kakaoMapUrl(placeForMap, 'map')" target="_blank" rel="noopener">카카오맵</a>
           </template>
-          <span v-else class="note">{{ isHost ? '아직 장소를 정하지 않았어요' : '진행자가 장소를 고르는 중이에요' }}</span>
+          <span v-else class="note">{{ wherePlaceholder }}</span>
         </p>
         <NuxtLink v-if="canPickPlace" class="pick-place" :to="`/places?forClub=${club.id}`">
           {{ club.place ? '장소 바꾸기' : '장소 고르기' }}
@@ -196,8 +202,8 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .when-where { background: var(--chip, #f7f7f7); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
 .when-where p { margin: 2px 0; }
 .note { color: var(--muted, #888); font-size: 13px; }
-.pick-place { display: inline-block; margin-top: 8px; padding: 8px 14px; border-radius: 8px; background: #e60012; color: #fff; text-decoration: none; font-size: 14px; }
-.map-link { margin-left: 8px; font-size: 13px; color: #e60012; }
+.pick-place { display: inline-block; margin-top: 8px; padding: 8px 14px; border-radius: 8px; background: var(--red); color: #fff; text-decoration: none; font-size: 14px; }
+.map-link { margin-left: 8px; font-size: 13px; color: var(--red); }
 .members { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .members li { font-size: 13px; background: var(--chip, #f5f5f5); border-radius: 999px; padding: 4px 11px; }
 .dept { color: var(--muted, #888); margin-left: 5px; }

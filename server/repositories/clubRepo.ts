@@ -409,11 +409,18 @@ export const clubRepo = {
     return rows
   },
 
-  /** 끝난 모임 중 장소가 있는 것 — 사후 후기 요청 대상. */
-  listDoneWithPlace(): Club[] {
-    const rows = getDb()
-      .prepare(`${SELECT_CLUB} WHERE c.status = 'done' AND c.place_kakao_id IS NOT NULL ORDER BY c.id DESC`)
-      .all() as ClubRow[]
+  /**
+   * 끝난 모임 중 장소가 있는 것 — 사후 후기 요청 대상. sinceIso를 주면 done_at >= sinceIso로
+   * 스캔 범위를 줄인다(매일 역대 전체를 다시 읽지 않게). done_at은 앱이 쓰는 ISO 컬럼이라 ISO끼리 비교.
+   */
+  listDoneWithPlace(sinceIso?: string): Club[] {
+    const rows = sinceIso
+      ? (getDb()
+          .prepare(`${SELECT_CLUB} WHERE c.status = 'done' AND c.place_kakao_id IS NOT NULL AND c.done_at >= ? ORDER BY c.id DESC`)
+          .all(sinceIso) as ClubRow[])
+      : (getDb()
+          .prepare(`${SELECT_CLUB} WHERE c.status = 'done' AND c.place_kakao_id IS NOT NULL ORDER BY c.id DESC`)
+          .all() as ClubRow[])
     return hydrate(rows)
   },
 }

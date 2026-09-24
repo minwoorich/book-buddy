@@ -29,6 +29,8 @@ export const CLUB_RULES = {
   placeSearchRadiusM: 5000,
   /** 후보를 찾을 키워드 — 모임이 가능한 곳. */
   placeSearchQueries: ['카페', '북카페', '도서관'],
+  /** 사후 후기 요청 창(모임 종료 다음 날부터 이 일수까지) — cron 한 번을 놓쳐도 이 안에서 따라잡는다. */
+  reviewRequestWindowDays: 7,
 } as const
 
 /** 모임 점수 가중치. 합은 1. 별점 분산이 최대 가중인 것이 이 설계의 판단이다(설계서 §4.3). */

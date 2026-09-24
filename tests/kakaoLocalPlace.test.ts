@@ -39,4 +39,11 @@ describe('kakaoLocalService.search → Place 매핑', () => {
     expect(place).not.toHaveProperty('kakaoId')
     expect(place).not.toHaveProperty('placeUrl')
   })
+
+  it('distance가 "0"(중간 지점 바로 위)이어도 distanceM: 0을 채운다', async () => {
+    const zero = { documents: [{ ...RAW.documents[0], distance: '0' }] }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(zero), { status: 200 })))
+    const [place] = await kakaoLocalService.search('key', '카페', 1)
+    expect(place).toHaveProperty('distanceM', 0)
+  })
 })
