@@ -95,7 +95,7 @@ function when(iso: string): string {
             <button type="submit" :disabled="sending || replyBody.trim().length === 0">달기</button>
             <button type="button" class="ghost" @click="replyTo = null; replyBody = ''">취소</button>
           </form>
-          <button v-else type="button" class="ghost" @click="replyTo = p.id">댓글</button>
+          <button v-else type="button" class="ghost" @click="replyTo = p.id; replyBody = ''">댓글</button>
         </template>
       </article>
     </template>

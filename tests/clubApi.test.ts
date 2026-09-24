@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupClubsForUser } from '../server/utils/clubView'
+import { groupClubsForUser, canViewClub } from '../server/utils/clubView'
 import type { Club, ClubStatus } from '../shared/types'
 
 function club(over: Partial<Club> & { id: number; status: ClubStatus }): Club {
@@ -116,5 +116,32 @@ describe('groupClubsForUser', () => {
       const g = groupClubsForUser([club({ id: 1, status })], 1) // 기본 멤버는 invited
       expect([...g.invites, ...g.needsResponse, ...g.active, ...g.past]).toHaveLength(0)
     }
+  })
+})
+
+describe('canViewClub', () => {
+  it('멤버는 볼 수 있다', () => {
+    const c = club({ id: 1, status: 'inviting', origin: 'agent' })
+    expect(canViewClub(c, { id: 1, role: 'member' })).toBe(true)
+  })
+
+  it('에이전트 모임은 멤버가 아니면 볼 수 없다', () => {
+    const c = club({ id: 1, status: 'inviting', origin: 'agent' })
+    expect(canViewClub(c, { id: 99, role: 'member' })).toBe(false)
+  })
+
+  it('사람 모임이 모집 중이면 멤버가 아니어도 볼 수 있다', () => {
+    const c = club({ id: 1, status: 'inviting', origin: 'user' })
+    expect(canViewClub(c, { id: 99, role: 'member' })).toBe(true)
+  })
+
+  it('사람 모임이라도 모집이 끝나면 멤버가 아니면 볼 수 없다', () => {
+    const c = club({ id: 1, status: 'scheduling', origin: 'user' })
+    expect(canViewClub(c, { id: 99, role: 'member' })).toBe(false)
+  })
+
+  it('관리자는 멤버가 아니어도 항상 볼 수 있다', () => {
+    const c = club({ id: 1, status: 'confirmed', origin: 'agent' })
+    expect(canViewClub(c, { id: 99, role: 'admin' })).toBe(true)
   })
 })

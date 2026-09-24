@@ -182,7 +182,7 @@ onMounted(() => {
 .card.row { display: flex; align-items: center; gap: 12px; }
 .grow { flex: 1; min-width: 0; }
 .origin { margin-left: 8px; font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--chip, #f5f5f5); color: var(--muted, #666); }
-.actions button { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line, #ddd); cursor: pointer; }
+.actions button, .card.row button { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line, #ddd); cursor: pointer; }
 .ok { background: var(--red); color: #fff; border-color: var(--red); }
 .no { background: #fff; }
 @media (max-width: 640px) {

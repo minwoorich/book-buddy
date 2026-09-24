@@ -1,6 +1,17 @@
-import type { Club, GroupedClubs } from '../../shared/types'
+import type { Club, GroupedClubs, User } from '../../shared/types'
 
 export type { GroupedClubs }
+
+/**
+ * 모임 상세를 볼 수 있는지. 멤버(초대 상태 무관)이거나 관리자면 항상 가능하다.
+ * 그 외에는 사람이 연 모임이 아직 모집 중(origin === 'user' && status === 'inviting')일 때만
+ * 허용한다 — 모집 중에는 아젠다(동료 리뷰 인용)가 아직 없어 남에게 보여도 새어 나갈 게 없다.
+ */
+export function canViewClub(club: Pick<Club, 'origin' | 'status' | 'members'>, user: Pick<User, 'id' | 'role'>): boolean {
+  if (club.members.some((m) => m.userId === user.id)) return true
+  if (user.role === 'admin') return true
+  return club.origin === 'user' && club.status === 'inviting'
+}
 
 /**
  * 모임 목록을 화면의 네 묶음으로 나눈다.
