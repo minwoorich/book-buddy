@@ -7,7 +7,7 @@ import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
 import { describeMeetingPlace, scoreMeetingPlace } from '../utils/clubPlace'
 import { formatKst, formatKstDate, placeLocked } from '../../shared/utils/clubTime'
-import { clubTitle } from '../../shared/utils/clubTitle'
+import { clubTitle, josa } from '../../shared/utils/clubTitle'
 import { midpointOf, officeForCompany } from '../../shared/constants/company'
 import type { Club, ClubMember, DeadlineRunResult, Place, PlaceCandidate, PlaceCandidatesResult } from '../../shared/types'
 
@@ -70,10 +70,11 @@ function enterScheduling(club: Club, now: Date): void {
 
   if (slots.length === 0) {
     clubRepo.updateStatus(club.id, 'canceled', { canceledReason: '가능한 시간을 찾지 못했어요' })
+    const t = clubTitle(club)
     notificationRepo.insertMany(
       clubRepo.adminUserIds(),
       'club_no_slots',
-      `${clubTitle(club)}이 시간을 찾지 못해 취소됐어요`,
+      `${t}${josa(t, '이', '가')} 시간을 찾지 못해 취소됐어요`,
       '참가자 일정과 반납 예정일이 겹쳐 다음 주 후보가 없었어요.',
       '/admin'
     )
@@ -114,10 +115,11 @@ function confirmClub(club: Club, now: Date): void {
   const meetAt = pickSlot(club, now)
   if (meetAt === null) {
     clubRepo.updateStatus(club.id, 'canceled', { canceledReason: '투표가 끝나기 전에 후보 시간이 모두 지났어요' })
+    const t = clubTitle(club)
     notificationRepo.insertMany(
       acceptedMembers(club).map((m) => m.userId),
       'club_canceled',
-      `${clubTitle(club)}이 열리지 못했어요`,
+      `${t}${josa(t, '이', '가')} 열리지 못했어요`,
       '후보 시간이 모두 지나 시간을 정하지 못했어요. 다음 기회에 다시 제안드릴게요.',
       '/clubs'
     )
@@ -140,10 +142,11 @@ function confirmClub(club: Club, now: Date): void {
  */
 function cancelForLackOfMembers(club: Club, recipientIds: number[], reason: string): void {
   clubRepo.updateStatus(club.id, 'canceled', { canceledReason: reason })
+  const t = clubTitle(club)
   notificationRepo.insertMany(
     recipientIds,
     'club_canceled',
-    `${clubTitle(club)}이 열리지 않았어요`,
+    `${t}${josa(t, '이', '가')} 열리지 않았어요`,
     '이번에는 인원이 모이지 않았어요. 다음 기회에 다시 제안드릴게요.',
     '/clubs'
   )
@@ -192,7 +195,11 @@ export const clubService = {
     clubRepo.updateStatus(club.id, 'canceled', { canceledReason: '관리자가 제안을 거절했어요' })
   },
 
-  /** 초대 수락/거절. 정원이 차면 조율중으로, 성립 불가가 확정되면 취소로 넘어간다. */
+  /**
+   * 초대 수락/거절. 정원이 차면 조율중으로, 성립 불가가 확정되면 취소로 넘어간다 —
+   * 단 이 자동 전이는 에이전트 모임에만 해당한다. 사람 모임(origin === 'user')은 개설자가
+   * 모집을 닫아야 조율중으로 넘어가므로(clubRecruitService), 응답만 기록하고 전이는 하지 않는다.
+   */
   respond(clubId: number, userId: number, accept: boolean, now: Date = new Date()): Club {
     const club = requireClub(clubId)
     if (club.status !== 'inviting') throw new ApiError(400, '지금은 응답할 수 있는 상태가 아니에요')
@@ -334,10 +341,11 @@ export const clubService = {
       const targets = acceptedMembers(club).filter((m) => !notificationRepo.has(m.userId, 'club_reminder', link))
       if (targets.length === 0) continue
       const where = placeSuffix(club)
+      const t = clubTitle(club)
       notificationRepo.insertMany(
         targets.map((m) => m.userId),
         'club_reminder',
-        `내일 ${clubTitle(club)}이 있어요`,
+        `내일 ${t}${josa(t, '이', '가')} 있어요`,
         `${formatKst(club.meetAt)}${where}`,
         link
       )

@@ -34,8 +34,13 @@ function pick(b: Book) {
   results.value = []
   if (title.value.trim().length === 0 || title.value === defaultTitleFor(book.value)) title.value = defaultTitleFor(b)
 }
+/** 기본 제목 `『책 제목』 함께 읽기`가 40자를 넘으면(제목은 1~40자 제약) 책 제목을 잘라 맞춘다. */
 function defaultTitleFor(b: Book | null): string {
-  return b ? `『${b.title}』 함께 읽기` : ''
+  if (!b) return ''
+  const suffix = '『』 함께 읽기'
+  const max = 40 - suffix.length
+  const title = b.title.length > max ? `${b.title.slice(0, max - 1)}…` : b.title
+  return `『${title}』 함께 읽기`
 }
 
 async function submit() {

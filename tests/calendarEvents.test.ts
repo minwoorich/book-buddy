@@ -38,11 +38,20 @@ describe('buildCalendarEvents', () => {
     })
     const clubs = ev.filter((e) => e.kind === 'club')
     expect(clubs).toHaveLength(3)
-    expect(clubs[0]).toMatchObject({ clubId: 1, tentative: false, time: '19:00', place: '스타벅스' })
+    expect(clubs[0]).toMatchObject({ clubId: 1, tentative: false, time: '19:00', place: '스타벅스', title: '『하드씽』 책모임' })
     expect(clubs.filter((e) => e.kind === 'club' && e.tentative)).toHaveLength(2)
   })
   it('취소·종료 모임은 넣지 않는다', () => {
     const ev = buildCalendarEvents({ doneLoans: [], activeLoans: [], clubs: [club({ status: 'canceled', meetAt: '2026-09-25T10:00:00.000Z' })] })
     expect(ev).toHaveLength(0)
+  })
+  it('사람 모임은 이벤트 title이 개설자가 쓴 제목이다(clubTitle 규칙)', () => {
+    const ev = buildCalendarEvents({
+      doneLoans: [], activeLoans: [],
+      clubs: [club({ id: 3, origin: 'user', title: '하드씽 같이 읽어요', meetAt: '2026-09-25T10:00:00.000Z' })],
+    })
+    const clubs = ev.filter((e) => e.kind === 'club')
+    expect(clubs).toHaveLength(1)
+    expect(clubs[0]).toMatchObject({ clubId: 3, title: '하드씽 같이 읽어요' })
   })
 })

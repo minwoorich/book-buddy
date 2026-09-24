@@ -27,8 +27,11 @@ const title = computed(() => (club.value ? clubTitle(club.value) : ''))
 const isUserClub = computed(() => club.value?.origin === 'user')
 const isRecruiting = computed(() => isUserClub.value && club.value?.status === 'inviting')
 const acceptedCount = computed(() => club.value?.members.filter((m) => m.inviteStatus === 'accepted').length ?? 0)
-const isFull = computed(() => !!club.value && acceptedCount.value >= club.value.capacity)
-const canJoin = computed(() => isRecruiting.value && (!me.value || me.value.inviteStatus !== 'accepted') && (me.value?.inviteStatus === 'invited' || !isFull.value))
+// 정원이 "찼는지"는 초대로 잡아둔 자리까지 세야 서버(clubRecruitService)의 판정과 맞는다.
+// 화면에 보여주는 n/capacity는 수락자 기준 그대로(acceptedCount).
+const reservedCount = computed(() => club.value?.members.filter((m) => m.inviteStatus === 'accepted' || m.inviteStatus === 'invited').length ?? 0)
+const isFull = computed(() => !!club.value && reservedCount.value >= club.value.capacity)
+const canJoin = computed(() => isRecruiting.value && (!me.value || me.value.inviteStatus !== 'accepted') && !canRespond.value && (me.value?.inviteStatus === 'invited' || !isFull.value))
 const canLeave = computed(() => isRecruiting.value && me.value?.inviteStatus === 'accepted' && me.value.role !== 'host')
 const canClose = computed(() => isRecruiting.value && isHost.value)
 const recruitDaysLeft = computed(() => {
@@ -172,9 +175,8 @@ onMounted(() => {
       <p v-if="isUserClub && club.description" class="desc">{{ club.description }}</p>
 
       <div v-if="isRecruiting" class="recruit">
-        <template v-if="canRespond" />
-        <button v-else-if="canJoin" class="ok-btn slim" :disabled="sending" @click="act('join', 'POST', '참여했어요')">참여하기</button>
-        <span v-else-if="!me && isFull" class="note">정원이 찼어요</span>
+        <button v-if="canJoin" class="ok-btn slim" :disabled="sending" @click="act('join', 'POST', '참여했어요')">참여하기</button>
+        <span v-else-if="me?.inviteStatus !== 'accepted' && isFull" class="note">정원이 찼어요</span>
         <button v-if="canLeave" class="ghost" :disabled="sending" @click="act('join', 'DELETE', '참여를 취소했어요', '참여를 취소할까요?')">참여 취소</button>
         <template v-if="canClose">
           <button class="ghost" :disabled="sending" @click="showInvite = true">초대하기</button>

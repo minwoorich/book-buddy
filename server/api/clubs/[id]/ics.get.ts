@@ -3,6 +3,7 @@ import { buildIcs } from '../../../utils/ics'
 import { slotEndIso } from '../../../utils/clubSlots'
 import { handleApi, requireUser, requireIdParam } from '../../../utils/api'
 import { ApiError } from '../../../utils/errors'
+import { clubTitle } from '../../../../shared/utils/clubTitle'
 
 /**
  * 확정된 모임을 iCalendar로 내려준다 — 아웃룩·구글 캘린더에 그대로 들어간다.
@@ -25,7 +26,7 @@ export default defineEventHandler(
       uid: `club-${club.id}@vnlibrary.com`,
       startIso: club.meetAt,
       endIso: slotEndIso(club.meetAt),
-      summary: `『${club.bookTitle}』 책모임`,
+      summary: clubTitle(club),
       description: `참가자: ${names}\n\n토론 질문\n${questions}`,
       location: club.place?.name ?? null,
       stampIso: new Date().toISOString(),

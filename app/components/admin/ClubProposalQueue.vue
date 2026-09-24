@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Club, DeadlineRunResult } from '#shared/types'
-import { clubTitle } from '#shared/utils/clubTitle'
+import { clubTitle, josa } from '#shared/utils/clubTitle'
 
 const api = useApi()
 
@@ -32,10 +32,11 @@ async function loadActive() {
 }
 
 async function cancelClub(club: Club) {
-  if (!confirm(`${clubTitle(club)}을 닫을까요? 참가자에게 알림이 가요.`)) return
+  const t = clubTitle(club)
+  if (!confirm(`${t}${josa(t, '을', '를')} 닫을까요? 참가자에게 알림이 가요.`)) return
   try {
     await api(`/api/admin/clubs/${club.id}/cancel`, { method: 'POST' })
-    message.value = `${clubTitle(club)}을 닫았어요`
+    message.value = `${t}${josa(t, '을', '를')} 닫았어요`
     await loadActive()
   } catch (e) {
     message.value = apiErrorMessage(e)

@@ -8,6 +8,8 @@ const { user } = useCurrentUser()
 
 const title = computed(() => clubTitle(props.club))
 const accepted = computed(() => props.club.members.filter((m) => m.inviteStatus === 'accepted'))
+// 정원이 "찼는지"는 초대로 잡아둔 자리까지 세야 서버(clubRecruitService)의 판정과 맞는다(카드는 발견용 진입점).
+const reserved = computed(() => props.club.members.filter((m) => m.inviteStatus === 'accepted' || m.inviteStatus === 'invited'))
 const completedCount = computed(() => accepted.value.filter((m) => m.completed).length)
 const readingCount = computed(() => accepted.value.filter((m) => m.reading).length)
 const host = computed(() => props.club.members.find((m) => m.role === 'host'))
@@ -40,7 +42,7 @@ const myLabel = computed(() => {
   if (me?.role === 'host') return '내 모임'
   if (me?.inviteStatus === 'accepted') return '참여 중'
   if (me?.inviteStatus === 'invited') return '초대받음'
-  return accepted.value.length >= props.club.capacity ? '정원 마감' : '참여할 수 있어요'
+  return reserved.value.length >= props.club.capacity ? '정원 마감' : '참여할 수 있어요'
 })
 </script>
 

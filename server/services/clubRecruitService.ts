@@ -6,7 +6,7 @@ import { clubService } from './clubService'
 import { generateAgenda } from '../ai/clubAgenda'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
-import { clubTitle } from '../../shared/utils/clubTitle'
+import { clubTitle, josa } from '../../shared/utils/clubTitle'
 import type { Club, ClubMember } from '../../shared/types'
 
 /** 직접 개설의 입력 한계. 설계서 §5.1. */
@@ -64,7 +64,8 @@ function cancelAndNotify(club: Club, reason: string, body: string, excludeUserId
   const targets = club.members
     .filter((m) => m.inviteStatus !== 'declined' && m.userId !== excludeUserId)
     .map((m) => m.userId)
-  notificationRepo.insertMany(targets, 'club_canceled', `${clubTitle(club)}이 열리지 않았어요`, body, '/clubs')
+  const t = clubTitle(club)
+  notificationRepo.insertMany(targets, 'club_canceled', `${t}${josa(t, '이', '가')} 열리지 않았어요`, body, '/clubs')
   return requireClub(club.id)
 }
 
@@ -79,11 +80,18 @@ async function prepareAgenda(club: Club, deps: { anthropicApiKey: string }): Pro
   clubRepo.setAgenda(club.id, agenda)
 }
 
-/** 모집을 닫고 조율로 — 응답 없는 초대는 거절로 정리하고(수락자만 조율), 아젠다를 만든 뒤 기존 절차를 탄다. */
+/**
+ * 모집을 닫고 조율로 — 응답 없는 초대는 거절로 정리하고(수락자만 조율), 아젠다를 만든 뒤 기존 절차를 탄다.
+ * prepareAgenda는 LLM 왕복이라 이벤트 루프를 오래 양보한다 — 그사이 같은 모임에 대한 다른 호출(중복
+ * 클릭·재시도·expireRecruiting과의 경합)이 먼저 끝나 이미 inviting을 벗어났을 수 있으므로, await 뒤에
+ * 상태를 다시 읽어 확인한다. 이미 넘어갔으면 이 호출은 enterScheduling을 다시 타지 않고 최신 상태만 돌려준다.
+ */
 async function moveToScheduling(club: Club, deps: { anthropicApiKey: string }, now: Date): Promise<Club> {
   clubRepo.declinePending(club.id)
   await prepareAgenda(club, deps)
-  clubService.enterScheduling(requireClub(club.id), now)
+  const fresh = requireClub(club.id)
+  if (fresh.status !== 'inviting') return fresh
+  clubService.enterScheduling(fresh, now)
   return requireClub(club.id)
 }
 
@@ -163,7 +171,11 @@ export const clubRecruitService = {
     const existing = new Set(club.members.filter((m) => m.inviteStatus !== 'declined').map((m) => m.userId))
     const targets = [...new Set(userIds)].filter((id) => !existing.has(id))
     if (targets.length === 0) throw new ApiError(400, '초대할 사람이 없어요')
-    for (const id of targets) if (!userRepo.findById(id)) throw new ApiError(400, '없는 사용자가 있어요')
+    for (const id of targets) {
+      const target = userRepo.findById(id)
+      if (!target) throw new ApiError(400, '없는 사용자가 있어요')
+      if (target.isGuest) throw new ApiError(400, '게스트는 초대할 수 없어요')
+    }
 
     const pending = club.members.filter((m) => m.inviteStatus === 'invited').length
     if (accepted(club).length + pending + targets.length > club.capacity) throw new ApiError(400, '정원보다 많이 초대할 수 없어요')
@@ -188,9 +200,15 @@ export const clubRecruitService = {
     return cancelAndNotify(club, '개설자가 모임을 접었어요', '개설자가 모임을 접었어요. 다음에 다시 만나요.', userId)
   },
 
-  /** 관리자 닫기 — 끝나지 않은 모임이면 origin을 가리지 않는다. */
+  /**
+   * 관리자 닫기 — 끝나지 않은 모임이면 origin을 가리지 않는다. proposed는 아직 아무에게도
+   * 초대가 나가지 않은 상태라 여기서 취소하면 존재조차 모르는 사람에게 유령 알림이 간다 —
+   * 승인 큐(rejectProposal)에서 거절하게 막는다.
+   * 관리자 전용 — 호출부(라우트)가 requireAdmin 책임.
+   */
   adminCancel(clubId: number): Club {
     const club = requireClub(clubId)
+    if (club.status === 'proposed') throw new ApiError(400, '아직 승인 전 제안이에요. 승인 큐에서 거절해 주세요.')
     if (club.status === 'done' || club.status === 'canceled') throw new ApiError(400, '이미 끝난 모임이에요')
     return cancelAndNotify(club, '관리자가 모임을 닫았어요', '관리자가 모임을 닫았어요.', null)
   },

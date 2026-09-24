@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ClubPost } from '#shared/types'
+import { kstParts } from '#shared/utils/clubTime'
 
 const props = defineProps<{ clubId: number; canRead: boolean; canWrite: boolean; isHost: boolean }>()
 const api = useApi()
@@ -58,9 +59,11 @@ function canDelete(post: ClubPost): boolean {
   return props.isHost || post.userId === user.value?.id
 }
 function when(iso: string): string {
-  // created_at은 datetime('now') 포맷(UTC, 'YYYY-MM-DD HH:MM:SS') — Z를 붙여 브라우저 로컬로 보인다.
+  // created_at은 datetime('now') 포맷(UTC, 'YYYY-MM-DD HH:MM:SS') — Z를 붙여 UTC로 파싱한다.
+  // 표시는 브라우저 로컬이 아니라 항상 KST 고정(shared/utils/clubTime) — 앱의 다른 시각 표시와 규칙을 맞춘다.
   const d = new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`)
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const p = kstParts(d)
+  return `${p.m}/${p.d} ${String(p.h).padStart(2, '0')}:${String(p.min).padStart(2, '0')}`
 }
 </script>
 

@@ -1,5 +1,6 @@
 import type { Book, Club, Loan } from '#shared/types'
 import { formatKstTime } from '#shared/utils/clubTime'
+import { clubTitle } from '#shared/utils/clubTitle'
 import { parseDbDate } from './date'
 
 export type LoanWithBook = Loan & { book: Book }
@@ -28,10 +29,10 @@ export function buildCalendarEvents(input: {
   }
   for (const c of input.clubs) {
     if (c.status === 'confirmed' && c.meetAt) {
-      out.push({ kind: 'club', at: new Date(c.meetAt), clubId: c.id, title: c.bookTitle, time: formatKstTime(c.meetAt), place: c.place?.name ?? null, tentative: false })
+      out.push({ kind: 'club', at: new Date(c.meetAt), clubId: c.id, title: clubTitle(c), time: formatKstTime(c.meetAt), place: c.place?.name ?? null, tentative: false })
     } else if (c.status === 'scheduling') {
       for (const s of c.candidateSlots) {
-        out.push({ kind: 'club', at: new Date(s), clubId: c.id, title: c.bookTitle, time: formatKstTime(s), place: null, tentative: true })
+        out.push({ kind: 'club', at: new Date(s), clubId: c.id, title: clubTitle(c), time: formatKstTime(s), place: null, tentative: true })
       }
     }
   }

@@ -99,10 +99,10 @@ function shiftCover(cellIdx: number, dayLoans: LoanWithBook[], delta: number) {
           class="club"
           :class="{ tentative: ev.tentative }"
           :to="`/clubs/${ev.clubId}`"
-          :title="`${ev.title} 책모임 ${ev.time}${ev.place ? ' · ' + ev.place : ''}${ev.tentative ? ' (후보)' : ''}`"
+          :title="`${ev.title} ${ev.time}${ev.place ? ' · ' + ev.place : ''}${ev.tentative ? ' (후보)' : ''}`"
         >
           <span class="club-time">{{ ev.time }}</span>
-          <span class="club-title">『{{ ev.title }}』</span>
+          <span class="club-title">{{ ev.title }}</span>
         </NuxtLink>
       </div>
     </div>
