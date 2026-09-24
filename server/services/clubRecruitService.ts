@@ -91,7 +91,9 @@ export const clubRecruitService = {
     const me = club.members.find((m) => m.userId === userId)
     if (me?.inviteStatus === 'accepted') throw new ApiError(400, '이미 참여 중이에요')
     if (me?.inviteStatus === 'invited') return clubService.respond(clubId, userId, true, now)
-    if (accepted(club).length >= club.capacity) throw new ApiError(400, '정원이 찼어요')
+    if (accepted(club).length + club.members.filter((m) => m.inviteStatus === 'invited').length >= club.capacity) {
+      throw new ApiError(400, '정원이 찼어요')
+    }
 
     clubRepo.upsertMember(club.id, userId, 'member', 'accepted')
     const updated = requireClub(clubId)

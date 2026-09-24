@@ -3,6 +3,7 @@ import { initDb, getDb } from '../server/db/connection'
 import { clubRepo } from '../server/repositories/clubRepo'
 import { notificationRepo } from '../server/repositories/notificationRepo'
 import { clubRecruitService } from '../server/services/clubRecruitService'
+import { clubService } from '../server/services/clubService'
 import { ApiError } from '../server/utils/errors'
 
 const NOW = new Date('2026-09-24T05:00:00Z')
@@ -20,7 +21,6 @@ function insertUser(name: string): number {
 function input(over: Partial<{ bookId: number; title: string; description: string; capacity: number; recruitDays: number }> = {}) {
   return { bookId: insertBook(), title: '하드씽 같이 읽어요', description: '실패담 위주로 이야기해요', capacity: 5, recruitDays: 7, ...over }
 }
-function status(id: number) { return clubRepo.findById(id)!.status }
 function member(id: number, userId: number) { return clubRepo.findById(id)!.members.find((m) => m.userId === userId) }
 
 beforeEach(() => { initDb(':memory:') })
@@ -81,6 +81,19 @@ describe('clubRecruitService.join / leave', () => {
     expect(notificationRepo.listForUser(host).some((n) => n.type === 'club_left')).toBe(true)
     clubRecruitService.join(club.id, a, NOW)
     expect(member(club.id, a)!.inviteStatus).toBe('accepted')
+  })
+
+  it('초대는 자리를 예약한다 — 초대 2명이 찬 상태에서 제3자는 참여할 수 없고, 한 명이 거절하면 참여할 수 있다', () => {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, input({ capacity: 3 }), NOW)
+    const x = insertUser('x'); const y = insertUser('y'); const z = insertUser('z')
+    clubRecruitService.invite(club.id, host, [x, y])
+
+    expect(() => clubRecruitService.join(club.id, z, NOW)).toThrow(/정원/)
+
+    clubService.respond(club.id, x, false, NOW)
+    clubRecruitService.join(club.id, z, NOW)
+    expect(member(club.id, z)).toMatchObject({ role: 'member', inviteStatus: 'accepted' })
   })
 
   it('에이전트 모임·inviting이 아닌 모임엔 참여할 수 없고, 호스트는 참여 취소를 못 한다', () => {
