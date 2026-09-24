@@ -500,6 +500,42 @@ export interface UpcomingClubPlace {
   meetAt: string
 }
 
+/** 모임 장소 후보 — 카카오 검색 결과에 모임 점수식 결과를 붙인 것. `GET /api/clubs/{id}/place-candidates`. */
+export interface PlaceCandidate extends Place {
+  score: number
+  reason: string
+  reviewTotal: number
+}
+
+/** `GET /api/clubs/{id}/place-candidates` 응답. */
+export interface PlaceCandidatesResult {
+  midpoint: { lat: number; lng: number }
+  memberCount: number
+  candidates: PlaceCandidate[]
+}
+
+/** `GET /api/clubs` 응답 — 모임 목록을 화면의 네 묶음으로 나눈 것. */
+export interface GroupedClubs {
+  /** 아직 수락/거절하지 않은 초대. */
+  invites: Club[]
+  /** 내 응답을 기다리는 진행 단계(시간 투표 등). */
+  needsResponse: Club[]
+  /** 참여가 확정돼 진행 중인 모임. */
+  active: Club[]
+  /** 끝났거나 취소된 모임. */
+  past: Club[]
+}
+
+/** runDeadlines 결과 — 주기 작업(club:deadlines)과 관리자 "기한 작업 지금 실행"이 같이 쓴다. */
+export interface DeadlineRunResult {
+  handled: number
+  closed: number
+  finished: number
+  reminded: number
+  remindedTomorrow: number
+  reviewRequested: number
+}
+
 /** 앱 내 알림. DOM의 Notification과 이름이 겹치지 않게 AppNotification으로 둔다. */
 export interface AppNotification {
   id: number

@@ -1,15 +1,6 @@
-import type { Club } from '../../shared/types'
+import type { Club, GroupedClubs } from '../../shared/types'
 
-export interface GroupedClubs {
-  /** 아직 수락/거절하지 않은 초대. */
-  invites: Club[]
-  /** 내 응답을 기다리는 진행 단계(시간 투표 등). */
-  needsResponse: Club[]
-  /** 참여가 확정돼 진행 중인 모임. */
-  active: Club[]
-  /** 끝났거나 취소된 모임. */
-  past: Club[]
-}
+export type { GroupedClubs }
 
 /**
  * 모임 목록을 화면의 네 묶음으로 나눈다.
