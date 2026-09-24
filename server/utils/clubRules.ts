@@ -23,6 +23,12 @@ export const CLUB_RULES = {
   slotCandidates: 3,
   /** 후보 주(다음 주 월요일)까지 최소 이만큼은 남아 있어야 한다 — 부족하면 그다음 주. */
   minLeadDays: 3,
+  /** 모임 장소 후보 수. */
+  placeCandidates: 8,
+  /** 중간 지점에서 이 반경 안을 찾는다(카카오 최대 20km). */
+  placeSearchRadiusM: 5000,
+  /** 후보를 찾을 키워드 — 모임이 가능한 곳. */
+  placeSearchQueries: ['카페', '북카페', '도서관'],
 } as const
 
 /** 모임 점수 가중치. 합은 1. 별점 분산이 최대 가중인 것이 이 설계의 판단이다(설계서 §4.3). */
@@ -44,3 +50,20 @@ export const CLUB_DESCRIBE_THRESHOLDS = {
   /** newcomerBonus가 이 값 이상이면 "대부분 모임 참여가 처음이에요"를 덧붙인다. */
   mostlyNewcomers: 0.5,
 } as const
+
+/**
+ * 모임 장소 점수 가중치(스펙 §5.3). 개인 독서 추천과 반대로 `quiet`는 아예 없다 —
+ * 떠들어야 하는 자리라 조용함은 가점도 감점도 아니다.
+ */
+export const CLUB_PLACE_WEIGHTS = {
+  proximity: 0.3,
+  spacious: 0.25,
+  /** 수락자가 CLUB_PLACE_LARGE_PARTY 이상이면 spacious 대신 이 값. */
+  spaciousLarge: 0.3,
+  longStay: 0.2,
+  reviews: 0.15,
+  quietness: 0.1,
+} as const
+export const CLUB_PLACE_LARGE_PARTY = 4
+/** 후기 수 점수가 1이 되는 건수(log 스케일). */
+export const CLUB_PLACE_REVIEW_SATURATION = 10

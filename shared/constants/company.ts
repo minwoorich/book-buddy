@@ -44,3 +44,22 @@ export const VATECH_HQ: VatechOffice = VATECH_OFFICES[0]!
 export function findOffice(key: string | undefined): VatechOffice {
   return VATECH_OFFICES.find((o) => o.key === key) ?? VATECH_HQ
 }
+
+/**
+ * 회사 이름 → 사업장. `users.company`는 계열사 이름(바텍·바텍이우홀딩스·바텍엠시스·레이언스·
+ * 바텍네트웍스)이라 사업장 키와 직접 대응하지 않는다. 이름에 단서가 있는 둘만 따로 보고
+ * 나머지는 동탄 본사로 본다.
+ */
+export function officeForCompany(company: string): VatechOffice {
+  if (company.includes('엠시스')) return findOffice('msys')
+  if (company.includes('이엠엑스')) return findOffice('emx')
+  return VATECH_HQ
+}
+
+/** 좌표들의 산술 평균 — 참가자 사업장의 "중간 지점". 빈 배열이면 본사. */
+export function midpointOf(points: { lat: number; lng: number }[]): { lat: number; lng: number } {
+  if (points.length === 0) return { lat: VATECH_HQ.lat, lng: VATECH_HQ.lng }
+  const lat = points.reduce((s, p) => s + p.lat, 0) / points.length
+  const lng = points.reduce((s, p) => s + p.lng, 0) / points.length
+  return { lat, lng }
+}
