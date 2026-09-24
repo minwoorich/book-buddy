@@ -465,3 +465,28 @@ describe('3단계: 장소 메서드', () => {
     expect(new Set(clubRepo.listDoneWithPlace().map((c) => c.id))).toEqual(new Set([recent.id, old.id]))
   })
 })
+
+describe('clubRepo 행 매핑 — origin·모집 열·완독 표시', () => {
+  it('기존 제안은 origin=agent, capacity=5, title=null이고 멤버의 completed/reading이 대출 이력으로 채워진다', () => {
+    const bookId = insertBook('하드씽')
+    const done = insertUser('완독자')
+    const reading = insertUser('읽는중')
+    const none = insertUser('안읽음')
+    insertReturnedLoan(bookId, done, 3)
+    getDb()
+      .prepare(`INSERT INTO loans (book_id, user_id, loaned_at, due_at, returned_at) VALUES (?, ?, datetime('now'), datetime('now', '+14 day'), NULL)`)
+      .run(bookId, reading)
+
+    const club = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: done, role: 'host' }, { userId: reading, role: 'member' }, { userId: none, role: 'member' }],
+      inviteExpiresAt: '2026-09-23T23:59:59.000Z',
+    })
+
+    expect(club).toMatchObject({ origin: 'agent', createdBy: null, title: null, description: '', capacity: 5, recruitUntil: null })
+    const by = Object.fromEntries(club.members.map((m) => [m.userId, m]))
+    expect(by[done]).toMatchObject({ completed: true, reading: false })
+    expect(by[reading]).toMatchObject({ completed: false, reading: true })
+    expect(by[none]).toMatchObject({ completed: false, reading: false })
+  })
+})

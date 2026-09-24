@@ -443,6 +443,9 @@ export type ClubStatus = 'proposed' | 'inviting' | 'scheduling' | 'confirmed' | 
 export type ClubInviteStatus = 'invited' | 'accepted' | 'declined'
 export type ClubMemberRole = 'host' | 'member'
 
+/** 누가 모임을 시작했나. user면 개설자·제목·모집글·정원·모집 마감이 있다. */
+export type ClubOrigin = 'agent' | 'user'
+
 /** 에이전트가 참가자 리뷰를 읽고 만든 토론 질문 한 건과 그 근거. */
 export interface ClubAgendaItem {
   question: string
@@ -458,6 +461,10 @@ export interface ClubMember {
   role: ClubMemberRole
   inviteStatus: ClubInviteStatus
   respondedAt: string | null
+  /** 이 책을 반납한 적이 있다(기간 무관) — 모집 카드·참가자 칩의 "완독" 배지. */
+  completed: boolean
+  /** 이 책을 지금 대출 중이다 — "읽는 중". */
+  reading: boolean
 }
 
 export interface ClubVote {
@@ -490,6 +497,30 @@ export interface Club {
   /** 시간 투표. slotIdx는 candidateSlots의 인덱스. */
   votes: ClubVote[]
   members: ClubMember[]
+  origin: ClubOrigin
+  /** 개설자(사람 모임만). */
+  createdBy: number | null
+  /** 사람 모임의 제목. 표시는 항상 shared/utils/clubTitle의 clubTitle()로. */
+  title: string | null
+  /** 모집글. 에이전트 모임은 빈 문자열. */
+  description: string
+  /** 정원 3~6. 에이전트 모임은 기본값 5(의미 없음). */
+  capacity: number
+  /** 사람 모임의 모집 마감(ISO). 에이전트 모임은 null(invite_expires_at을 쓴다). */
+  recruitUntil: string | null
+}
+
+/** 모임 안 게시판 글. 댓글은 parentId가 있고 replies는 항상 빈 배열. */
+export interface ClubPost {
+  id: number
+  clubId: number
+  userId: number
+  userName: string
+  department: string
+  parentId: number | null
+  body: string
+  createdAt: string
+  replies: ClubPost[]
 }
 
 /** 장소 페이지 배지용 — 곧 열리는 모임이 확정한 장소. `GET /api/clubs/upcoming-places`. */
@@ -534,6 +565,8 @@ export interface DeadlineRunResult {
   reminded: number
   remindedTomorrow: number
   reviewRequested: number
+  /** 사람 모임 모집 기간 만료 처리 수. */
+  recruitExpired: number
 }
 
 /** 앱 내 알림. DOM의 Notification과 이름이 겹치지 않게 AppNotification으로 둔다. */

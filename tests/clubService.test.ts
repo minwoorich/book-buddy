@@ -392,6 +392,7 @@ describe('clubService.runDeadlines', () => {
       reminded: 0,
       remindedTomorrow: 0,
       reviewRequested: 0,
+      recruitExpired: 0,
     })
   })
 })

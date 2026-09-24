@@ -467,6 +467,7 @@ export const clubService = {
     const reminded = clubService.remindExpiringInvites(now)
     const remindedTomorrow = clubService.remindTomorrow(now)
     const reviewRequested = clubService.requestPlaceReviews(now)
-    return { handled, closed, finished, reminded, remindedTomorrow, reviewRequested }
+    // recruitExpired(사람 모임 모집 기간 만료 처리)는 아직 이 태스크가 만들지 않는다 — 3단계 이후에 채운다.
+    return { handled, closed, finished, reminded, remindedTomorrow, reviewRequested, recruitExpired: 0 }
   },
 }

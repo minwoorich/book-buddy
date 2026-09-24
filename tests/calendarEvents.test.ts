@@ -10,7 +10,9 @@ function club(over: Partial<Club>): Club {
   return {
     id: 1, bookId: 1, bookTitle: '하드씽', bookCoverUrl: null, status: 'confirmed', agenda: [], matchScore: 0, matchReason: '',
     candidateSlots: [], meetAt: null, inviteExpiresAt: null, voteExpiresAt: null, place: null, placeDecidedAt: null,
-    createdAt: '2026-09-20 00:00:00', canceledReason: null, doneAt: null, votes: [], members: [], ...over,
+    createdAt: '2026-09-20 00:00:00', canceledReason: null, doneAt: null, votes: [], members: [],
+    origin: 'agent', createdBy: null, title: null, description: '', capacity: 5, recruitUntil: null,
+    ...over,
   }
 }
 

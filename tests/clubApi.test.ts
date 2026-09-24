@@ -21,8 +21,14 @@ function club(over: Partial<Club> & { id: number; status: ClubStatus }): Club {
     doneAt: null,
     votes: [],
     members: [
-      { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'invited', respondedAt: null },
+      { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'invited', respondedAt: null, completed: false, reading: false },
     ],
+    origin: 'agent',
+    createdBy: null,
+    title: null,
+    description: '',
+    capacity: 5,
+    recruitUntil: null,
     ...over,
   }
 }
@@ -39,7 +45,7 @@ describe('groupClubsForUser', () => {
       id: 1,
       status: 'inviting',
       members: [
-        { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'accepted', respondedAt: '2026-09-20T00:00:00Z' },
+        { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'accepted', respondedAt: '2026-09-20T00:00:00Z', completed: false, reading: false },
       ],
     })
     const grouped = groupClubsForUser([c], 1)
@@ -52,7 +58,7 @@ describe('groupClubsForUser', () => {
       id: 1,
       status: 'inviting',
       members: [
-        { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'declined', respondedAt: '2026-09-20T00:00:00Z' },
+        { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'declined', respondedAt: '2026-09-20T00:00:00Z', completed: false, reading: false },
       ],
     })
     const grouped = groupClubsForUser([c], 1)
@@ -64,14 +70,14 @@ describe('groupClubsForUser', () => {
   it('scheduling: 수락했고 아직 투표 안 했으면 needsResponse', () => {
     const c = club({
       id: 1, status: 'scheduling',
-      members: [{ userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'host', inviteStatus: 'accepted', respondedAt: 'x' }],
+      members: [{ userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'host', inviteStatus: 'accepted', respondedAt: 'x', completed: false, reading: false }],
     })
     expect(groupClubsForUser([c], 1).needsResponse.map((x) => x.id)).toEqual([1])
   })
   it('scheduling: 투표를 마쳤으면 active', () => {
     const c = club({
       id: 1, status: 'scheduling', votes: [{ userId: 1, slotIdx: 0 }],
-      members: [{ userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'host', inviteStatus: 'accepted', respondedAt: 'x' }],
+      members: [{ userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'host', inviteStatus: 'accepted', respondedAt: 'x', completed: false, reading: false }],
     })
     const g = groupClubsForUser([c], 1)
     expect(g.needsResponse).toHaveLength(0)
@@ -86,7 +92,7 @@ describe('groupClubsForUser', () => {
   it('confirmed는 active, done·canceled는 past로 간다', () => {
     const accepted = {
       userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member' as const,
-      inviteStatus: 'accepted' as const, respondedAt: '2026-09-20T00:00:00Z',
+      inviteStatus: 'accepted' as const, respondedAt: '2026-09-20T00:00:00Z', completed: false, reading: false,
     }
     const grouped = groupClubsForUser(
       [

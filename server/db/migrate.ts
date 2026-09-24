@@ -203,6 +203,31 @@ export function migrate(db: Database.Database): void {
     db.exec(`ALTER TABLE clubs ADD COLUMN done_at TEXT`)
   }
 
+  // 직접 개설: 사람이 만든 모임을 같은 테이블에서 다룬다. origin='user'면 created_by·title·
+  // description·capacity·recruit_until을 쓰고, 에이전트 열(match_*·invite_expires_at)은 비워 둔다.
+  // recruit_until은 앱이 ISO로 쓰는 컬럼(비교도 ISO끼리). 기존 행은 전부 agent.
+  const clubColumnNames = new Set(clubColumns.map((c) => c.name))
+  if (!clubColumnNames.has('origin')) {
+    db.exec(`ALTER TABLE clubs ADD COLUMN origin TEXT NOT NULL DEFAULT 'agent' CHECK (origin IN ('agent','user'))`)
+  }
+  if (!clubColumnNames.has('created_by')) db.exec(`ALTER TABLE clubs ADD COLUMN created_by INTEGER REFERENCES users(id)`)
+  if (!clubColumnNames.has('title')) db.exec(`ALTER TABLE clubs ADD COLUMN title TEXT`)
+  if (!clubColumnNames.has('description')) db.exec(`ALTER TABLE clubs ADD COLUMN description TEXT NOT NULL DEFAULT ''`)
+  if (!clubColumnNames.has('capacity')) db.exec(`ALTER TABLE clubs ADD COLUMN capacity INTEGER NOT NULL DEFAULT 5`)
+  if (!clubColumnNames.has('recruit_until')) db.exec(`ALTER TABLE clubs ADD COLUMN recruit_until TEXT`)
+
+  // 모임 안 게시판. 댓글은 parent_id로 한 단계만. 글을 지우면 댓글도 지운다(서비스가 처리).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS club_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      club_id INTEGER NOT NULL REFERENCES clubs(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      parent_id INTEGER REFERENCES club_posts(id),
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE INDEX IF NOT EXISTS idx_club_posts_club ON club_posts(club_id, created_at);
+  `)
+
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
   // 값을 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE section_key)로 최초 1회만 채운다.
   const seedSection = db.prepare(

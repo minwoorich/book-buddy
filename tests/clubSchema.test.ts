@@ -49,4 +49,18 @@ describe('책모임 스키마', () => {
       db.prepare(`INSERT INTO club_members (club_id, user_id) VALUES (?, ?)`).run(clubId, userId)
     ).toThrow()
   })
+
+  it('clubs에 origin·created_by·title·description·capacity·recruit_until 열과 club_posts 테이블이 생긴다', () => {
+    const db = getDb()
+    const cols = (db.prepare('PRAGMA table_info(clubs)').all() as { name: string }[]).map((c) => c.name)
+    expect(cols).toEqual(expect.arrayContaining(['origin', 'created_by', 'title', 'description', 'capacity', 'recruit_until']))
+    const names = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as { name: string }[]).map((r) => r.name)
+    expect(names).toContain('club_posts')
+
+    const bookId = Number(db.prepare(`INSERT INTO books (title, author, category) VALUES ('하드씽','저자','경제경영')`).run().lastInsertRowid)
+    const clubId = Number(db.prepare(`INSERT INTO clubs (book_id) VALUES (?)`).run(bookId).lastInsertRowid)
+    const row = db.prepare(`SELECT origin, description, capacity FROM clubs WHERE id = ?`).get(clubId) as { origin: string; description: string; capacity: number }
+    expect(row).toEqual({ origin: 'agent', description: '', capacity: 5 })
+    expect(() => db.prepare(`UPDATE clubs SET origin = 'bogus' WHERE id = ?`).run(clubId)).toThrow()
+  })
 })

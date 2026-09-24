@@ -5,6 +5,7 @@ import type {
   ClubInviteStatus,
   ClubMember,
   ClubMemberRole,
+  ClubOrigin,
   ClubStatus,
   ClubVote,
   UpcomingClubPlace,
@@ -36,6 +37,12 @@ interface ClubRow {
   created_at: string
   done_at: string | null
   canceled_reason: string | null
+  origin: ClubOrigin
+  created_by: number | null
+  title: string | null
+  description: string
+  capacity: number
+  recruit_until: string | null
 }
 
 interface MemberRow {
@@ -47,6 +54,8 @@ interface MemberRow {
   role: ClubMemberRole
   invite_status: ClubInviteStatus
   responded_at: string | null
+  completed: number
+  reading: number
 }
 
 const SELECT_CLUB = `SELECT c.*, b.title AS book_title, b.cover_url AS book_cover_url
@@ -82,6 +91,8 @@ function toMember(row: MemberRow): ClubMember {
     role: row.role,
     inviteStatus: row.invite_status,
     respondedAt: row.responded_at,
+    completed: row.completed === 1,
+    reading: row.reading === 1,
   }
 }
 
@@ -109,6 +120,12 @@ function toClub(row: ClubRow, members: ClubMember[], votes: ClubVote[]): Club {
     votes,
     canceledReason: row.canceled_reason,
     members,
+    origin: row.origin,
+    createdBy: row.created_by,
+    title: row.title,
+    description: row.description,
+    capacity: row.capacity,
+    recruitUntil: row.recruit_until,
   }
 }
 
@@ -120,8 +137,10 @@ function membersByClub(clubIds: number[]): Map<number, ClubMember[]> {
   const placeholders = clubIds.map(() => '?').join(',')
   const rows = getDb()
     .prepare(
-      `SELECT m.*, u.name AS user_name, u.department AS department, u.company AS company
-       FROM club_members m JOIN users u ON u.id = m.user_id
+      `SELECT m.*, u.name AS user_name, u.department AS department, u.company AS company,
+              EXISTS (SELECT 1 FROM loans l WHERE l.user_id = m.user_id AND l.book_id = c.book_id AND l.returned_at IS NOT NULL) AS completed,
+              EXISTS (SELECT 1 FROM loans l WHERE l.user_id = m.user_id AND l.book_id = c.book_id AND l.returned_at IS NULL) AS reading
+       FROM club_members m JOIN users u ON u.id = m.user_id JOIN clubs c ON c.id = m.club_id
        WHERE m.club_id IN (${placeholders})
        ORDER BY m.role = 'host' DESC, m.id ASC`
     )
