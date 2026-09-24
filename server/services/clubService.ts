@@ -1,10 +1,14 @@
 import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
+import { placeReviewRepo } from '../repositories/placeReviewRepo'
+import { kakaoLocalService } from './kakaoLocalService'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
+import { describeMeetingPlace, scoreMeetingPlace } from '../utils/clubPlace'
 import { formatKst, formatKstDate } from '../../shared/utils/clubTime'
-import type { Club, ClubMember } from '../../shared/types'
+import { midpointOf, officeForCompany } from '../../shared/constants/company'
+import type { Club, ClubMember, Place } from '../../shared/types'
 
 function requireClub(clubId: number): Club {
   const club = clubRepo.findById(clubId)
@@ -119,7 +123,7 @@ function confirmClub(club: Club, now: Date): void {
     return
   }
   clubRepo.confirm(club.id, meetAt)
-  const where = club.place ? ` · ${club.place.name}` : ''
+  const where = placeSuffix(club)
   notificationRepo.insertMany(
     acceptedMembers(club).map((m) => m.userId),
     'club_confirmed',
@@ -142,6 +146,42 @@ function cancelForLackOfMembers(club: Club, recipientIds: number[], reason: stri
     '이번에는 인원이 모이지 않았어요. 다음 기회에 다시 제안드릴게요.',
     '/clubs'
   )
+}
+
+/** 알림 본문 뒤에 붙는 " · 장소" — 확정·리마인드·장소 확정 세 곳이 같은 꼴을 쓴다. */
+function placeSuffix(club: Club): string {
+  return club.place ? ` · ${club.place.name}` : ''
+}
+
+export interface ClubPlaceInput {
+  kakaoId: string
+  name: string
+  lat: number
+  lng: number
+}
+
+export interface PlaceCandidate extends Place {
+  reason: string
+  score: number
+  reviewTotal: number
+}
+
+export interface PlaceCandidatesResult {
+  midpoint: { lat: number; lng: number }
+  memberCount: number
+  candidates: PlaceCandidate[]
+}
+
+type SearchFn = typeof kakaoLocalService.search
+
+/** 모임 KST 당일부터는 장소를 잠근다 — 당일에 바뀌면 사람이 헛걸음한다(스펙 §9). */
+function placeLocked(club: Club, now: Date): boolean {
+  if (!club.meetAt) return false
+  const meet = new Date(club.meetAt)
+  if (meet <= now) return true
+  const a = kstParts(now)
+  const b = kstParts(meet)
+  return a.y === b.y && a.m === b.m && a.d === b.d
 }
 
 export const clubService = {
@@ -303,7 +343,7 @@ export const clubService = {
       const link = `/clubs/${club.id}`
       const targets = acceptedMembers(club).filter((m) => !notificationRepo.has(m.userId, 'club_reminder', link))
       if (targets.length === 0) continue
-      const where = club.place ? ` · ${club.place.name}` : ''
+      const where = placeSuffix(club)
       notificationRepo.insertMany(
         targets.map((m) => m.userId),
         'club_reminder',
@@ -328,18 +368,108 @@ export const clubService = {
     return finished
   },
 
+  /** 장소 확정 — 호스트만, scheduling·confirmed에서, 모임 당일 전까지. 바꿀 때마다 수락자에게 알린다. */
+  setPlace(clubId: number, userId: number, place: ClubPlaceInput, now: Date = new Date()): Club {
+    const club = requireClub(clubId)
+    const host = club.members.find((m) => m.role === 'host')
+    if (!host || host.userId !== userId) throw new ApiError(403, '진행자만 장소를 정할 수 있어요')
+    if (club.status !== 'scheduling' && club.status !== 'confirmed') throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
+    if (placeLocked(club, now)) throw new ApiError(400, '모임 당일에는 장소를 바꿀 수 없어요')
+    if (!place.kakaoId?.trim() || !place.name?.trim()) throw new ApiError(400, '장소 정보가 비어 있어요')
+    if (!Number.isFinite(place.lat) || !Number.isFinite(place.lng)) throw new ApiError(400, '장소 좌표가 올바르지 않아요')
+
+    clubRepo.setPlace(club.id, { kakaoId: place.kakaoId.trim(), name: place.name.trim(), lat: place.lat, lng: place.lng }, now.toISOString())
+    const updated = requireClub(clubId)
+    const when = updated.meetAt ? `${formatKst(updated.meetAt)}` : '시간은 투표로 정해져요'
+    notificationRepo.insertMany(
+      acceptedMembers(updated).map((m) => m.userId),
+      'club_place_set',
+      `『${updated.bookTitle}』 책모임 장소가 정해졌어요`,
+      `${when}${placeSuffix(updated)}`,
+      `/clubs/${updated.id}`
+    )
+    return updated
+  },
+
+  /**
+   * 모임 장소 후보 — 수락자 사업장의 중간 지점 반경에서 카카오 검색 → 사내 후기 집계 →
+   * 모임 전용 점수식(스펙 §5.3) → 상위 N. 멤버만 볼 수 있다(참가자 좌표가 드러난다).
+   */
+  async placeCandidates(
+    clubId: number,
+    userId: number,
+    deps: { kakaoRestKey: string; search?: SearchFn }
+  ): Promise<PlaceCandidatesResult> {
+    const club = requireClub(clubId)
+    if (!club.members.some((m) => m.userId === userId)) throw new ApiError(403, '참여 중인 모임만 볼 수 있어요')
+    if (!deps.kakaoRestKey) throw new ApiError(503, '장소 검색을 사용할 수 없어요')
+
+    const accepted = acceptedMembers(club)
+    const midpoint = midpointOf(accepted.map((m) => officeForCompany(m.company)))
+    const search = deps.search ?? kakaoLocalService.search
+    const lists = await Promise.all(
+      CLUB_RULES.placeSearchQueries.map((q) => search(deps.kakaoRestKey, q, 5, midpoint, CLUB_RULES.placeSearchRadiusM))
+    )
+
+    const byId = new Map<string, Place>()
+    for (const list of lists) for (const p of list) if (p.kakaoId && !byId.has(p.kakaoId)) byId.set(p.kakaoId, p)
+    const places = [...byId.values()]
+    const summaries = new Map(placeReviewRepo.summaryByIds(places.map((p) => p.kakaoId!), userId).map((s) => [s.kakaoPlaceId, s]))
+
+    const candidates: PlaceCandidate[] = places.map((p) => {
+      const s = summaries.get(p.kakaoId!)
+      const input = { distanceM: p.distanceM, total: s?.total ?? 0, tagCounts: s?.tagCounts ?? {}, memberCount: accepted.length }
+      return { ...p, score: scoreMeetingPlace(input).total, reason: describeMeetingPlace(input), reviewTotal: s?.total ?? 0 }
+    })
+    candidates.sort((a, b) => (b.score !== a.score ? b.score - a.score : (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)))
+
+    return { midpoint, memberCount: accepted.length, candidates: candidates.slice(0, CLUB_RULES.placeCandidates) }
+  },
+
+  /**
+   * 사후 후기 요청(플라이휠) — 장소가 있던 모임이 끝난 다음 날(KST), 그 장소에 아직 후기를
+   * 쓰지 않은 수락자에게 한 번. 링크에 이름·좌표를 실어 장소 페이지가 시트를 바로 열게 한다
+   * (카카오에 id 단건 조회가 없다). 보낸 사람 수를 돌려준다.
+   */
+  requestPlaceReviews(now: Date): number {
+    const today = kstParts(now)
+    let sent = 0
+    for (const club of clubRepo.listDoneWithPlace()) {
+      if (!club.doneAt || !club.place) continue
+      const nextDay = kstParts(new Date(new Date(club.doneAt).getTime() + 24 * 60 * 60 * 1000))
+      if (nextDay.y !== today.y || nextDay.m !== today.m || nextDay.d !== today.d) continue
+
+      const p = club.place
+      const link = `/places?review=${encodeURIComponent(p.kakaoId)}&name=${encodeURIComponent(p.name)}&lat=${p.lat}&lng=${p.lng}`
+      const targets = acceptedMembers(club).filter(
+        (m) => !placeReviewRepo.findMine(p.kakaoId, m.userId) && !notificationRepo.has(m.userId, 'club_review_request', link)
+      )
+      if (targets.length === 0) continue
+      notificationRepo.insertMany(
+        targets.map((m) => m.userId),
+        'club_review_request',
+        `${p.name}, 모임하기 어땠나요?`,
+        `『${club.bookTitle}』 모임 장소 후기를 남겨주세요. 다음 모임 장소를 고르는 데 쓰여요.`,
+        link
+      )
+      sent += targets.length
+    }
+    return sent
+  },
+
   /**
    * 기한 관련 작업을 정해진 순서로 한 번에 돌린다 — 주기 작업(club:deadlines)과
    * 관리자 "기한 작업 지금 실행"이 같은 순서를 쓰게 한다.
    * 순서가 중요하다: 만료·마감·종료를 먼저 정리하고 리마인드를 보낸다 —
    * 반대면 오늘 취소·종료될 모임에도 "내일" 알림이 나간다.
    */
-  runDeadlines(now: Date): { handled: number; closed: number; finished: number; reminded: number; remindedTomorrow: number } {
+  runDeadlines(now: Date): { handled: number; closed: number; finished: number; reminded: number; remindedTomorrow: number; reviewRequested: number } {
     const handled = clubService.expireInvites(now)
     const closed = clubService.closeVotes(now)
     const finished = clubService.finishPast(now)
     const reminded = clubService.remindExpiringInvites(now)
     const remindedTomorrow = clubService.remindTomorrow(now)
-    return { handled, closed, finished, reminded, remindedTomorrow }
+    const reviewRequested = clubService.requestPlaceReviews(now)
+    return { handled, closed, finished, reminded, remindedTomorrow, reviewRequested }
   },
 }

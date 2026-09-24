@@ -5,6 +5,8 @@ import { notificationRepo } from '../server/repositories/notificationRepo'
 import { clubService } from '../server/services/clubService'
 import { ApiError } from '../server/utils/errors'
 import { formatKst } from '../shared/utils/clubTime'
+import { placeReviewRepo } from '../server/repositories/placeReviewRepo'
+import type { Place } from '../shared/types'
 
 function insertBook(): number {
   return Number(
@@ -389,6 +391,109 @@ describe('clubService.runDeadlines', () => {
       finished: 0,
       reminded: 0,
       remindedTomorrow: 0,
+      reviewRequested: 0,
     })
+  })
+})
+
+const PLACE = { kakaoId: 'k-star', name: '스타벅스 광교점', lat: 37.29, lng: 127.05 }
+
+describe('clubService.setPlace', () => {
+  it('호스트만 정할 수 있고, 수락자에게 club_place_set이 간다', () => {
+    const { club, userIds } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    const other = userIds.find((u) => u !== host && club.members.find((m) => m.userId === u)!.inviteStatus === 'accepted')!
+
+    expect(() => clubService.setPlace(club.id, other, PLACE, NOW)).toThrow(ApiError)
+    const after = clubService.setPlace(club.id, host, PLACE, NOW)
+    expect(after.place).toEqual(PLACE)
+    expect(after.placeDecidedAt).toBe(NOW.toISOString())
+    expect(after.meetAt).toBeNull() // meet_at은 건드리지 않는다
+    const n = notificationRepo.listForUser(other)[0]
+    expect(n?.type).toBe('club_place_set')
+    expect(n?.body).toContain('스타벅스')
+    // 미응답자에게는 가지 않는다
+    expect(notificationRepo.listForUser(userIds[3]!).some((x) => x.type === 'club_place_set')).toBe(false)
+  })
+
+  it('confirmed에서도 바꿀 수 있지만 모임 당일(KST)부터는 잠긴다', () => {
+    const { club } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    clubRepo.confirm(club.id, '2026-09-29T09:30:00.000Z') // 화 18:30 KST
+    expect(clubService.setPlace(club.id, host, PLACE, new Date('2026-09-28T10:00:00Z')).place).toEqual(PLACE) // 월 19:00 KST — 전날
+    expect(() => clubService.setPlace(club.id, host, PLACE, new Date('2026-09-28T16:00:00Z'))).toThrow(ApiError) // 화 01:00 KST — 당일
+  })
+
+  it('inviting·canceled·done에서는 정할 수 없다', () => {
+    const { club, userIds } = makeProposal(3)
+    clubService.approveProposal(club.id)
+    expect(() => clubService.setPlace(club.id, userIds[0]!, PLACE, NOW)).toThrow(ApiError)
+  })
+
+  it('좌표·이름이 비면 400', () => {
+    const { club } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    expect(() => clubService.setPlace(club.id, host, { ...PLACE, name: '' }, NOW)).toThrow(ApiError)
+    expect(() => clubService.setPlace(club.id, host, { ...PLACE, lat: NaN }, NOW)).toThrow(ApiError)
+  })
+})
+
+describe('clubService.placeCandidates', () => {
+  function fakePlace(over: Partial<Place> & { name: string; kakaoId: string }): Place {
+    return { category: '카페', address: '경기 수원시', mapx: 0, mapy: 0, lat: 37.2, lng: 127.0, distanceM: 500, ...over }
+  }
+  const fakeSearch = async (_key: string, query: string) => {
+    if (query === '카페') return [fakePlace({ name: '넓은카페', kakaoId: 'wide', distanceM: 900 }), fakePlace({ name: '가까운카페', kakaoId: 'near', distanceM: 100 })]
+    if (query === '북카페') return [fakePlace({ name: '넓은카페', kakaoId: 'wide', distanceM: 900 })] // 중복
+    return [fakePlace({ name: '시끄러운곳', kakaoId: 'loud', distanceM: 200 })]
+  }
+
+  it('멤버만 부를 수 있고, 중복을 제거하고, 점수 순으로 근거와 함께 돌려준다', async () => {
+    const { club, userIds } = scheduled()
+    const me = userIds[0]!
+    // wide: 자리 넓어요 후기 3건 / loud: 시끄러워요 과반
+    for (const [u, tags, pid] of [[userIds[0], ['spacious'], 'wide'], [userIds[1], ['spacious'], 'wide'], [userIds[2], ['spacious', 'long-stay'], 'wide'], [userIds[0], ['noisy'], 'loud'], [userIds[1], ['noisy'], 'loud']] as const) {
+      placeReviewRepo.upsert(pid, u!, { placeName: pid, tags: [...tags], comment: '', images: [] })
+    }
+    await expect(clubService.placeCandidates(club.id, insertUser('외부인'), { kakaoRestKey: 'x', search: fakeSearch })).rejects.toThrow(ApiError)
+
+    const result = await clubService.placeCandidates(club.id, me, { kakaoRestKey: 'x', search: fakeSearch })
+    expect(result.memberCount).toBe(3)
+    expect(result.candidates.map((c) => c.kakaoId)).toEqual(['wide', 'near', 'loud'])
+    expect(result.candidates[0]?.reason).toContain('자리 넓어요 3')
+    expect(result.candidates[0]?.reviewTotal).toBe(3)
+    expect(result.candidates[1]?.reason).toContain('아직 후기가 없어요')
+    expect(Number.isFinite(result.midpoint.lat)).toBe(true)
+  })
+
+  it('키가 없으면 503', async () => {
+    const { club, userIds } = scheduled()
+    await expect(clubService.placeCandidates(club.id, userIds[0]!, { kakaoRestKey: '' })).rejects.toThrow(ApiError)
+  })
+})
+
+describe('clubService.requestPlaceReviews', () => {
+  it('종료 다음 날(KST)에 장소 후기를 아직 안 쓴 수락자에게만 한 번 보낸다', () => {
+    const { club, userIds } = scheduled()
+    const host = club.members.find((m) => m.role === 'host')!.userId
+    clubRepo.confirm(club.id, '2026-09-29T09:30:00.000Z')
+    clubService.setPlace(club.id, host, PLACE, new Date('2026-09-25T00:00:00Z'))
+    clubRepo.markDone(club.id, '2026-09-29T09:30:00.000Z') // 화 18:30 KST 종료
+    // userIds[1]은 이미 그 장소에 후기를 남겼다
+    placeReviewRepo.upsert(PLACE.kakaoId, userIds[1]!, { placeName: PLACE.name, tags: ['spacious'], comment: '', images: [] })
+
+    expect(clubService.requestPlaceReviews(new Date('2026-09-29T00:00:00Z'))).toBe(0) // 당일 09:00 KST — 아직
+    expect(clubService.requestPlaceReviews(new Date('2026-09-30T00:00:00Z'))).toBe(2) // 다음 날 09:00 KST
+    expect(clubService.requestPlaceReviews(new Date('2026-09-30T00:00:00Z'))).toBe(0) // 중복 없음
+    expect(clubService.requestPlaceReviews(new Date('2026-10-01T00:00:00Z'))).toBe(0) // 이틀 뒤엔 안 보냄
+    const n = notificationRepo.listForUser(userIds[0]!)[0]
+    expect(n?.type).toBe('club_review_request')
+    expect(n?.link).toContain('/places?review=k-star')
+    expect(n?.link).toContain('name=')
+    expect(notificationRepo.listForUser(userIds[1]!).some((x) => x.type === 'club_review_request')).toBe(false)
+  })
+
+  it('runDeadlines가 reviewRequested를 포함한다', () => {
+    expect(clubService.runDeadlines(NOW)).toMatchObject({ reviewRequested: 0 })
   })
 })
