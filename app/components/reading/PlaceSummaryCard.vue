@@ -95,7 +95,7 @@ const tally = computed(() => {
 .head .dist { font-size: 12px; color: var(--red); font-weight: 700; }
 .addr { margin: 6px 0 0; font-size: 12.5px; color: var(--sub); }
 .upcoming { margin: 4px 0 0; font-size: 12.5px; color: var(--red-text, #b3000e); }
-.club-pick { background: #e60012; color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
+.club-pick { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
 
 /* 후기 줄 — 목록 카드(PlaceReviewPanel)와 같은 한 줄 텍스트 규칙을 쓴다. */
 .reviews {

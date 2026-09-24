@@ -602,9 +602,9 @@ watch(displayList, () => {
   background: var(--card); border: 1px solid var(--red); border-radius: 999px; padding: 5px 13px; cursor: pointer;
 }
 .pick-exit:hover { background: var(--red); color: #fff; }
-.club-banner { border-color: #e60012; }
+.club-banner { border-color: var(--red); }
 .upcoming { margin: 4px 0 0; font-size: 12.5px; color: var(--red-text, #b3000e); }
-.club-pick { background: #e60012; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; margin-right: 8px; }
+.club-pick { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; margin-right: 8px; }
 
 /* 지도와 목록을 한 화면 높이(560px)에 맞추고, 목록은 그 안에서 스크롤(QA #58) —
    예전엔 지도 620px + 목록이 끝없이 아래로 늘어나 페이지가 길어졌다. */
