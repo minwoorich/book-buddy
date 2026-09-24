@@ -176,7 +176,7 @@ onMounted(() => {
 
       <div v-if="isRecruiting" class="recruit">
         <button v-if="canJoin" class="ok-btn slim" :disabled="sending" @click="act('join', 'POST', '참여했어요')">참여하기</button>
-        <span v-else-if="me?.inviteStatus !== 'accepted' && isFull" class="note">정원이 찼어요</span>
+        <span v-else-if="isFull && !canRespond && me?.inviteStatus !== 'accepted'" class="note">정원이 찼어요</span>
         <button v-if="canLeave" class="ghost" :disabled="sending" @click="act('join', 'DELETE', '참여를 취소했어요', '참여를 취소할까요?')">참여 취소</button>
         <template v-if="canClose">
           <button class="ghost" :disabled="sending" @click="showInvite = true">초대하기</button>
