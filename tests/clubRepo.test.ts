@@ -490,3 +490,99 @@ describe('clubRepo 행 매핑 — origin·모집 열·완독 표시', () => {
     expect(by[none]).toMatchObject({ completed: false, reading: false })
   })
 })
+
+describe('clubRepo 직접 개설 메서드', () => {
+  function userClub(hostId: number, bookId: number, recruitUntilIso = '2026-10-01T23:59:59.000Z') {
+    return clubRepo.createUserClub({ bookId, createdBy: hostId, title: '같이 읽어요', description: '소개', capacity: 4, recruitUntilIso })
+  }
+
+  it('createUserClub — origin=user·inviting·개설자가 host/accepted', () => {
+    const bookId = insertBook('하드씽')
+    const host = insertUser('개설자')
+    const club = userClub(host, bookId)
+    expect(club).toMatchObject({ origin: 'user', status: 'inviting', createdBy: host, title: '같이 읽어요', description: '소개', capacity: 4, recruitUntil: '2026-10-01T23:59:59.000Z', matchScore: 0, agenda: [] })
+    expect(club.members).toHaveLength(1)
+    expect(club.members[0]).toMatchObject({ userId: host, role: 'host', inviteStatus: 'accepted' })
+    expect(club.members[0]!.respondedAt).not.toBeNull()
+  })
+
+  it('upsertMember — 없으면 넣고, 있으면 invite_status만 바꾸며 role은 유지한다', () => {
+    const bookId = insertBook('하드씽')
+    const host = insertUser('개설자')
+    const a = insertUser('참가자')
+    const club = userClub(host, bookId)
+
+    clubRepo.upsertMember(club.id, a, 'member', 'invited')
+    expect(clubRepo.findById(club.id)!.members.find((m) => m.userId === a)).toMatchObject({ role: 'member', inviteStatus: 'invited' })
+    clubRepo.upsertMember(club.id, a, 'member', 'accepted')
+    expect(clubRepo.findById(club.id)!.members.find((m) => m.userId === a)).toMatchObject({ role: 'member', inviteStatus: 'accepted' })
+    // 호스트를 다시 upsert해도 role은 host 그대로
+    clubRepo.upsertMember(club.id, host, 'member', 'accepted')
+    expect(clubRepo.findById(club.id)!.members.find((m) => m.userId === host)!.role).toBe('host')
+    expect(clubRepo.findById(club.id)!.members).toHaveLength(2)
+  })
+
+  it('removeMember·declinePending', () => {
+    const bookId = insertBook('하드씽')
+    const host = insertUser('개설자')
+    const a = insertUser('a')
+    const b = insertUser('b')
+    const club = userClub(host, bookId)
+    clubRepo.upsertMember(club.id, a, 'member', 'accepted')
+    clubRepo.upsertMember(club.id, b, 'member', 'invited')
+
+    clubRepo.removeMember(club.id, a)
+    expect(clubRepo.findById(club.id)!.members.map((m) => m.userId)).toEqual([host, b])
+    expect(clubRepo.declinePending(club.id)).toBe(1)
+    expect(clubRepo.findById(club.id)!.members.find((m) => m.userId === b)!.inviteStatus).toBe('declined')
+  })
+
+  it('listRecruiting — 사람 모임·inviting·마감 전만, 마감 임박순', () => {
+    const bookId = insertBook('하드씽')
+    const h1 = insertUser('h1'); const h2 = insertUser('h2'); const h3 = insertUser('h3')
+    const late = userClub(h1, bookId, '2026-10-05T23:59:59.000Z')
+    const soon = userClub(h2, bookId, '2026-09-26T23:59:59.000Z')
+    const past = userClub(h3, bookId, '2026-09-19T23:59:59.000Z')
+    clubRepo.insertProposal({ bookId, matchScore: 0.5, matchReason: '', agenda: [], members: [{ userId: h1, role: 'host' }], inviteExpiresAt: '2026-09-23T23:59:59.000Z' })
+    clubRepo.updateStatus(past.id, 'inviting')
+
+    const ids = clubRepo.listRecruiting(NOW.toISOString()).map((c) => c.id)
+    expect(ids).toEqual([soon.id, late.id])
+  })
+
+  it('hostingRecruitingCount — 호스트로 모집 중인 사람 모임 수', () => {
+    const bookId = insertBook('하드씽')
+    const host = insertUser('개설자')
+    expect(clubRepo.hostingRecruitingCount(host)).toBe(0)
+    const club = userClub(host, bookId)
+    expect(clubRepo.hostingRecruitingCount(host)).toBe(1)
+    clubRepo.updateStatus(club.id, 'scheduling')
+    expect(clubRepo.hostingRecruitingCount(host)).toBe(0)
+  })
+
+  it('setAgenda·agendaReviewsFor·listActive', () => {
+    const bookId = insertBook('하드씽')
+    const host = insertUser('개설자')
+    const a = insertUser('리뷰어')
+    const club = userClub(host, bookId)
+    getDb().prepare(`INSERT INTO reviews (book_id, user_id, rating, content) VALUES (?, ?, 4, '좋았다')`).run(bookId, a)
+
+    clubRepo.setAgenda(club.id, [{ question: 'Q?', evidence: [] }])
+    expect(clubRepo.findById(club.id)!.agenda).toEqual([{ question: 'Q?', evidence: [] }])
+    expect(clubRepo.agendaReviewsFor(bookId, [host, a])).toEqual([{ userId: a, userName: '리뷰어', rating: 4, content: '좋았다' }])
+    expect(clubRepo.agendaReviewsFor(bookId, [])).toEqual([])
+    expect(clubRepo.listActive().map((c) => c.id)).toEqual([club.id])
+    clubRepo.updateStatus(club.id, 'canceled')
+    expect(clubRepo.listActive()).toEqual([])
+  })
+
+  it('quotaState.busy — 사람 모임 참가자도 busy다', () => {
+    const bookId = insertBook('하드씽')
+    const host = insertUser('개설자')
+    const club = userClub(host, bookId)
+    expect(clubRepo.quotaState(NOW).busyUserIds.has(host)).toBe(true)
+    expect(clubRepo.quotaState(NOW).recentBookIds.has(bookId)).toBe(true)
+    clubRepo.updateStatus(club.id, 'canceled')
+    expect(clubRepo.quotaState(NOW).busyUserIds.has(host)).toBe(false)
+  })
+})

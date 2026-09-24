@@ -186,6 +186,16 @@ export interface ProposalInput {
   inviteExpiresAt: string
 }
 
+export interface UserClubInput {
+  bookId: number
+  createdBy: number
+  title: string
+  description: string
+  capacity: number
+  /** 모집 마감(ISO). 서비스가 23:59:59Z로 정규화해서 넘긴다. */
+  recruitUntilIso: string
+}
+
 export const clubRepo = {
   /** 에이전트가 만든 제안 한 건을 멤버와 함께 저장한다(둘이 따로 남으면 안 되므로 트랜잭션). */
   insertProposal(input: ProposalInput): Club {
@@ -440,6 +450,98 @@ export const clubRepo = {
       : (getDb()
           .prepare(`${SELECT_CLUB} WHERE c.status = 'done' AND c.place_kakao_id IS NOT NULL ORDER BY c.id DESC`)
           .all() as ClubRow[])
+    return hydrate(rows)
+  },
+
+  /** 사람이 직접 연 모임. 만들자마자 모집 중이고 개설자는 host·accepted로 들어간다. */
+  createUserClub(input: UserClubInput): Club {
+    const db = getDb()
+    const create = db.transaction(() => {
+      const id = Number(
+        db
+          .prepare(
+            `INSERT INTO clubs (book_id, status, origin, created_by, title, description, capacity, recruit_until)
+             VALUES (?, 'inviting', 'user', ?, ?, ?, ?, ?)`
+          )
+          .run(input.bookId, input.createdBy, input.title, input.description, input.capacity, input.recruitUntilIso).lastInsertRowid
+      )
+      db.prepare(
+        `INSERT INTO club_members (club_id, user_id, role, invite_status, responded_at) VALUES (?, ?, 'host', 'accepted', datetime('now'))`
+      ).run(id, input.createdBy)
+      return id
+    })
+    return this.findById(create())!
+  },
+
+  /**
+   * 멤버 행을 넣거나(없으면) 응답 상태만 바꾼다(있으면). role은 첫 INSERT 때만 정해진다 —
+   * 공개 참여(accepted)·초대(invited)·거절했다 다시 참여(accepted)가 전부 이 한 문장이다.
+   */
+  upsertMember(clubId: number, userId: number, role: ClubMemberRole, inviteStatus: ClubInviteStatus): void {
+    getDb()
+      .prepare(
+        `INSERT INTO club_members (club_id, user_id, role, invite_status, responded_at)
+         VALUES (?, ?, ?, ?, CASE WHEN ? = 'invited' THEN NULL ELSE datetime('now') END)
+         ON CONFLICT(club_id, user_id) DO UPDATE SET
+           invite_status = excluded.invite_status,
+           responded_at = excluded.responded_at`
+      )
+      .run(clubId, userId, role, inviteStatus, inviteStatus)
+  },
+
+  removeMember(clubId: number, userId: number): void {
+    getDb().prepare(`DELETE FROM club_members WHERE club_id = ? AND user_id = ?`).run(clubId, userId)
+  },
+
+  /** 모집을 닫을 때 아직 응답 없는 초대를 거절로 정리한다. 바뀐 행 수. */
+  declinePending(clubId: number): number {
+    return getDb()
+      .prepare(`UPDATE club_members SET invite_status = 'declined', responded_at = datetime('now') WHERE club_id = ? AND invite_status = 'invited'`)
+      .run(clubId).changes
+  },
+
+  /** 모집 중인 사람 모임 — 목록의 "모집 중" 구획. recruit_until은 ISO라 ISO끼리 비교. */
+  listRecruiting(nowIso: string): Club[] {
+    const rows = getDb()
+      .prepare(`${SELECT_CLUB} WHERE c.origin = 'user' AND c.status = 'inviting' AND c.recruit_until > ? ORDER BY c.recruit_until ASC, c.id ASC`)
+      .all(nowIso) as ClubRow[]
+    return hydrate(rows)
+  },
+
+  /** 개설 상한 판정 — 이 사람이 호스트로 모집 중인 사람 모임 수. */
+  hostingRecruitingCount(userId: number): number {
+    const row = getDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM clubs c JOIN club_members m ON m.club_id = c.id
+         WHERE c.origin = 'user' AND c.status = 'inviting' AND m.user_id = ? AND m.role = 'host'`
+      )
+      .get(userId) as { n: number }
+    return row.n
+  },
+
+  setAgenda(id: number, agenda: ClubAgendaItem[]): void {
+    getDb().prepare(`UPDATE clubs SET agenda = ? WHERE id = ?`).run(JSON.stringify(agenda), id)
+  },
+
+  /** 아젠다 생성 입력 — 지정한 사람들이 그 책에 남긴 리뷰 원문. 매처와 모집 마감이 같이 쓴다. */
+  agendaReviewsFor(bookId: number, userIds: number[]): { userId: number; userName: string; rating: number; content: string }[] {
+    if (userIds.length === 0) return []
+    const placeholders = userIds.map(() => '?').join(',')
+    return getDb()
+      .prepare(
+        `SELECT r.user_id AS userId, u.name AS userName, r.rating AS rating, r.content AS content
+         FROM reviews r JOIN users u ON u.id = r.user_id
+         WHERE r.book_id = ? AND r.user_id IN (${placeholders})
+         ORDER BY r.id ASC`
+      )
+      .all(bookId, ...userIds) as { userId: number; userName: string; rating: number; content: string }[]
+  },
+
+  /** 관리자 화면 "진행 중인 모임" — 모집 중·조율 중·확정. */
+  listActive(): Club[] {
+    const rows = getDb()
+      .prepare(`${SELECT_CLUB} WHERE c.status IN ('inviting','scheduling','confirmed') ORDER BY c.id DESC`)
+      .all() as ClubRow[]
     return hydrate(rows)
   },
 }

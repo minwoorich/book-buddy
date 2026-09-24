@@ -19,21 +19,6 @@ interface ScoredCandidate {
   reason: string
 }
 
-/** 선정된 멤버가 그 책에 남긴 리뷰 원문 — 아젠다 생성의 입력. */
-function reviewsFor(bookId: number, members: CandidateReader[]): AgendaReview[] {
-  if (members.length === 0) return []
-  const placeholders = members.map(() => '?').join(',')
-  const rows = getDb()
-    .prepare(
-      `SELECT r.user_id AS userId, u.name AS userName, r.rating AS rating, r.content AS content
-       FROM reviews r JOIN users u ON u.id = r.user_id
-       WHERE r.book_id = ? AND r.user_id IN (${placeholders})
-       ORDER BY r.id ASC`
-    )
-    .all(bookId, ...members.map((m) => m.userId)) as AgendaReview[]
-  return rows
-}
-
 /** 아젠다 폴백 문구에 책 제목이 들어가야 하므로 제목을 따로 읽는다. */
 function bookTitleOf(bookId: number): string {
   const row = getDb().prepare(`SELECT title FROM books WHERE id = ?`).get(bookId) as { title: string } | undefined
@@ -99,7 +84,7 @@ export async function runMatcher(deps: { anthropicApiKey: string }, now: Date): 
 
     const agenda = await generateAgenda(deps, {
       bookTitle: bookTitleOf(candidate.bookId),
-      reviews: reviewsFor(candidate.bookId, members),
+      reviews: clubRepo.agendaReviewsFor(candidate.bookId, members.map((m) => m.userId)) as AgendaReview[],
     })
 
     const club = clubRepo.insertProposal({
