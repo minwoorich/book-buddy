@@ -59,7 +59,7 @@ async function runDeadlinesNow() {
       '/api/admin/clubs/run-deadlines',
       { method: 'POST' }
     )
-    message.value = `기한 처리 — 초대 만료 ${result.handled} · 투표 마감 ${result.closed} · 종료 ${result.finished} · 알림 ${result.reminded + result.remindedTomorrow}명 · 후기 요청 ${result.reviewRequested}명`
+    message.value = `기한 처리 — 모집 만료 ${result.recruitExpired} · 초대 만료 ${result.handled} · 투표 마감 ${result.closed} · 종료 ${result.finished} · 알림 ${result.reminded + result.remindedTomorrow}명 · 후기 요청 ${result.reviewRequested}명`
     await load()
   } catch (e) {
     message.value = apiErrorMessage(e)

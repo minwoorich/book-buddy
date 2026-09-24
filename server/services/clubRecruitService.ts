@@ -3,6 +3,8 @@ import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
 import { userRepo } from '../repositories/userRepo'
 import { clubService } from './clubService'
+import { generateAgenda } from '../ai/clubAgenda'
+import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
 import { clubTitle } from '../../shared/utils/clubTitle'
 import type { Club, ClubMember } from '../../shared/types'
@@ -63,6 +65,25 @@ function cancelAndNotify(club: Club, reason: string, body: string, excludeUserId
     .filter((m) => m.inviteStatus !== 'declined' && m.userId !== excludeUserId)
     .map((m) => m.userId)
   notificationRepo.insertMany(targets, 'club_canceled', `${clubTitle(club)}이 열리지 않았어요`, body, '/clubs')
+  return requireClub(club.id)
+}
+
+/**
+ * 조율중 진입 전 아젠다를 만든다 — 에이전트 모임은 제안 시점에 이미 있지만 사람 모임은 이때가 처음이다.
+ * 수락자들의 리뷰로 만들고, 리뷰가 없거나 키가 없으면 generateAgenda가 일반 질문으로 폴백한다.
+ */
+async function prepareAgenda(club: Club, deps: { anthropicApiKey: string }): Promise<void> {
+  if (club.agenda.length > 0) return
+  const ids = accepted(club).map((m) => m.userId)
+  const agenda = await generateAgenda(deps, { bookTitle: club.bookTitle, reviews: clubRepo.agendaReviewsFor(club.bookId, ids) })
+  clubRepo.setAgenda(club.id, agenda)
+}
+
+/** 모집을 닫고 조율로 — 응답 없는 초대는 거절로 정리하고(수락자만 조율), 아젠다를 만든 뒤 기존 절차를 탄다. */
+async function moveToScheduling(club: Club, deps: { anthropicApiKey: string }, now: Date): Promise<Club> {
+  clubRepo.declinePending(club.id)
+  await prepareAgenda(club, deps)
+  clubService.enterScheduling(requireClub(club.id), now)
   return requireClub(club.id)
 }
 
@@ -172,5 +193,33 @@ export const clubRecruitService = {
     const club = requireClub(clubId)
     if (club.status === 'done' || club.status === 'canceled') throw new ApiError(400, '이미 끝난 모임이에요')
     return cancelAndNotify(club, '관리자가 모임을 닫았어요', '관리자가 모임을 닫았어요.', null)
+  },
+
+  /** 모집 마감 → 시간 잡기. 호스트만, 수락 3명 이상. */
+  async closeRecruiting(clubId: number, userId: number, deps: { anthropicApiKey: string }, now: Date = new Date()): Promise<Club> {
+    const club = requireUserClub(clubId)
+    requireHost(club, userId)
+    requireRecruiting(club)
+    if (accepted(club).length < CLUB_RULES.minMembers) throw new ApiError(400, `${CLUB_RULES.minMembers}명이 모여야 시간을 잡을 수 있어요`)
+    return moveToScheduling(club, deps, now)
+  },
+
+  /**
+   * 모집 기간이 지난 사람 모임 정리(club:deadlines). 3명 이상이면 조율로, 미만이면 취소.
+   * recruit_until은 ISO라 ISO끼리 비교. 처리한 모임 수를 돌려준다.
+   */
+  async expireRecruiting(now: Date, deps: { anthropicApiKey: string }): Promise<number> {
+    const nowIso = now.toISOString()
+    let handled = 0
+    for (const club of clubRepo.listByStatus('inviting')) {
+      if (club.origin !== 'user' || !club.recruitUntil || club.recruitUntil > nowIso) continue
+      handled += 1
+      if (accepted(club).length >= CLUB_RULES.minMembers) {
+        await moveToScheduling(club, deps, now)
+      } else {
+        cancelAndNotify(club, `모집 기간에 ${CLUB_RULES.minMembers}명이 안 모였어요`, '이번에는 인원이 모이지 않았어요. 다시 열어볼 수 있어요.', null)
+      }
+    }
+    return handled
   },
 }

@@ -1,4 +1,4 @@
-import { clubService } from '../../../services/clubService'
+import { runAllDeadlines } from '../../../services/clubDeadlines'
 import { handleApi, requireAdmin } from '../../../utils/api'
 
 /**
@@ -8,6 +8,7 @@ import { handleApi, requireAdmin } from '../../../utils/api'
 export default defineEventHandler(
   handleApi(async (event) => {
     requireAdmin(event)
-    return clubService.runDeadlines(new Date())
+    const config = useRuntimeConfig()
+    return runAllDeadlines(new Date(), { anthropicApiKey: config.anthropicApiKey })
   })
 )

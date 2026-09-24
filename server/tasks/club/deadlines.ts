@@ -1,4 +1,4 @@
-import { clubService } from '../../services/clubService'
+import { runAllDeadlines } from '../../services/clubDeadlines'
 
 /**
  * 매일 아침 초대 기한을 정리한다.
@@ -10,14 +10,15 @@ export default defineTask({
     name: 'club:deadlines',
     description: '책모임 기한 정리 — 초대 만료·투표 마감·종료·리마인드',
   },
-  run() {
+  async run() {
     try {
-      const { handled, closed, finished, reminded, remindedTomorrow, reviewRequested } = clubService.runDeadlines(new Date())
-      console.log(`[club:deadlines] 초대 만료 ${handled} · 투표 마감 ${closed} · 종료 ${finished} · 마감 임박 알림 ${reminded}명 · 전날 알림 ${remindedTomorrow}명 · 후기 요청 ${reviewRequested}명`)
-      return { result: { handled, closed, finished, reminded, remindedTomorrow, reviewRequested } }
+      const { anthropicApiKey } = useRuntimeConfig()
+      const { recruitExpired, handled, closed, finished, reminded, remindedTomorrow, reviewRequested } = await runAllDeadlines(new Date(), { anthropicApiKey })
+      console.log(`[club:deadlines] 모집 만료 ${recruitExpired} · 초대 만료 ${handled} · 투표 마감 ${closed} · 종료 ${finished} · 마감 임박 알림 ${reminded}명 · 전날 알림 ${remindedTomorrow}명 · 후기 요청 ${reviewRequested}명`)
+      return { result: { recruitExpired, handled, closed, finished, reminded, remindedTomorrow, reviewRequested } }
     } catch (e) {
       console.error('[club:deadlines] 실패', e)
-      return { result: { handled: 0, closed: 0, finished: 0, reminded: 0, remindedTomorrow: 0, reviewRequested: 0 } }
+      return { result: { recruitExpired: 0, handled: 0, closed: 0, finished: 0, reminded: 0, remindedTomorrow: 0, reviewRequested: 0 } }
     }
   },
 })
