@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { Club } from '#shared/types'
-import { formatKst } from '#shared/utils/clubTime'
+import type { Club, Place } from '#shared/types'
+import { formatKst, kstParts } from '#shared/utils/clubTime'
+import { kakaoMapUrl } from '~/utils/place'
 
 const api = useApi()
 const route = useRoute()
@@ -18,6 +19,27 @@ const sending = ref(false)
 
 const me = computed(() => club.value?.members.find((m) => m.userId === user.value?.id))
 const canRespond = computed(() => club.value?.status === 'inviting' && me.value?.inviteStatus === 'invited')
+
+const isHost = computed(() => me.value?.role === 'host')
+/** 모임 KST 당일부터는 장소가 잠긴다(서버와 같은 규칙). */
+const placeLocked = computed(() => {
+  const meetAt = club.value?.meetAt
+  if (!meetAt) return false
+  const meet = new Date(meetAt)
+  if (meet <= new Date()) return true
+  const a = kstParts(new Date())
+  const b = kstParts(meet)
+  return a.y === b.y && a.m === b.m && a.d === b.d
+})
+const canPickPlace = computed(
+  () => isHost.value && (club.value?.status === 'scheduling' || club.value?.status === 'confirmed') && !placeLocked.value
+)
+/** 상세의 장소는 이름·좌표만 들고 있다 — kakaoMapUrl이 요구하는 Place 꼴로 채운다. */
+const placeForMap = computed<Place | null>(() =>
+  club.value?.place
+    ? { name: club.value.place.name, kakaoId: club.value.place.kakaoId, lat: club.value.place.lat, lng: club.value.place.lng, category: '', address: '', mapx: 0, mapy: 0 }
+    : null
+)
 /** 근거가 하나도 없으면 리뷰 없이 만든 일반 질문이다 — 그 사실을 숨기지 않는다. */
 const isGenericAgenda = computed(
   () => (club.value?.agenda.length ?? 0) > 0 && club.value!.agenda.every((a) => a.evidence.length === 0)
@@ -99,11 +121,22 @@ async function respond(accept: boolean) {
       <h1>『{{ club.bookTitle }}』 책모임</h1>
       <p class="reason">{{ club.matchReason }}</p>
 
-      <section v-if="club.meetAt || club.place" class="when-where">
-        <p v-if="club.meetAt"><b>언제</b> {{ formatKst(club.meetAt) }}</p>
-        <button v-if="club.meetAt" type="button" class="ics" @click="downloadIcs">내 캘린더에 추가 (.ics)</button>
+      <section class="when-where">
+        <p><b>언제</b> <template v-if="club.meetAt">{{ formatKst(club.meetAt) }}</template><span v-else class="note">투표로 정해져요</span></p>
         <!-- 외부 장소라 실제 예약이 아니라 "확정"이다(설계서 §2 비목표). -->
-        <p v-if="club.place"><b>어디서</b> {{ club.place.name }} <span class="note">(장소 확정)</span></p>
+        <p>
+          <b>어디서</b>
+          <template v-if="club.place">
+            {{ club.place.name }} <span class="note">(장소 확정)</span>
+            <a v-if="placeForMap" class="map-link" :href="kakaoMapUrl(placeForMap, 'map')" target="_blank" rel="noopener">카카오맵</a>
+          </template>
+          <span v-else class="note">{{ isHost ? '아직 장소를 정하지 않았어요' : '진행자가 장소를 고르는 중이에요' }}</span>
+        </p>
+        <NuxtLink v-if="canPickPlace" class="pick-place" :to="`/places?forClub=${club.id}`">
+          {{ club.place ? '장소 바꾸기' : '장소 고르기' }}
+        </NuxtLink>
+        <p v-else-if="isHost && placeLocked && club.place" class="note">모임 당일에는 장소를 바꿀 수 없어요.</p>
+        <button v-if="club.meetAt" type="button" class="ics" @click="downloadIcs">내 캘린더에 추가 (.ics)</button>
       </section>
 
       <section v-if="club.status === 'scheduling' && club.candidateSlots.length > 0" class="vote">
@@ -163,6 +196,8 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .when-where { background: var(--chip, #f7f7f7); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
 .when-where p { margin: 2px 0; }
 .note { color: var(--muted, #888); font-size: 13px; }
+.pick-place { display: inline-block; margin-top: 8px; padding: 8px 14px; border-radius: 8px; background: #e60012; color: #fff; text-decoration: none; font-size: 14px; }
+.map-link { margin-left: 8px; font-size: 13px; color: #e60012; }
 .members { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .members li { font-size: 13px; background: var(--chip, #f5f5f5); border-radius: 999px; padding: 4px 11px; }
 .dept { color: var(--muted, #888); margin-left: 5px; }

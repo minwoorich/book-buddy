@@ -12,6 +12,19 @@ function kst(iso: string): Date {
 
 const two = (n: number) => String(n).padStart(2, '0')
 
+/** UTC Date → KST 벽시계 성분. weekday는 0=일 … 6=토. 서버(슬롯 생성·잠금)와 앱(잠금 표시)이 같은 함수를 쓴다. */
+export function kstParts(date: Date): { y: number; m: number; d: number; weekday: number; h: number; min: number } {
+  const shifted = new Date(date.getTime() + KST_OFFSET_MS)
+  return {
+    y: shifted.getUTCFullYear(),
+    m: shifted.getUTCMonth() + 1,
+    d: shifted.getUTCDate(),
+    weekday: shifted.getUTCDay(),
+    h: shifted.getUTCHours(),
+    min: shifted.getUTCMinutes(),
+  }
+}
+
 /** "9/25(금)" */
 export function formatKstDate(iso: string): string {
   const d = kst(iso)

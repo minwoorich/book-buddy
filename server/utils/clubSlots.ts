@@ -1,4 +1,7 @@
 import { CLUB_RULES } from './clubRules'
+import { kstParts } from '../../shared/utils/clubTime'
+
+export { kstParts }
 
 /** 한국은 DST가 없다 — 고정 오프셋으로 계산한다. */
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
@@ -15,19 +18,6 @@ export const SLOT_WINDOWS = [
 /** KST 벽시계(y, m 1~12, d, h, min) → UTC Date. */
 export function kstDate(y: number, m: number, d: number, h: number, min: number): Date {
   return new Date(Date.UTC(y, m - 1, d, h, min) - KST_OFFSET_MS)
-}
-
-/** UTC Date → KST 벽시계 성분. weekday는 0=일 … 6=토. */
-export function kstParts(date: Date): { y: number; m: number; d: number; weekday: number; h: number; min: number } {
-  const shifted = new Date(date.getTime() + KST_OFFSET_MS)
-  return {
-    y: shifted.getUTCFullYear(),
-    m: shifted.getUTCMonth() + 1,
-    d: shifted.getUTCDate(),
-    weekday: shifted.getUTCDay(),
-    h: shifted.getUTCHours(),
-    min: shifted.getUTCMinutes(),
-  }
 }
 
 /** now 기준 "다음 주 월요일 00:00 KST". 그날까지 minLeadDays 미만이면 그다음 주. */
