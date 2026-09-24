@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Club, DeadlineRunResult } from '#shared/types'
+import { clubTitle } from '#shared/utils/clubTitle'
 
 const api = useApi()
 
@@ -9,6 +10,7 @@ const running = ref(false)
 const runningDeadlines = ref(false)
 const deciding = ref(false)
 const message = ref('')
+const active = ref<Club[]>([])
 
 async function load() {
   loading.value = true
@@ -21,6 +23,27 @@ async function load() {
   }
 }
 
+async function loadActive() {
+  try {
+    active.value = await api<Club[]>('/api/admin/clubs')
+  } catch (e) {
+    message.value = apiErrorMessage(e)
+  }
+}
+
+async function cancelClub(club: Club) {
+  if (!confirm(`${clubTitle(club)}을 닫을까요? 참가자에게 알림이 가요.`)) return
+  try {
+    await api(`/api/admin/clubs/${club.id}/cancel`, { method: 'POST' })
+    message.value = `${clubTitle(club)}을 닫았어요`
+    await loadActive()
+  } catch (e) {
+    message.value = apiErrorMessage(e)
+  }
+}
+
+const statusLabel: Record<string, string> = { inviting: '모집·초대 중', scheduling: '시간 조율 중', confirmed: '확정' }
+
 async function decide(club: Club, approve: boolean) {
   if (deciding.value) return
   deciding.value = true
@@ -30,6 +53,7 @@ async function decide(club: Club, approve: boolean) {
       ? `『${club.bookTitle}』 모임 초대를 보냈어요`
       : `『${club.bookTitle}』 제안을 거절했어요`
     await load()
+    await loadActive()
   } catch (e) {
     message.value = apiErrorMessage(e)
   } finally {
@@ -44,6 +68,7 @@ async function runNow() {
     const result = await api<{ created: number; skipped: number }>('/api/admin/clubs/run-matcher', { method: 'POST' })
     message.value = `제안 ${result.created}건을 만들었어요 (후보에서 제외된 책 ${result.skipped}권)`
     await load()
+    await loadActive()
   } catch (e) {
     message.value = apiErrorMessage(e)
   } finally {
@@ -61,6 +86,7 @@ async function runDeadlinesNow() {
     )
     message.value = `기한 처리 — 모집 만료 ${result.recruitExpired} · 초대 만료 ${result.handled} · 투표 마감 ${result.closed} · 종료 ${result.finished} · 알림 ${result.reminded + result.remindedTomorrow}명 · 후기 요청 ${result.reviewRequested}명`
     await load()
+    await loadActive()
   } catch (e) {
     message.value = apiErrorMessage(e)
   } finally {
@@ -68,7 +94,10 @@ async function runDeadlinesNow() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadActive()
+})
 </script>
 
 <template>
@@ -117,6 +146,17 @@ onMounted(load)
         <button class="no" :disabled="deciding" @click="decide(club, false)">거절</button>
       </div>
     </article>
+
+    <h3 class="sub-head">진행 중인 모임 ({{ active.length }})</h3>
+    <p v-if="active.length === 0" class="empty">진행 중인 모임이 없어요.</p>
+    <article v-for="club in active" :key="club.id" class="card row">
+      <div class="grow">
+        <strong>{{ clubTitle(club) }}</strong>
+        <span class="origin">{{ club.origin === 'user' ? '사람' : '에이전트' }}</span>
+        <p class="reason">『{{ club.bookTitle }}』 · {{ statusLabel[club.status] ?? club.status }} · {{ club.members.filter((m) => m.inviteStatus === 'accepted').length }}명</p>
+      </div>
+      <button class="no" @click="cancelClub(club)">닫기</button>
+    </article>
   </section>
 </template>
 
@@ -134,12 +174,16 @@ onMounted(load)
 .members { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0 0 10px; }
 .members li { font-size: 13px; background: var(--chip, #f5f5f5); border-radius: 999px; padding: 3px 10px; }
 .dept { color: var(--muted, #888); margin-left: 5px; }
-.host { color: #e60012; margin-left: 5px; font-weight: 600; }
+.host { color: var(--red); margin-left: 5px; font-weight: 600; }
 .agenda { font-size: 14px; margin-bottom: 10px; }
 .quote { margin: 3px 0 6px; font-size: 13px; color: var(--muted, #666); }
 .actions { display: flex; gap: 8px; }
+.sub-head { font-size: 15px; margin: 24px 0 4px; }
+.card.row { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.origin { margin-left: 8px; font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--chip, #f5f5f5); color: var(--muted, #666); }
 .actions button { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line, #ddd); cursor: pointer; }
-.ok { background: #e60012; color: #fff; border-color: #e60012; }
+.ok { background: var(--red); color: #fff; border-color: var(--red); }
 .no { background: #fff; }
 @media (max-width: 640px) {
   .queue-head { flex-direction: column; align-items: stretch; }

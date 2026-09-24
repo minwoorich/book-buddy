@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Club, Place } from '#shared/types'
 import { formatKst, placeLocked as isPlaceLocked } from '#shared/utils/clubTime'
+import { clubTitle } from '#shared/utils/clubTitle'
 import { kakaoMapUrl } from '~/utils/place'
 
 const api = useApi()
@@ -21,6 +22,25 @@ const me = computed(() => club.value?.members.find((m) => m.userId === user.valu
 const canRespond = computed(() => club.value?.status === 'inviting' && me.value?.inviteStatus === 'invited')
 
 const isHost = computed(() => me.value?.role === 'host')
+
+const title = computed(() => (club.value ? clubTitle(club.value) : ''))
+const isUserClub = computed(() => club.value?.origin === 'user')
+const isRecruiting = computed(() => isUserClub.value && club.value?.status === 'inviting')
+const acceptedCount = computed(() => club.value?.members.filter((m) => m.inviteStatus === 'accepted').length ?? 0)
+const isFull = computed(() => !!club.value && acceptedCount.value >= club.value.capacity)
+const canJoin = computed(() => isRecruiting.value && (!me.value || me.value.inviteStatus !== 'accepted') && (me.value?.inviteStatus === 'invited' || !isFull.value))
+const canLeave = computed(() => isRecruiting.value && me.value?.inviteStatus === 'accepted' && me.value.role !== 'host')
+const canClose = computed(() => isRecruiting.value && isHost.value)
+const recruitDaysLeft = computed(() => {
+  const until = club.value?.recruitUntil
+  if (!until) return null
+  const diff = new Date(until).getTime() - Date.now()
+  return diff <= 0 ? 0 : Math.ceil(diff / (24 * 60 * 60 * 1000))
+})
+const showInvite = ref(false)
+const boardCanRead = computed(() => me.value?.inviteStatus === 'accepted')
+const boardCanWrite = computed(() => boardCanRead.value && club.value?.status !== 'done' && club.value?.status !== 'canceled')
+
 /** 모임 KST 당일부터는 장소가 잠긴다(서버와 같은 규칙 — shared/utils/clubTime의 placeLocked). */
 const placeLocked = computed(() => (club.value ? isPlaceLocked(club.value, new Date()) : false))
 const canPickPlace = computed(
@@ -47,7 +67,7 @@ const wherePlaceholder = computed(() => {
   if (status === 'scheduling' || status === 'confirmed') {
     return isHost.value ? '아직 장소를 정하지 않았어요' : '진행자가 장소를 고르는 중이에요'
   }
-  if (status === 'inviting') return '초대 응답이 모이면 정해져요'
+  if (status === 'inviting') return isUserClub.value ? '모집이 끝나면 정해져요' : '초대 응답이 모이면 정해져요'
   return '정해지지 않았어요'
 })
 
@@ -112,6 +132,25 @@ async function respond(accept: boolean) {
     sending.value = false
   }
 }
+
+async function act(path: string, method: 'POST' | 'DELETE', done: string, confirmText?: string) {
+  if (sending.value) return
+  if (confirmText && !confirm(confirmText)) return
+  sending.value = true
+  try {
+    await api(`/api/clubs/${clubId.value}/${path}`, { method })
+    message.value = done
+    await refresh()
+  } catch (e) {
+    message.value = apiErrorMessage(e)
+  } finally {
+    sending.value = false
+  }
+}
+
+onMounted(() => {
+  if (route.query.posts !== undefined) nextTick(() => document.getElementById('posts')?.scrollIntoView({ behavior: 'smooth' }))
+})
 </script>
 
 <template>
@@ -124,8 +163,25 @@ async function respond(accept: boolean) {
     </main>
     <main v-if="club" class="wrap">
       <NuxtLink class="back" to="/clubs">← 책모임</NuxtLink>
-      <h1>『{{ club.bookTitle }}』 책모임</h1>
-      <p class="reason">{{ club.matchReason }}</p>
+      <h1>{{ title }}</h1>
+      <p v-if="isUserClub" class="reason">
+        『{{ club.bookTitle }}』 · {{ club.members.find((m) => m.role === 'host')?.userName }} 님이 열었어요
+        <template v-if="isRecruiting"> · {{ acceptedCount }}/{{ club.capacity }}명<span v-if="recruitDaysLeft !== null"> · 모집 D-{{ recruitDaysLeft }}</span></template>
+      </p>
+      <p v-else class="reason">{{ club.matchReason }}</p>
+      <p v-if="isUserClub && club.description" class="desc">{{ club.description }}</p>
+
+      <div v-if="isRecruiting" class="recruit">
+        <template v-if="canRespond" />
+        <button v-else-if="canJoin" class="ok-btn slim" :disabled="sending" @click="act('join', 'POST', '참여했어요')">참여하기</button>
+        <span v-else-if="!me && isFull" class="note">정원이 찼어요</span>
+        <button v-if="canLeave" class="ghost" :disabled="sending" @click="act('join', 'DELETE', '참여를 취소했어요', '참여를 취소할까요?')">참여 취소</button>
+        <template v-if="canClose">
+          <button class="ghost" :disabled="sending" @click="showInvite = true">초대하기</button>
+          <button class="ok-btn slim" :disabled="sending || acceptedCount < 3" :title="acceptedCount < 3 ? '3명이 모여야 시간을 잡을 수 있어요' : ''" @click="act('close-recruiting', 'POST', '모집을 닫고 시간 투표를 시작했어요', '모집을 닫고 시간 투표를 시작할까요?')">모집 마감 → 시간 잡기</button>
+          <button class="ghost danger" :disabled="sending" @click="act('withdraw', 'POST', '모임을 접었어요', '모임을 접을까요? 참가자에게 알림이 가요.')">모임 접기</button>
+        </template>
+      </div>
 
       <section class="when-where">
         <p><b>언제</b> <template v-if="club.meetAt">{{ formatKst(club.meetAt) }}</template><span v-else class="note">투표로 정해져요</span></p>
@@ -163,11 +219,14 @@ async function respond(accept: boolean) {
           <li v-for="m in club.members" :key="m.userId">
             {{ m.userName }}<span class="dept">{{ m.department }}</span>
             <span v-if="m.role === 'host'" class="host">진행</span>
+            <span v-if="m.completed" class="done">완독</span>
             <span v-if="m.inviteStatus === 'accepted'" class="ok">참여</span>
             <span v-else-if="m.inviteStatus === 'declined'" class="no">불참</span>
           </li>
         </ul>
       </section>
+
+      <p v-if="isRecruiting" class="note">모집이 끝나면 참가자 리뷰로 토론 질문을 만들어 드려요.</p>
 
       <section v-if="club.agenda.length > 0">
         <h2>토론 질문</h2>
@@ -188,6 +247,9 @@ async function respond(accept: boolean) {
         <button class="ok-btn" :disabled="sending" @click="respond(true)">참여할게요</button>
         <button class="no-btn" :disabled="sending" @click="respond(false)">이번엔 어려워요</button>
       </div>
+
+      <ClubPostBoard :club-id="club.id" :can-read="boardCanRead" :can-write="boardCanWrite" :is-host="isHost" />
+      <ClubInviteDialog v-if="showInvite" :club-id="club.id" :exclude-ids="club.members.filter((m) => m.inviteStatus !== 'declined').map((m) => m.userId)" @close="showInvite = false" @invited="message = '초대를 보냈어요'; refresh()" />
     </main>
   </div>
 </template>
@@ -198,6 +260,11 @@ async function respond(accept: boolean) {
 .empty { margin-top: 16px; color: var(--muted, #666); font-size: 14px; }
 h1 { font-size: 22px; margin: 10px 0 4px; }
 .reason { color: var(--muted, #666); font-size: 14px; margin: 0 0 20px; }
+.desc { font-size: 14px; white-space: pre-wrap; margin: 0 0 16px; }
+.recruit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
+.ghost { background: none; border: 1px solid var(--line, #ddd); border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; color: inherit; }
+.ghost.danger { color: var(--red); }
+.done { color: #1a7f37; margin-left: 5px; }
 h2 { font-size: 16px; margin: 24px 0 8px; }
 .when-where { background: var(--chip, #f7f7f7); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
 .when-where p { margin: 2px 0; }
@@ -207,7 +274,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .members { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .members li { font-size: 13px; background: var(--chip, #f5f5f5); border-radius: 999px; padding: 4px 11px; }
 .dept { color: var(--muted, #888); margin-left: 5px; }
-.host { color: #e60012; margin-left: 5px; font-weight: 600; }
+.host { color: var(--red); margin-left: 5px; font-weight: 600; }
 .ok { color: #1a7f37; margin-left: 5px; }
 .no { color: var(--muted, #999); margin-left: 5px; }
 .agenda { padding-left: 20px; }
@@ -216,11 +283,11 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .msg { font-size: 14px; margin: 16px 0 0; }
 .actions { display: flex; gap: 10px; margin-top: 24px; }
 .actions button { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--line, #ddd); cursor: pointer; font-size: 15px; }
-.ok-btn { background: #e60012; color: #fff; border-color: #e60012; }
+.ok-btn { background: var(--red); color: #fff; border-color: var(--red); }
 .no-btn { background: #fff; }
 .vote { background: var(--chip, #f7f7f7); border-radius: 10px; padding: 14px 16px; margin-top: 20px; }
 .vote h2 { margin: 0 0 6px; }
-.vote .dday { margin-left: 8px; font-size: 13px; color: #e60012; font-weight: 700; }
+.vote .dday { margin-left: 8px; font-size: 13px; color: var(--red); font-weight: 700; }
 .slot { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line, #e8e8e8); font-size: 15px; }
 .slot:first-of-type { border-top: none; }
 .slot-count { margin-left: auto; font-size: 13px; color: var(--muted, #777); }
