@@ -7,6 +7,7 @@ import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
 import { describeMeetingPlace, scoreMeetingPlace } from '../utils/clubPlace'
 import { formatKst, formatKstDate, placeLocked } from '../../shared/utils/clubTime'
+import { clubTitle } from '../../shared/utils/clubTitle'
 import { midpointOf, officeForCompany } from '../../shared/constants/company'
 import type { Club, ClubMember, DeadlineRunResult, Place, PlaceCandidate, PlaceCandidatesResult } from '../../shared/types'
 
@@ -72,7 +73,7 @@ function enterScheduling(club: Club, now: Date): void {
     notificationRepo.insertMany(
       clubRepo.adminUserIds(),
       'club_no_slots',
-      `『${club.bookTitle}』 책모임이 시간을 찾지 못해 취소됐어요`,
+      `${clubTitle(club)}이 시간을 찾지 못해 취소됐어요`,
       '참가자 일정과 반납 예정일이 겹쳐 다음 주 후보가 없었어요.',
       '/admin'
     )
@@ -88,7 +89,7 @@ function enterScheduling(club: Club, now: Date): void {
   notificationRepo.insertMany(
     ids,
     'club_vote_request',
-    `『${club.bookTitle}』 책모임 시간을 골라주세요`,
+    `${clubTitle(club)} 시간을 골라주세요`,
     `후보 ${slots.length}개 중 가능한 시간을 모두 골라주세요. ${formatKstDate(new Date(new Date(voteExpiresAt).getTime() + 1000).toISOString())} 아침 9시에 마감돼요.`,
     `/clubs/${club.id}`
   )
@@ -116,7 +117,7 @@ function confirmClub(club: Club, now: Date): void {
     notificationRepo.insertMany(
       acceptedMembers(club).map((m) => m.userId),
       'club_canceled',
-      `『${club.bookTitle}』 책모임이 열리지 못했어요`,
+      `${clubTitle(club)}이 열리지 못했어요`,
       '후보 시간이 모두 지나 시간을 정하지 못했어요. 다음 기회에 다시 제안드릴게요.',
       '/clubs'
     )
@@ -127,7 +128,7 @@ function confirmClub(club: Club, now: Date): void {
   notificationRepo.insertMany(
     acceptedMembers(club).map((m) => m.userId),
     'club_confirmed',
-    `『${club.bookTitle}』 책모임 시간이 정해졌어요`,
+    `${clubTitle(club)} 시간이 정해졌어요`,
     `${formatKst(meetAt)}${where}`,
     `/clubs/${club.id}`
   )
@@ -142,7 +143,7 @@ function cancelForLackOfMembers(club: Club, recipientIds: number[], reason: stri
   notificationRepo.insertMany(
     recipientIds,
     'club_canceled',
-    `『${club.bookTitle}』 책모임이 열리지 않았어요`,
+    `${clubTitle(club)}이 열리지 않았어요`,
     '이번에는 인원이 모이지 않았어요. 다음 기회에 다시 제안드릴게요.',
     '/clubs'
   )
@@ -163,6 +164,11 @@ export interface ClubPlaceInput {
 type SearchFn = typeof kakaoLocalService.search
 
 export const clubService = {
+  /** 조율중 진입 — 모집을 닫는 사람 모임(clubRecruitService)이 같은 절차를 타도록 노출한다. */
+  enterScheduling(club: Club, now: Date): void {
+    enterScheduling(club, now)
+  },
+
   /** 관리자 승인 — 여기서 처음으로 사람에게 초대가 나간다. */
   approveProposal(clubId: number): Club {
     const club = requireClub(clubId)
@@ -172,7 +178,7 @@ export const clubService = {
     notificationRepo.insertMany(
       club.members.map((m) => m.userId),
       'club_invited',
-      `『${club.bookTitle}』 책모임에 초대됐어요`,
+      `${clubTitle(club)}에 초대됐어요`,
       `같은 책을 읽은 ${club.members.length}명이 모입니다. 참여 여부를 알려주세요.`,
       `/clubs/${club.id}`
     )
@@ -197,6 +203,10 @@ export const clubService = {
 
     clubRepo.setInviteStatus(club.id, userId, accept ? 'accepted' : 'declined')
     const updated = requireClub(clubId)
+
+    // 사람 모임은 개설자가 모집을 닫는다(clubRecruitService) — 응답만 기록하고 전이는 하지 않는다.
+    // 공개 참여가 있으니 "3명이 불가능하다"는 판정도 없다.
+    if (updated.origin === 'user') return updated
 
     if (stillPossible(updated) < CLUB_RULES.minMembers) {
       cancelForLackOfMembers(
@@ -224,6 +234,7 @@ export const clubService = {
     let handled = 0
 
     for (const club of clubRepo.listByStatus('inviting')) {
+      if (club.origin !== 'agent') continue
       if (!club.inviteExpiresAt || club.inviteExpiresAt > nowIso) continue
       handled += 1
 
@@ -253,6 +264,7 @@ export const clubService = {
     let sent = 0
 
     for (const club of clubRepo.listByStatus('inviting')) {
+      if (club.origin !== 'agent') continue
       if (!club.inviteExpiresAt) continue
       if (club.inviteExpiresAt <= nowIso || club.inviteExpiresAt > soonIso) continue
 
@@ -265,7 +277,7 @@ export const clubService = {
       notificationRepo.insertMany(
         targets.map((m) => m.userId),
         'club_invite_expiring',
-        `『${club.bookTitle}』 책모임 응답이 내일 마감돼요`,
+        `${clubTitle(club)} 응답이 내일 마감돼요`,
         '참여 여부를 알려주시면 모임을 확정할 수 있어요.',
         link
       )
@@ -325,7 +337,7 @@ export const clubService = {
       notificationRepo.insertMany(
         targets.map((m) => m.userId),
         'club_reminder',
-        `내일 『${club.bookTitle}』 책모임이 있어요`,
+        `내일 ${clubTitle(club)}이 있어요`,
         `${formatKst(club.meetAt)}${where}`,
         link
       )
@@ -371,7 +383,7 @@ export const clubService = {
     notificationRepo.insertMany(
       acceptedMembers(updated).map((m) => m.userId),
       'club_place_set',
-      `『${updated.bookTitle}』 책모임 장소가 정해졌어요`,
+      `${clubTitle(updated)} 장소가 정해졌어요`,
       `${when}${placeSuffix(updated)}`,
       `/clubs/${updated.id}`
     )

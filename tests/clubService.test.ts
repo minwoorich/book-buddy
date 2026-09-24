@@ -154,6 +154,20 @@ describe('clubService.respond', () => {
 
     expect(() => clubService.respond(club.id, userIds[0]!, true)).toThrow(ApiError)
   })
+
+  it('사람 모임에서는 3명이 수락해도 inviting에 머물고, 거절해도 취소되지 않는다', () => {
+    const bookId = insertBook()
+    const host = insertUser('개설자')
+    const a = insertUser('a'); const b = insertUser('b'); const c = insertUser('c')
+    const club = clubRepo.createUserClub({ bookId, createdBy: host, title: '같이', description: '', capacity: 5, recruitUntilIso: '2026-10-01T23:59:59.000Z' })
+    for (const u of [a, b, c]) clubRepo.upsertMember(club.id, u, 'member', 'invited')
+
+    expect(clubService.respond(club.id, a, true).status).toBe('inviting')
+    expect(clubService.respond(club.id, b, true).status).toBe('inviting')
+    const afterDecline = clubService.respond(club.id, c, false)
+    expect(afterDecline.status).toBe('inviting')
+    expect(afterDecline.members.find((m) => m.userId === c)!.inviteStatus).toBe('declined')
+  })
 })
 
 describe('clubService.expireInvites', () => {
@@ -543,5 +557,25 @@ describe('clubService.requestPlaceReviews', () => {
 
     expect(clubService.requestPlaceReviews(new Date('2026-10-07T00:00:00Z'))).toBe(0)
     expect(notificationRepo.listForUser(userIds[0]!).some((n) => n.type === 'club_review_request')).toBe(false)
+  })
+})
+
+describe('clubService.enterScheduling (노출)', () => {
+  it('수락자 3명인 사람 모임을 scheduling으로 넘기고 투표 요청 제목에 모임 제목을 쓴다', () => {
+    const bookId = insertBook()
+    const host = insertUser('개설자')
+    const a = insertUser('a'); const b = insertUser('b')
+    const club = clubRepo.createUserClub({ bookId, createdBy: host, title: '하드씽 같이 읽어요', description: '', capacity: 5, recruitUntilIso: '2026-10-01T23:59:59.000Z' })
+    clubRepo.upsertMember(club.id, a, 'member', 'accepted')
+    clubRepo.upsertMember(club.id, b, 'member', 'accepted')
+
+    clubService.enterScheduling(clubRepo.findById(club.id)!, new Date('2026-09-20T00:00:00Z'))
+
+    const after = clubRepo.findById(club.id)!
+    expect(after.status).toBe('scheduling')
+    expect(after.candidateSlots.length).toBeGreaterThan(0)
+    const n = notificationRepo.listForUser(a)[0]
+    expect(n?.type).toBe('club_vote_request')
+    expect(n?.title).toContain('하드씽 같이 읽어요')
   })
 })
