@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import type { Club } from '#shared/types'
-
-interface GroupedClubs {
-  invites: Club[]
-  needsResponse: Club[]
-  active: Club[]
-  past: Club[]
-}
+import type { Club, GroupedClubs } from '#shared/types'
 
 const api = useApi()
 const { data, pending } = await useAsyncData<GroupedClubs>(
   'my-clubs',
   () => api<GroupedClubs>('/api/clubs'),
   { default: () => ({ invites: [], needsResponse: [], active: [], past: [] }) }
+)
+const { data: recruiting } = await useAsyncData<Club[]>(
+  'recruiting-clubs',
+  () => api<Club[]>('/api/clubs/recruiting'),
+  { default: () => [] }
 )
 
 const empty = computed(
@@ -28,13 +26,26 @@ const empty = computed(
   <div>
     <CommonAppHeader active="clubs" />
     <main class="wrap">
-      <h1>책모임</h1>
-      <p class="lead">같은 책을 읽은 동료를 책벗이 찾아 모임을 제안해요.</p>
+      <div class="head">
+        <div>
+          <h1>책모임</h1>
+          <p class="lead">같은 책을 읽은 동료를 책벗이 찾아 제안하고, 직접 열 수도 있어요.</p>
+        </div>
+        <NuxtLink class="new-btn" to="/clubs/new">모임 만들기</NuxtLink>
+      </div>
+
+      <section v-if="recruiting.length > 0">
+        <h2>모집 중 ({{ recruiting.length }})</h2>
+        <div class="list">
+          <ClubCard v-for="c in recruiting" :key="c.id" :club="c" recruit />
+        </div>
+      </section>
 
       <p v-if="pending" class="empty">불러오는 중…</p>
-      <p v-else-if="empty" class="empty">
-        아직 초대된 모임이 없어요. 책을 완독하면 같은 책을 읽은 동료와 묶어 제안드릴게요.
+      <p v-else-if="empty && recruiting.length === 0" class="empty">
+        아직 모임이 없어요. 책을 완독하면 같은 책을 읽은 동료와 묶어 제안드리고, 직접 열 수도 있어요.
       </p>
+      <p v-else-if="empty" class="empty">내가 참여한 모임은 아직 없어요. 위에서 모집 중인 모임에 참여해 보세요.</p>
 
       <section v-if="data.invites.length > 0">
         <h2>나의 초대 ({{ data.invites.length }})</h2>
@@ -69,9 +80,12 @@ const empty = computed(
 
 <style scoped>
 .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 60px; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 h1 { font-size: 24px; margin: 0 0 4px; }
 .lead { color: var(--muted, #666); font-size: 14px; margin: 0 0 24px; }
+.new-btn { flex: none; padding: 9px 14px; border-radius: 8px; background: var(--red); color: #fff; text-decoration: none; font-size: 14px; }
 h2 { font-size: 16px; margin: 24px 0 10px; }
 .list { display: grid; gap: 10px; }
 .empty { color: var(--muted, #666); font-size: 14px; }
+@media (max-width: 640px) { .head { flex-direction: column; } }
 </style>
