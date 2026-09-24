@@ -60,6 +60,23 @@ describe('clubPostService.create / list', () => {
     expect(clubPostService.list(club.id, host)).toHaveLength(1)
   })
 
+  it('다른 모임 글에 댓글 불가 — 글이 존재하지만 다른 모임에 속하면 거부', () => {
+    const { club, host } = setup()
+    const bookId = Number(getDb().prepare(`INSERT INTO books (title, author, category) VALUES ('다른책','저자','경제경영')`).run().lastInsertRowid)
+    const host2 = insertUser('다른개설자')
+    const club2 = clubRepo.createUserClub({ bookId, createdBy: host2, title: '다른모임', description: '', capacity: 5, recruitUntilIso: '2026-10-01T23:59:59.000Z' })
+    clubRepo.upsertMember(club2.id, host, 'member', 'accepted')
+
+    const postInClub2 = clubPostService.create(club2.id, host2, { body: '다른모임의 글' }, NOW)
+
+    // 다른 모임에서 댓글 시도 → 실패
+    expect(() => clubPostService.create(club.id, host, { body: 'x', parentId: postInClub2.id }, NOW)).toThrow(/찾을 수 없어요/)
+
+    // 같은 모임에서 댓글 → 성공
+    const reply = clubPostService.create(club2.id, host, { body: '댓글', parentId: postInClub2.id }, NOW)
+    expect(reply.parentId).toBe(postInClub2.id)
+  })
+
   it('club_post 알림 — 작성자 제외 수락자에게, 같은 모임은 KST 하루 1건, 댓글은 없음', () => {
     const { club, host, a, b, invited } = setup()
     clubPostService.create(club.id, host, { body: '첫 글' }, NOW)
