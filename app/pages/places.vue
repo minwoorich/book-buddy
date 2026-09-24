@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { Place, PlaceReviewSummary } from '#shared/types'
+import type { Club, Place, PlaceReviewSummary, UpcomingClubPlace } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
+import type { VatechOffice } from '#shared/constants/company'
+import { formatKstDate } from '#shared/utils/clubTime'
 import { placeKey } from '#shared/utils/placeKey'
 import { cardCoverPx, formatDistance, hasCoords, kakaoMapUrl } from '~/utils/place'
 import { scrollWithin } from '~/utils/scrollWithin'
@@ -102,6 +104,93 @@ const pickPlaces = computed<Place[]>(() => (pickMode.value ? (picks.value?.place
 /** 검색 원점: 내 위치가 있으면 내 위치, 없으면 선택한 사업장. */
 const origin = computed(() => myLocation.value ?? { lat: office.value.lat, lng: office.value.lng })
 
+// ── 모임 모드: `/places?forClub=12`로 들어오면 참가자 중간 지점 기준·모임 점수식으로 정렬된
+// 후보만 보여준다. 검색·사업장 변경 등 사용자가 목록을 직접 부르면 추천 모드처럼 풀린다.
+interface PlaceCandidate extends Place { reason: string; score: number; reviewTotal: number }
+interface PlaceCandidatesResult { midpoint: { lat: number; lng: number }; memberCount: number; candidates: PlaceCandidate[] }
+
+const forClubId = ref<number | null>(Number.isInteger(Number(route.query.forClub)) && Number(route.query.forClub) > 0 ? Number(route.query.forClub) : null)
+const forClub = ref<Club | null>(null)
+const candidateResult = ref<PlaceCandidatesResult | null>(null)
+const forClubMode = computed(() => forClubId.value !== null && candidateResult.value !== null)
+/** 중간 지점을 지도 기준점으로 삼는다 — 사업장 드롭다운 대신 가짜 사업장 객체로 넘긴다. */
+const midpointOffice = computed<VatechOffice | null>(() =>
+  candidateResult.value
+    ? { key: 'midpoint', name: '참가자 중간 지점', shortName: '중간 지점', address: '', lat: candidateResult.value.midpoint.lat, lng: candidateResult.value.midpoint.lng }
+    : null
+)
+
+async function loadForClub() {
+  if (forClubId.value === null || !user.value) return
+  try {
+    const [club, result] = await Promise.all([
+      api<Club>(`/api/clubs/${forClubId.value}`),
+      api<PlaceCandidatesResult>(`/api/clubs/${forClubId.value}/place-candidates`),
+    ])
+    forClub.value = club
+    candidateResult.value = result
+    void fetchReviewSummaries(result.candidates)
+  } catch (e) {
+    alert(apiErrorMessage(e))
+    forClubId.value = null
+  }
+}
+
+function exitForClub() {
+  forClubId.value = null
+  forClub.value = null
+  candidateResult.value = null
+  void fetchPlaces()
+}
+
+// ── 내가 진행 중인 모임(호스트·장소를 고를 수 있는 상태) — 일반 목록의 카드에 "모임 장소로" 버튼을 붙인다.
+// 쿼터(동시 1개 참여) 덕에 그런 모임은 최대 하나다.
+const myClubs = ref<{ needsResponse: Club[]; active: Club[] }>({ needsResponse: [], active: [] })
+const hostableClub = computed<Club | null>(() => {
+  if (forClub.value) return forClub.value
+  const mine = [...myClubs.value.needsResponse, ...myClubs.value.active]
+  return mine.find((c) => c.members.some((m) => m.userId === user.value?.id && m.role === 'host') && (c.status === 'scheduling' || c.status === 'confirmed')) ?? null
+})
+const amHostOfForClub = computed(() => !!forClub.value && forClub.value.members.some((m) => m.userId === user.value?.id && m.role === 'host'))
+const clubActionLabel = computed(() => {
+  const c = hostableClub.value
+  if (!c) return null
+  if (forClub.value && !amHostOfForClub.value) return null
+  return `『${c.bookTitle}』 모임 장소로`
+})
+const settingPlace = ref(false)
+async function setClubPlace(place: Place) {
+  const c = hostableClub.value
+  if (!c || !place.kakaoId || settingPlace.value) return
+  settingPlace.value = true
+  try {
+    await api(`/api/clubs/${c.id}/place`, { method: 'PUT', body: { kakaoId: place.kakaoId, name: place.name, lat: place.lat, lng: place.lng } })
+    await navigateTo(`/clubs/${c.id}`)
+  } catch (e) {
+    alert(apiErrorMessage(e))
+  } finally {
+    settingPlace.value = false
+  }
+}
+
+// ── "모임 예정" 배지: 곧 열리는 모임이 확정한 장소. 모임 멤버가 아니어도 본다.
+const upcoming = ref<Map<string, UpcomingClubPlace>>(new Map())
+function upcomingLabel(place: Place): string | null {
+  const u = place.kakaoId ? upcoming.value.get(place.kakaoId) : undefined
+  return u ? `${formatKstDate(u.meetAt)} 『${u.bookTitle}』 모임 예정` : null
+}
+
+// ── 후기 요청 링크(`?review=<kakaoId>&name&lat&lng`)로 들어오면 그 장소의 후기 시트를 바로 연다.
+function openReviewFromQuery() {
+  const q = route.query
+  const kakaoId = typeof q.review === 'string' ? q.review : ''
+  const name = typeof q.name === 'string' ? q.name : ''
+  const lat = Number(q.lat)
+  const lng = Number(q.lng)
+  if (!kakaoId || !name) return
+  reviewSheetPlace.value = { name, kakaoId, category: '', address: '', mapx: 0, mapy: 0, lat: Number.isFinite(lat) ? lat : 0, lng: Number.isFinite(lng) ? lng : 0 }
+}
+
 watch(officeKey, () => {
   myLocation.value = null
   accuracyM.value = null
@@ -118,6 +207,8 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
   // 목록을 직접 부르는 순간이 추천 모드를 벗어나는 지점이다(검색·사업장 변경·내 위치·전체 보기).
   pickMode.value = false
   clearPicks()
+  forClubId.value = null
+  candidateResult.value = null
   if (!user.value) {
     fetchedPlaces.value = []
     return
@@ -141,6 +232,15 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
 }
 
 onMounted(() => {
+  if (user.value) {
+    void api<{ needsResponse: Club[]; active: Club[] }>('/api/clubs').then((g) => { myClubs.value = g }).catch(() => {})
+    void api<UpcomingClubPlace[]>('/api/clubs/upcoming-places').then((list) => { upcoming.value = new Map(list.map((u) => [u.kakaoId, u])) }).catch(() => {})
+  }
+  openReviewFromQuery()
+  if (forClubId.value !== null) {
+    void loadForClub()
+    return
+  }
   if (pickMode.value) {
     void fetchReviewSummaries(pickPlaces.value)
     return
@@ -240,16 +340,18 @@ function openReviewSheet(place: Place) {
 
 // 실제 검색 결과가 하나도 없으면(키 미설정으로 503이거나, 로그인 전) 예시로 대체한다.
 // 추천 모드일 땐 fetchedPlaces가 비어 있는 게 정상이므로 예시로 흘러가면 안 된다.
-const isFallback = computed(() => !pickMode.value && fetchedPlaces.value.length === 0)
+const isFallback = computed(() => !pickMode.value && !forClubMode.value && fetchedPlaces.value.length === 0)
 
-/** 실제 목록(추천 · 검색 결과 · 예시). */
+/** 실제 목록(모임 후보 · 추천 · 검색 결과 · 예시). */
 const basePlaces = computed<Place[]>(() => {
+  if (forClubMode.value) return candidateResult.value!.candidates
   if (pickMode.value) return pickPlaces.value
   return isFallback.value ? FALLBACK_PLACES : fetchedPlaces.value
 })
 
 // AI 추천받기 버튼은 뺐다(QA #70) — 장소는 사업장 기준 거리순으로만 보여준다.
 const displayList = computed<PlaceWithReason[]>(() => {
+  if (forClubMode.value) return candidateResult.value!.candidates
   if (isFallback.value) return FALLBACK_PLACES
   return basePlaces.value.map((p) => ({ ...p, reason: '' }))
 })
@@ -349,7 +451,7 @@ watch(displayList, () => {
         <div>
           <span class="eyebrow">READING SPOTS</span>
           <h1>책 읽기 좋은 장소</h1>
-          <p>{{ pickMode ? '책벗이 추천한 장소를 지도에 표시했어요' : `${office.name} 주변 카페·도서관·공원을 가까운 순으로 모았어요` }}</p>
+          <p>{{ forClubMode ? `『${forClub?.bookTitle}』 모임 장소를 고르는 중 · ${candidateResult?.memberCount}명 · 참가자 중간 지점 기준` : pickMode ? '책벗이 추천한 장소를 지도에 표시했어요' : `${office.name} 주변 카페·도서관·공원을 가까운 순으로 모았어요` }}</p>
         </div>
       </div>
 
@@ -396,6 +498,12 @@ watch(displayList, () => {
         <button type="button" class="loc-act ghost" @click="clearMyLocation">{{ office.shortName }} 기준으로</button>
       </div>
 
+      <div v-if="forClubMode" class="pick-banner club-banner">
+        <span>📖 <b>『{{ forClub?.bookTitle }}』 모임 장소 고르는 중</b> · 참가자 {{ candidateResult?.memberCount }}명의 중간 지점 기준 · 자리 넓고 오래 있기 좋은 곳 우선</span>
+        <NuxtLink class="pick-exit" :to="`/clubs/${forClub?.id}`">모임으로 돌아가기</NuxtLink>
+        <button type="button" class="pick-exit" @click="exitForClub">주변 전체 보기</button>
+      </div>
+
       <div v-if="pickMode" class="pick-banner">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" /></svg>
         <span><b>책벗이 추천한 {{ displayList.length }}곳</b>만 보고 있어요 · {{ office.name }} 기준</span>
@@ -412,7 +520,7 @@ watch(displayList, () => {
             :app-key="kakaoJsKey"
             :my-location="myLocation"
             :accuracy-m="accuracyM"
-            :base="office"
+            :base="midpointOffice ?? office"
             :selected="selectedKey"
             :card-cover-px="mapCardCover"
             :picking-location="pickingLocation"
@@ -424,9 +532,12 @@ watch(displayList, () => {
             :place="selectedPlace"
             :no="selectedIndex + 1"
             :summary="selectedPlace.kakaoId ? (reviewSummaries.get(selectedPlace.kakaoId) ?? null) : null"
+            :club-action="selectedPlace.kakaoId ? clubActionLabel : null"
+            :upcoming="upcomingLabel(selectedPlace)"
             @close="selectedKey = null"
             @detail="showInList"
             @reviews="selectedPlace && openReviewSheet(selectedPlace)"
+            @club="selectedPlace && setClubPlace(selectedPlace)"
           />
         </div>
 
@@ -447,11 +558,13 @@ watch(displayList, () => {
               <span v-if="place.distanceM" class="dist">{{ formatDistance(place.distanceM) }}</span>
             </button>
             <div class="meta">{{ place.category }} · {{ place.address }}</div>
+            <p v-if="upcomingLabel(place)" class="upcoming">📖 {{ upcomingLabel(place) }}</p>
             <div v-if="place.reason" class="why">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="stroke: var(--red-dark)" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path></svg>
               {{ place.reason }}
             </div>
             <div v-if="hasCoords(place)" class="acts">
+              <button v-if="clubActionLabel && place.kakaoId" type="button" class="club-pick" :disabled="settingPlace" @click="setClubPlace(place)">{{ clubActionLabel }}</button>
               <a :href="kakaoMapUrl(place, 'map')" target="_blank" rel="noopener">카카오맵에서 보기</a>
               <a :href="kakaoMapUrl(place, 'to')" target="_blank" rel="noopener">길찾기</a>
             </div>
@@ -489,6 +602,9 @@ watch(displayList, () => {
   background: var(--card); border: 1px solid var(--red); border-radius: 999px; padding: 5px 13px; cursor: pointer;
 }
 .pick-exit:hover { background: var(--red); color: #fff; }
+.club-banner { border-color: #e60012; }
+.upcoming { margin: 4px 0 0; font-size: 12.5px; color: var(--red-text, #b3000e); }
+.club-pick { background: #e60012; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; margin-right: 8px; }
 
 /* 지도와 목록을 한 화면 높이(560px)에 맞추고, 목록은 그 안에서 스크롤(QA #58) —
    예전엔 지도 620px + 목록이 끝없이 아래로 늘어나 페이지가 길어졌다. */

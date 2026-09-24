@@ -15,8 +15,12 @@ const props = defineProps<{
   /** 목록에서의 번호 — 지도 핀에 찍힌 숫자와 같다. */
   no: number
   summary: PlaceReviewSummary | null
+  /** 호스트가 이 장소를 모임 장소로 고를 수 있을 때의 버튼 라벨 — 없으면 버튼을 숨긴다. */
+  clubAction?: string | null
+  /** "모임 예정" 배지 문구 — 곧 열리는 모임이 이 장소를 확정했을 때만. */
+  upcoming?: string | null
 }>()
-defineEmits<{ close: []; detail: []; reviews: [] }>()
+defineEmits<{ close: []; detail: []; reviews: []; club: [] }>()
 
 const TOP_TAGS = 3
 
@@ -43,6 +47,7 @@ const tally = computed(() => {
       <span v-if="place.distanceM" class="dist">{{ formatDistance(place.distanceM) }}</span>
     </div>
     <p class="addr">{{ place.address }}</p>
+    <p v-if="upcoming" class="upcoming">📖 {{ upcoming }}</p>
 
     <!-- 후기는 지도를 띄워둔 채 시트로 연다. 예전엔 목록으로 내려가야 해서, 모바일은 페이지가
          통째로 밀려 지도가 화면에서 사라졌다. -->
@@ -64,6 +69,7 @@ const tally = computed(() => {
     </button>
 
     <div class="acts">
+      <button v-if="clubAction" type="button" class="club-pick" @click="$emit('club')">{{ clubAction }}</button>
       <template v-if="hasCoords(place)">
         <a :href="kakaoMapUrl(place, 'map')" target="_blank" rel="noopener">카카오맵</a>
         <a :href="kakaoMapUrl(place, 'to')" target="_blank" rel="noopener">길찾기</a>
@@ -88,6 +94,8 @@ const tally = computed(() => {
 .head .cat { font-size: 12px; color: var(--sub); }
 .head .dist { font-size: 12px; color: var(--red); font-weight: 700; }
 .addr { margin: 6px 0 0; font-size: 12.5px; color: var(--sub); }
+.upcoming { margin: 4px 0 0; font-size: 12.5px; color: var(--red-text, #b3000e); }
+.club-pick { background: #e60012; color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
 
 /* 후기 줄 — 목록 카드(PlaceReviewPanel)와 같은 한 줄 텍스트 규칙을 쓴다. */
 .reviews {
