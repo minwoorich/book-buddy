@@ -492,6 +492,14 @@ export interface Club {
   members: ClubMember[]
 }
 
+/** 장소 페이지 배지용 — 곧 열리는 모임이 확정한 장소. `GET /api/clubs/upcoming-places`. */
+export interface UpcomingClubPlace {
+  clubId: number
+  kakaoId: string
+  bookTitle: string
+  meetAt: string
+}
+
 /** 앱 내 알림. DOM의 Notification과 이름이 겹치지 않게 AppNotification으로 둔다. */
 export interface AppNotification {
   id: number

@@ -406,3 +406,50 @@ describe('2단계: 일정 메서드', () => {
     expect(clubRepo.adminUserIds()).toEqual([admin])
   })
 })
+
+describe('3단계: 장소 메서드', () => {
+  const PLACE = { kakaoId: 'k1', name: '스타벅스 광교점', lat: 37.29, lng: 127.05 }
+  function proposal() {
+    const bookId = insertBook('하드씽')
+    const a = insertUser('A')
+    const club = clubRepo.insertProposal({
+      bookId, matchScore: 0.5, matchReason: '이유', agenda: [],
+      members: [{ userId: a, role: 'host' }], inviteExpiresAt: '2026-09-23T00:00:00Z',
+    })
+    return { club, a }
+  }
+
+  it('setPlace는 장소 4필드와 place_decided_at을 쓴다', () => {
+    const { club } = proposal()
+    clubRepo.setPlace(club.id, PLACE, '2026-09-24T01:00:00.000Z')
+    const found = clubRepo.findById(club.id)!
+    expect(found.place).toEqual(PLACE)
+    expect(found.placeDecidedAt).toBe('2026-09-24T01:00:00.000Z')
+  })
+
+  it('upcomingPlaces는 confirmed + 장소 + 미래 모임만, 이른 순', () => {
+    const { club: later } = proposal()
+    const { club: sooner } = proposal()
+    const { club: noPlace } = proposal()
+    const { club: past } = proposal()
+    for (const c of [later, sooner, noPlace, past]) clubRepo.confirm(c.id, '2026-10-01T09:30:00.000Z')
+    clubRepo.confirm(sooner.id, '2026-09-29T09:30:00.000Z')
+    clubRepo.confirm(past.id, '2026-09-20T09:30:00.000Z')
+    clubRepo.setPlace(later.id, PLACE, '2026-09-24T00:00:00.000Z')
+    clubRepo.setPlace(sooner.id, { ...PLACE, kakaoId: 'k2' }, '2026-09-24T00:00:00.000Z')
+    clubRepo.setPlace(past.id, PLACE, '2026-09-24T00:00:00.000Z')
+
+    const list = clubRepo.upcomingPlaces('2026-09-25T00:00:00.000Z')
+    expect(list.map((u) => u.clubId)).toEqual([sooner.id, later.id])
+    expect(list[0]).toMatchObject({ kakaoId: 'k2', bookTitle: '하드씽', meetAt: '2026-09-29T09:30:00.000Z' })
+  })
+
+  it('listDoneWithPlace는 done이면서 장소가 있는 모임만', () => {
+    const { club: withPlace } = proposal()
+    const { club: without } = proposal()
+    clubRepo.setPlace(withPlace.id, PLACE, '2026-09-24T00:00:00.000Z')
+    clubRepo.markDone(withPlace.id, '2026-09-29T09:30:00.000Z')
+    clubRepo.markDone(without.id, '2026-09-29T09:30:00.000Z')
+    expect(clubRepo.listDoneWithPlace().map((c) => c.id)).toEqual([withPlace.id])
+  })
+})

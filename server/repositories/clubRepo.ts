@@ -7,6 +7,7 @@ import type {
   ClubMemberRole,
   ClubStatus,
   ClubVote,
+  UpcomingClubPlace,
 } from '../../shared/types'
 import type { CandidateReader } from '../utils/clubMatch'
 import type { QuotaState } from '../utils/clubSelection'
@@ -383,5 +384,36 @@ export const clubRepo = {
 
   adminUserIds(): number[] {
     return (getDb().prepare(`SELECT id FROM users WHERE role = 'admin' ORDER BY id`).all() as { id: number }[]).map((r) => r.id)
+  },
+
+  /** 장소 확정(내부 일정용 — 실제 예약이 아니다). meet_at은 건드리지 않는다. */
+  setPlace(id: number, place: { kakaoId: string; name: string; lat: number; lng: number }, decidedAtIso: string): void {
+    getDb()
+      .prepare(
+        `UPDATE clubs SET place_kakao_id = ?, place_name = ?, place_lat = ?, place_lng = ?, place_decided_at = ?
+         WHERE id = ?`
+      )
+      .run(place.kakaoId, place.name, place.lat, place.lng, decidedAtIso, id)
+  },
+
+  /** 장소가 정해진 앞으로의 모임 — 장소 카드의 "모임 예정" 배지. meet_at은 ISO라 ISO끼리 비교. */
+  upcomingPlaces(nowIso: string): UpcomingClubPlace[] {
+    const rows = getDb()
+      .prepare(
+        `SELECT c.id AS clubId, c.place_kakao_id AS kakaoId, b.title AS bookTitle, c.meet_at AS meetAt
+         FROM clubs c JOIN books b ON b.id = c.book_id
+         WHERE c.status = 'confirmed' AND c.place_kakao_id IS NOT NULL AND c.meet_at > ?
+         ORDER BY c.meet_at ASC`
+      )
+      .all(nowIso) as UpcomingClubPlace[]
+    return rows
+  },
+
+  /** 끝난 모임 중 장소가 있는 것 — 사후 후기 요청 대상. */
+  listDoneWithPlace(): Club[] {
+    const rows = getDb()
+      .prepare(`${SELECT_CLUB} WHERE c.status = 'done' AND c.place_kakao_id IS NOT NULL ORDER BY c.id DESC`)
+      .all() as ClubRow[]
+    return hydrate(rows)
   },
 }
