@@ -90,6 +90,8 @@ async function send() {
 }
 function onKey(e: KeyboardEvent) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); void send() } }
 
+// 부모([id].vue)가 :key="club.id"로 모임마다 이 컴포넌트를 새로 마운트한다 — clubId prop이 바뀌는 걸
+// 여기서 직접 감시할 필요가 없다(마운트 시점에 한 번만 연결하면 됨).
 onMounted(async () => { await loadInitial(); connect(); document.addEventListener('visibilitychange', markRead) })
 onBeforeUnmount(() => { disconnect(); document.removeEventListener('visibilitychange', markRead) })
 watch(() => props.canRead, async (v) => { if (v) { await loadInitial(); connect() } else disconnect() })
