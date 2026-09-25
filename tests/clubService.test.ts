@@ -147,6 +147,12 @@ describe('clubService.respond', () => {
     expect(() => clubService.respond(club.id, userIds[0]!, true)).toThrow(ApiError)
   })
 
+  it('에이전트 모임은 confirmed에서도 여전히 400(참여 창은 사람 모임에만)', () => {
+    const { club, userIds } = makeProposal(3)
+    clubRepo.updateStatus(club.id, 'confirmed')
+    expect(() => clubService.respond(club.id, userIds[0]!, true)).toThrow(ApiError)
+  })
+
   it('같은 사람이 두 번 응답하면 400', () => {
     const { club, userIds } = makeProposal(4)
     clubService.approveProposal(club.id)

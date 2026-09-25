@@ -57,10 +57,6 @@ function requireOpen(club: Club, now: Date): void {
   if (!joinWindowOpen(club, now)) throw new ApiError(400, club.status === 'confirmed' ? '모임이 코앞이라 참여가 닫혔어요' : '모집 중인 모임이 아니에요')
 }
 
-function displayName(userId: number): string {
-  return userRepo.findById(userId)?.name ?? '누군가'
-}
-
 function accepted(club: Club): ClubMember[] {
   return club.members.filter((m) => m.inviteStatus === 'accepted')
 }
@@ -166,16 +162,8 @@ export const clubRecruitService = {
         `/clubs/${updated.id}`
       )
     }
-    clubChatService.postSystem(club.id, `${who?.name ?? displayName(userId)} 님이 참여했어요`)
-    if (updated.status === 'confirmed' && updated.meetAt) {
-      notificationRepo.insertMany(
-        [userId],
-        'club_confirmed',
-        `${clubTitle(updated)} 시간이 정해졌어요`,
-        `${formatKst(updated.meetAt)}${updated.place ? ` · ${updated.place.name}` : ''}`,
-        `/clubs/${updated.id}`
-      )
-    }
+    clubChatService.postSystem(club.id, `${who?.name ?? '누군가'} 님이 참여했어요`)
+    if (updated.status === 'confirmed') clubService.notifyConfirmedTo(updated, [userId])
     return updated
   },
 

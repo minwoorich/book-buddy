@@ -363,6 +363,45 @@ describe('clubRecruitService — 확정 후 참여 창', () => {
   })
 })
 
+describe('확정 뒤 초대 수락 — respond가 참여 창을 따른다', () => {
+  async function confirmedClub() {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, { ...input({ capacity: 3 }), candidateSlots: [S1] }, NOW)
+    await clubRecruitService.confirm(club.id, host, NO_LLM, {}, NOW)
+    return { club, host }
+  }
+  it('초대받은 사람이 확정 뒤 참여를 누르면 수락되고 확정 알림·시스템 메시지가 간다', async () => {
+    const { club, host } = await confirmedClub()
+    const b = insertUser('b')
+    clubRecruitService.invite(club.id, host, [b], NOW)
+    const joined = clubRecruitService.join(club.id, b, NOW)
+    expect(member(joined.id, b)!.inviteStatus).toBe('accepted')
+    expect(notificationRepo.listForUser(b)[0]).toMatchObject({ type: 'club_confirmed' })
+    expect(clubMessageRepo.listBefore(club.id, null, 10).some((m) => m.kind === 'system' && m.body.includes('b 님이 참여했어요'))).toBe(true)
+  })
+  it('clubService.respond로 직접 수락해도 같다', async () => {
+    const { club, host } = await confirmedClub()
+    const b = insertUser('b')
+    clubRecruitService.invite(club.id, host, [b], NOW)
+    const after = clubService.respond(club.id, b, true, NOW)
+    expect(member(after.id, b)!.inviteStatus).toBe('accepted')
+    expect(notificationRepo.listForUser(b)[0]).toMatchObject({ type: 'club_confirmed' })
+  })
+  it('확정된 모임에서 거절해도 에러 없이 declined로 남는다', async () => {
+    const { club, host } = await confirmedClub()
+    const b = insertUser('b')
+    clubRecruitService.invite(club.id, host, [b], NOW)
+    const after = clubService.respond(club.id, b, false, NOW)
+    expect(member(after.id, b)!.inviteStatus).toBe('declined')
+  })
+  it('모임 KST 당일부터는 응답할 수 없다', async () => {
+    const { club, host } = await confirmedClub()
+    const b = insertUser('b')
+    clubRecruitService.invite(club.id, host, [b], NOW)
+    expect(() => clubService.respond(club.id, b, true, new Date('2026-09-29T00:30:00Z'))).toThrow(ApiError)
+  })
+})
+
 describe('clubRecruitService.expireRecruiting — 후보 있음', () => {
   it('2명 이상이면 자동 확정, 개설자뿐이면 취소, 후보 없음은 기존 규칙', async () => {
     const h1 = insertUser('h1'); const h2 = insertUser('h2'); const h3 = insertUser('h3')

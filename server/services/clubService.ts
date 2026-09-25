@@ -2,12 +2,14 @@ import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
 import { placeReviewRepo } from '../repositories/placeReviewRepo'
 import { kakaoLocalService } from './kakaoLocalService'
+import { clubChatService } from './clubChatService'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
 import { describeMeetingPlace, scoreMeetingPlace } from '../utils/clubPlace'
 import { pickByVotes } from '../utils/clubCandidates'
 import { formatKst, formatKstDate, placeLocked } from '../../shared/utils/clubTime'
+import { joinWindowOpen } from '../../shared/utils/clubOpen'
 import { clubTitle, josa } from '../../shared/utils/clubTitle'
 import { midpointOf, officeForCompany } from '../../shared/constants/company'
 import type { Club, ClubMember, DeadlineRunResult, Place, PlaceCandidate, PlaceCandidatesResult } from '../../shared/types'
@@ -157,6 +159,21 @@ function placeSuffix(club: Club): string {
   return club.place ? ` · ${club.place.name}` : ''
 }
 
+/**
+ * 확정된 모임에 새로 들어온 사람에게 확정 알림 — 초대 수락(respond)과 공개 참여
+ * (clubRecruitService.join)가 같은 문구를 쓰도록 한곳에 둔다.
+ */
+function notifyConfirmedTo(club: Club, userIds: number[]): void {
+  if (userIds.length === 0 || !club.meetAt) return
+  notificationRepo.insertMany(
+    userIds,
+    'club_confirmed',
+    `${clubTitle(club)} 시간이 정해졌어요`,
+    `${formatKst(club.meetAt)}${placeSuffix(club)}`,
+    `/clubs/${club.id}`
+  )
+}
+
 export interface ClubPlaceInput {
   kakaoId: string
   name: string
@@ -175,6 +192,11 @@ export const clubService = {
   /** 확정 — 사람 모임의 개설자 확정(clubRecruitService)이 같은 절차를 타도록 노출한다. */
   confirmWith(club: Club, meetAt: string): void {
     confirmWith(club, meetAt)
+  },
+
+  /** 확정된 모임에 새로 들어온 사람에게 확정 알림 — respond·clubRecruitService.join이 같이 쓴다. */
+  notifyConfirmedTo(club: Club, userIds: number[]): void {
+    notifyConfirmedTo(club, userIds)
   },
 
   /** 관리자 승인 — 여기서 처음으로 사람에게 초대가 나간다. */
@@ -204,10 +226,13 @@ export const clubService = {
    * 초대 수락/거절. 정원이 차면 조율중으로, 성립 불가가 확정되면 취소로 넘어간다 —
    * 단 이 자동 전이는 에이전트 모임에만 해당한다. 사람 모임(origin === 'user')은 개설자가
    * 모집을 닫아야 조율중으로 넘어가므로(clubRecruitService), 응답만 기록하고 전이는 하지 않는다.
+   * 사람 모임은 모집 중뿐 아니라 확정 뒤에도 모임 전날까지 초대에 응답할 수 있다(joinWindowOpen) —
+   * 초대해 놓고 정작 확정된 뒤에는 받아들일 수 없게 되는 걸 막는다.
    */
   respond(clubId: number, userId: number, accept: boolean, now: Date = new Date()): Club {
     const club = requireClub(clubId)
-    if (club.status !== 'inviting') throw new ApiError(400, '지금은 응답할 수 있는 상태가 아니에요')
+    const open = club.status === 'inviting' || (club.origin === 'user' && joinWindowOpen(club, now))
+    if (!open) throw new ApiError(400, '지금은 응답할 수 있는 상태가 아니에요')
 
     const me = club.members.find((m) => m.userId === userId)
     if (!me) throw new ApiError(403, '초대받은 모임이 아니에요')
@@ -218,7 +243,13 @@ export const clubService = {
 
     // 사람 모임은 개설자가 모집을 닫는다(clubRecruitService) — 응답만 기록하고 전이는 하지 않는다.
     // 공개 참여가 있으니 "3명이 불가능하다"는 판정도 없다.
-    if (updated.origin === 'user') return updated
+    if (updated.origin === 'user') {
+      if (accept) {
+        clubChatService.postSystem(club.id, `${me.userName} 님이 참여했어요`)
+        if (updated.status === 'confirmed') notifyConfirmedTo(updated, [userId])
+      }
+      return updated
+    }
 
     if (stillPossible(updated) < CLUB_RULES.minMembers) {
       cancelForLackOfMembers(
