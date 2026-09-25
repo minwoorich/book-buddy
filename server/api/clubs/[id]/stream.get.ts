@@ -24,6 +24,10 @@ export default defineEventHandler(
     if (!me || me.inviteStatus !== 'accepted') throw new ApiError(403, '참여하면 이야기를 볼 수 있어요')
 
     const stream = createEventStream(event)
+    // Node는 첫 write 전까지 응답 헤더를 버퍼에 쥐고 있는다 — 연결 직후 ping을 한 번 밀어
+    // 헤더(따라서 EventSource의 'open')가 즉시 나가게 한다. 안 그러면 다음 정기 ping(25초)까지
+    // 클라이언트가 "연결 중" 상태로 멈춰 있는다.
+    void stream.push({ event: 'ping', data: '' })
     const unsubscribe = clubStream.subscribe(id, user.id, (m) => { void stream.push({ event: 'message', data: JSON.stringify(m) }) })
     const ping = setInterval(() => { void stream.push({ event: 'ping', data: '' }) }, PING_MS)
     stream.onClosed(async () => {
