@@ -57,3 +57,8 @@ export function placeLocked(club: Pick<Club, 'meetAt'>, now: Date): boolean {
   const b = kstParts(meet)
   return a.y === b.y && a.m === b.m && a.d === b.d
 }
+
+/** 화면의 날짜·시각 입력(KST 벽시계)을 ISO로. `kstIso('2026-09-29', '18:30')` → `2026-09-29T09:30:00.000Z`. */
+export function kstIso(date: string, time: string): string {
+  return new Date(`${date}T${time}:00+09:00`).toISOString()
+}

@@ -6,6 +6,7 @@ import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
 import { generateCandidateSlots, kstParts } from '../utils/clubSlots'
 import { describeMeetingPlace, scoreMeetingPlace } from '../utils/clubPlace'
+import { pickByVotes } from '../utils/clubCandidates'
 import { formatKst, formatKstDate, placeLocked } from '../../shared/utils/clubTime'
 import { clubTitle, josa } from '../../shared/utils/clubTitle'
 import { midpointOf, officeForCompany } from '../../shared/constants/company'
@@ -102,13 +103,7 @@ function enterScheduling(club: Club, now: Date): void {
  * 그사이 지나버린 시간을 "확정"으로 내보내면 안 된다. 남은 미래 슬롯이 없으면 null.
  */
 function pickSlot(club: Club, now: Date): string | null {
-  const counts = club.candidateSlots.map((_, i) => club.votes.filter((v) => v.slotIdx === i).length)
-  let best: number | null = null
-  for (let i = 0; i < club.candidateSlots.length; i += 1) {
-    if (new Date(club.candidateSlots[i]!) <= now) continue
-    if (best === null || counts[i]! > counts[best]!) best = i
-  }
-  return best === null ? null : club.candidateSlots[best]!
+  return pickByVotes(club.candidateSlots, club.votes, now)
 }
 
 function confirmClub(club: Club, now: Date): void {
