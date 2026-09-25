@@ -29,12 +29,14 @@ const daysLeft = computed(() => {
 const openWindow = computed(() => joinWindowOpen(props.club, new Date()))
 const seat = computed(() => hasSeat(props.club))
 const unread = computed(() => props.club.unreadMessages ?? 0)
-/** 카드 한 줄 시간 요약 — 확정 시각, 아니면 후보 첫 둘. */
+/** 카드 한 줄 요약 — 확정 시각(아니면 후보 첫 둘) · 정해진 장소. */
 const timeLine = computed(() => {
-  if (props.club.meetAt) return formatKst(props.club.meetAt)
   const s = props.club.candidateSlots
-  if (s.length === 0) return ''
-  return s.slice(0, 2).map(formatKstDate).join(' · ') + (s.length > 2 ? ` 외 ${s.length - 2}` : '') + ' 중 투표'
+  const time = props.club.meetAt
+    ? formatKst(props.club.meetAt)
+    : s.length > 0 ? s.slice(0, 2).map(formatKstDate).join(' · ') + (s.length > 2 ? ` 외 ${s.length - 2}` : '') + ' 중 투표' : ''
+  const where = props.club.place?.name ?? ''
+  return [time, where].filter(Boolean).join(' · ')
 })
 
 const statusLabel = computed(() => {

@@ -2,7 +2,7 @@ import { bookRepo } from '../repositories/bookRepo'
 import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
 import { userRepo } from '../repositories/userRepo'
-import { clubService } from './clubService'
+import { clubService, normalizePlace, type ClubPlaceInput } from './clubService'
 import { clubChatService } from './clubChatService'
 import { generateAgenda } from '../ai/clubAgenda'
 import { CLUB_RULES } from '../utils/clubRules'
@@ -29,6 +29,8 @@ export interface CreateClubInput {
   capacity: number
   recruitDays: number
   candidateSlots?: unknown
+  /** 개설하면서 미리 고른 장소(선택). 비우면 나중에 장소 페이지에서 정한다. */
+  place?: ClubPlaceInput | null
 }
 
 function requireClub(clubId: number): Club {
@@ -132,9 +134,11 @@ export const clubRecruitService = {
     if (clubRepo.hostingRecruitingCount(userId) > 0) throw new ApiError(400, '모집 중인 모임은 하나만 열 수 있어요')
 
     const slots = normalizeSlots(input.candidateSlots ?? [], now)
+    const place = input.place ? normalizePlace(input.place) : null
     const recruitUntilIso = endOfDayUtc(new Date(now.getTime() + input.recruitDays * 24 * 60 * 60 * 1000)).toISOString()
     const club = clubRepo.createUserClub({ bookId: input.bookId, createdBy: userId, title, description, capacity: input.capacity, recruitUntilIso })
     if (slots.length > 0) clubRepo.setCandidateSlotsOnly(club.id, slots)
+    if (place) clubRepo.setPlace(club.id, place, now.toISOString())
     return clubRepo.findById(club.id)!
   },
 

@@ -182,6 +182,27 @@ export interface ClubPlaceInput {
   lng: number
 }
 
+/** 장소 입력 검증 — 개설 폼과 장소 확정이 같은 규칙을 쓴다. 공백을 다듬은 값을 돌려준다. */
+export function normalizePlace(place: ClubPlaceInput): ClubPlaceInput {
+  if (!place?.kakaoId?.trim() || !place.name?.trim()) throw new ApiError(400, '장소 정보가 비어 있어요')
+  if (
+    !Number.isFinite(place.lat) ||
+    !Number.isFinite(place.lng) ||
+    place.lat < -90 ||
+    place.lat > 90 ||
+    place.lng < -180 ||
+    place.lng > 180
+  ) {
+    throw new ApiError(400, '장소 좌표가 올바르지 않아요')
+  }
+  return { kakaoId: place.kakaoId.trim(), name: place.name.trim(), lat: place.lat, lng: place.lng }
+}
+
+/** 장소를 정할 수 있는 상태 — 시간 조율·확정 중, 사람 모임은 모집 중에도. */
+function placeStageOpen(club: Club): boolean {
+  return club.status === 'scheduling' || club.status === 'confirmed' || (club.origin === 'user' && club.status === 'inviting')
+}
+
 type SearchFn = typeof kakaoLocalService.search
 
 export const clubService = {
@@ -410,26 +431,16 @@ export const clubService = {
     return finished
   },
 
-  /** 장소 확정 — 호스트만, scheduling·confirmed에서, 모임 당일 전까지. 바꿀 때마다 수락자에게 알린다. */
+  /** 장소 확정 — 호스트만, scheduling·confirmed(사람 모임은 모집 중에도)에서, 모임 당일 전까지. 바꿀 때마다 수락자에게 알린다. */
   setPlace(clubId: number, userId: number, place: ClubPlaceInput, now: Date = new Date()): Club {
     const club = requireClub(clubId)
     const host = club.members.find((m) => m.role === 'host')
     if (!host || host.userId !== userId) throw new ApiError(403, '진행자만 장소를 정할 수 있어요')
-    if (club.status !== 'scheduling' && club.status !== 'confirmed') throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
+    if (!placeStageOpen(club)) throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
     if (placeLocked(club, now)) throw new ApiError(400, '모임 당일에는 장소를 바꿀 수 없어요')
-    if (!place.kakaoId?.trim() || !place.name?.trim()) throw new ApiError(400, '장소 정보가 비어 있어요')
-    if (
-      !Number.isFinite(place.lat) ||
-      !Number.isFinite(place.lng) ||
-      place.lat < -90 ||
-      place.lat > 90 ||
-      place.lng < -180 ||
-      place.lng > 180
-    ) {
-      throw new ApiError(400, '장소 좌표가 올바르지 않아요')
-    }
+    const normalized = normalizePlace(place)
 
-    clubRepo.setPlace(club.id, { kakaoId: place.kakaoId.trim(), name: place.name.trim(), lat: place.lat, lng: place.lng }, now.toISOString())
+    clubRepo.setPlace(club.id, normalized, now.toISOString())
     const updated = requireClub(clubId)
     const when = updated.meetAt ? `${formatKst(updated.meetAt)}` : '시간은 투표로 정해져요'
     notificationRepo.insertMany(
@@ -453,7 +464,7 @@ export const clubService = {
   ): Promise<PlaceCandidatesResult> {
     const club = requireClub(clubId)
     if (!club.members.some((m) => m.userId === userId)) throw new ApiError(403, '참여 중인 모임만 볼 수 있어요')
-    if (club.status !== 'scheduling' && club.status !== 'confirmed') throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
+    if (!placeStageOpen(club)) throw new ApiError(400, '지금은 장소를 정할 수 있는 상태가 아니에요')
     if (!deps.kakaoRestKey) throw new ApiError(503, '장소 검색을 사용할 수 없어요')
 
     const accepted = acceptedMembers(club)

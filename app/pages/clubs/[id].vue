@@ -48,7 +48,7 @@ const canEditCandidates = computed(() => isRecruiting.value && isHost.value)
 const canVote = computed(() => isMember.value && ((club.value?.status === 'scheduling') || isRecruiting.value) && hasCandidates.value)
 
 const placeLocked = computed(() => (club.value ? isPlaceLocked(club.value, now.value) : false))
-const canPickPlace = computed(() => isHost.value && (club.value?.status === 'scheduling' || club.value?.status === 'confirmed') && !placeLocked.value)
+const canPickPlace = computed(() => isHost.value && (club.value?.status === 'scheduling' || club.value?.status === 'confirmed' || isRecruiting.value) && !placeLocked.value)
 const placeForMap = computed<Place | null>(() =>
   club.value?.place ? { name: club.value.place.name, kakaoId: club.value.place.kakaoId, lat: club.value.place.lat, lng: club.value.place.lng, category: '', address: '', mapx: 0, mapy: 0 } : null
 )
@@ -78,7 +78,10 @@ const statusBadge = computed(() => {
 const wherePlaceholder = computed(() => {
   const s = club.value?.status
   if (s === 'scheduling' || s === 'confirmed') return isHost.value ? '아직 장소를 정하지 않았어요' : '개설자가 장소를 고르는 중이에요'
-  if (s === 'inviting') return isUserClub.value ? '시간이 정해지면 개설자가 골라요' : '초대 응답이 모이면 정해져요'
+  if (s === 'inviting') {
+    if (!isUserClub.value) return '초대 응답이 모이면 정해져요'
+    return isHost.value ? '아직 장소를 정하지 않았어요' : '개설자가 아직 정하지 않았어요'
+  }
   return '정해지지 않았어요'
 })
 /** 왜 못 누르는지 — 액션 줄 옆 한 줄. */

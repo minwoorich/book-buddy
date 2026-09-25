@@ -465,10 +465,22 @@ describe('clubService.setPlace', () => {
     expect(() => clubService.setPlace(club.id, host, PLACE, new Date('2026-09-28T16:00:00Z'))).toThrow(ApiError) // 화 01:00 KST — 당일
   })
 
-  it('inviting·canceled·done에서는 정할 수 없다', () => {
+  it('에이전트 모임은 inviting에서 정할 수 없다', () => {
     const { club, userIds } = makeProposal(3)
     clubService.approveProposal(club.id)
     expect(() => clubService.setPlace(club.id, userIds[0]!, PLACE, NOW)).toThrow(ApiError)
+  })
+
+  it('사람이 연 모임은 모집 중(inviting)에도 개설자가 장소를 정하고 바꿀 수 있다', () => {
+    const host = insertUser('민우')
+    const club = clubRepo.createUserClub({ bookId: insertBook(), createdBy: host, title: '같이 읽어요', description: '', capacity: 4, recruitUntilIso: '2026-10-01T23:59:59.000Z' })
+    expect(club.status).toBe('inviting')
+    expect(clubService.setPlace(club.id, host, PLACE, NOW).place).toEqual(PLACE)
+    const other = insertUser('지훈')
+    expect(() => clubService.setPlace(club.id, other, PLACE, NOW)).toThrow(ApiError)
+    const moved = clubService.setPlace(club.id, host, { ...PLACE, kakaoId: 'k-2', name: '투썸 광교점' }, NOW)
+    expect(moved.place?.name).toBe('투썸 광교점')
+    expect(moved.meetAt).toBeNull()
   })
 
   it('좌표·이름이 비면 400', () => {
@@ -519,6 +531,18 @@ describe('clubService.placeCandidates', () => {
   it('키가 없으면 503', async () => {
     const { club, userIds } = scheduled()
     await expect(clubService.placeCandidates(club.id, userIds[0]!, { kakaoRestKey: '' })).rejects.toThrow(ApiError)
+  })
+
+  it('사람이 연 모임은 모집 중에도 후보를 받고, 에이전트 모임은 inviting에서 400', async () => {
+    const host = insertUser('민우')
+    const club = clubRepo.createUserClub({ bookId: insertBook(), createdBy: host, title: '같이 읽어요', description: '', capacity: 4, recruitUntilIso: '2026-10-01T23:59:59.000Z' })
+    const result = await clubService.placeCandidates(club.id, host, { kakaoRestKey: 'x', search: fakeSearch })
+    expect(result.memberCount).toBe(1)
+    expect(result.candidates.length).toBeGreaterThan(0)
+
+    const agent = makeProposal(3)
+    clubService.approveProposal(agent.club.id)
+    await expect(clubService.placeCandidates(agent.club.id, agent.userIds[0]!, { kakaoRestKey: 'x', search: fakeSearch })).rejects.toThrow(ApiError)
   })
 
   it('done 모임에서는 400 — 카카오 검색을 부르지 않는다', async () => {

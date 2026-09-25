@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Book } from '#shared/types'
+import type { Book, Place } from '#shared/types'
+import { formatDistance } from '~/utils/place'
 
 const api = useApi()
 const router = useRouter()
@@ -14,6 +15,11 @@ const description = ref('')
 const capacity = ref(5)
 const recruitDays = ref(7)
 const candidateSlots = ref<string[]>([])
+const placeQuery = ref('')
+const placeResults = ref<Place[]>([])
+const placeSearched = ref(false)
+const placeSearching = ref(false)
+const place = ref<Place | null>(null)
 const sending = ref(false)
 const message = ref('')
 
@@ -57,6 +63,31 @@ function defaultTitleFor(b: Book | null): string {
   return `『${t}』 함께 읽기`
 }
 
+/** 장소 검색 — 장소 페이지와 같은 API. 카카오 id가 있는 곳만 고를 수 있다(모임 장소는 id로 저장). */
+async function searchPlace() {
+  const q = placeQuery.value.trim()
+  if (q.length === 0) return
+  placeSearching.value = true
+  message.value = ''
+  try {
+    placeResults.value = (await api<Place[]>('/api/places', { query: { query: q } })).filter((p) => p.kakaoId)
+    placeSearched.value = true
+  } catch (e) {
+    message.value = apiErrorMessage(e)
+  } finally {
+    placeSearching.value = false
+  }
+}
+function pickPlace(p: Place) {
+  place.value = p
+  placeResults.value = []
+  placeSearched.value = false
+}
+function unpickPlace() {
+  place.value = null
+  placeQuery.value = ''
+}
+
 async function submit() {
   if (sending.value) return
   if (!book.value) { message.value = '책을 골라주세요'; return }
@@ -65,7 +96,15 @@ async function submit() {
   try {
     const club = await api<{ id: number }>('/api/clubs', {
       method: 'POST',
-      body: { bookId: book.value.id, title: title.value, description: description.value, capacity: capacity.value, recruitDays: recruitDays.value, candidateSlots: candidateSlots.value },
+      body: {
+        bookId: book.value.id,
+        title: title.value,
+        description: description.value,
+        capacity: capacity.value,
+        recruitDays: recruitDays.value,
+        candidateSlots: candidateSlots.value,
+        place: place.value?.kakaoId ? { kakaoId: place.value.kakaoId, name: place.value.name, lat: place.value.lat, lng: place.value.lng } : null,
+      },
     })
     await router.push(`/clubs/${club.id}`)
   } catch (e) {
@@ -165,6 +204,46 @@ async function submit() {
           <p class="hint">비워 두면 모집을 닫을 때 시스템이 후보 3개를 만들어 투표를 받아요.</p>
         </div>
 
+        <!-- 장소 -->
+        <div class="group">
+          <div class="label">장소 <span class="opt">선택</span></div>
+          <div v-if="place" class="picked place-picked">
+            <div class="picked-body">
+              <strong>{{ place.name }}</strong>
+              <span class="sub">{{ place.address }}</span>
+            </div>
+            <button type="button" class="text-btn" @click="unpickPlace">다른 곳</button>
+          </div>
+          <template v-else>
+            <div class="search">
+              <input
+                v-model="placeQuery"
+                type="search"
+                class="input"
+                placeholder="카페·도서관 이름이나 동네로 찾아요"
+                aria-label="장소 검색"
+                @keydown.enter.prevent="searchPlace"
+              />
+              <button type="button" class="btn find" :disabled="placeSearching || placeQuery.trim().length === 0" @click="searchPlace">
+                {{ placeSearching ? '찾는 중' : '찾기' }}
+              </button>
+            </div>
+            <ul v-if="placeResults.length > 0" class="results">
+              <li v-for="p in placeResults" :key="p.kakaoId">
+                <button type="button" class="result" @click="pickPlace(p)">
+                  <span class="result-body">
+                    <strong>{{ p.name }}</strong>
+                    <span class="sub">{{ p.address }}<template v-if="p.distanceM"> · 본사에서 {{ formatDistance(p.distanceM) }}</template></span>
+                  </span>
+                  <span class="result-go">고르기</span>
+                </button>
+              </li>
+            </ul>
+            <p v-else-if="placeSearched" class="hint">찾는 곳이 없어요. 다른 이름으로 찾아보세요.</p>
+            <p v-else class="hint">비워 두면 나중에 장소 페이지에서 참가자 중간 지점 기준으로 추천받을 수 있어요.</p>
+          </template>
+        </div>
+
         <!-- 정원 · 기간 -->
         <div class="group two">
           <div>
@@ -246,6 +325,7 @@ async function submit() {
 .picked-cv { width: 44px; height: 62px; }
 .picked-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .picked-body strong { font-size: 15px; font-weight: 600; }
+.place-picked { padding: 12px 16px; }
 .text-btn { font: inherit; font-size: 13px; color: var(--sub); background: none; border: 0; cursor: pointer; padding: 4px 2px; white-space: nowrap; }
 .text-btn:hover { color: var(--red); }
 

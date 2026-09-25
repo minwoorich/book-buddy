@@ -146,7 +146,8 @@ const hostableClub = computed<Club | null>(() => {
   const c = forClub.value
   if (!c) return null
   const isHost = c.members.some((m) => m.userId === user.value?.id && m.role === 'host')
-  const pickable = (c.status === 'scheduling' || c.status === 'confirmed') && !placeLocked(c, new Date())
+  const stage = c.status === 'scheduling' || c.status === 'confirmed' || (c.origin === 'user' && c.status === 'inviting')
+  const pickable = stage && !placeLocked(c, new Date())
   return isHost && pickable ? c : null
 })
 const clubActionLabel = computed(() => (hostableClub.value && forClubMode.value ? '이곳으로 정하기' : null))

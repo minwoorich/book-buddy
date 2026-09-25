@@ -50,6 +50,28 @@ describe('clubRecruitService.create', () => {
     expect(() => clubRecruitService.create(host, input({ bookId: 999 }), NOW)).toThrow(ApiError)
   })
 
+  it('장소를 같이 보내면 개설과 함께 저장되고, 알림은 없다', () => {
+    const host = insertUser('민우')
+    const place = { kakaoId: 'k-star', name: '  스타벅스 광교점 ', lat: 37.29, lng: 127.05 }
+    const club = clubRecruitService.create(host, { ...input(), place }, NOW)
+    expect(club.place).toEqual({ ...place, name: '스타벅스 광교점' })
+    expect(club.placeDecidedAt).toBe(NOW.toISOString())
+    expect(club.status).toBe('inviting')
+    expect(notificationRepo.listForUser(host)).toHaveLength(0)
+    // 장소 없이도 그대로
+    expect(clubRecruitService.create(insertUser('지훈'), { ...input(), place: null }, NOW).place).toBeNull()
+  })
+
+  it('장소가 비었거나 좌표가 틀리면 400이고 모임도 만들어지지 않는다', () => {
+    const host = insertUser('민우')
+    const good = { kakaoId: 'k-star', name: '스타벅스 광교점', lat: 37.29, lng: 127.05 }
+    expect(() => clubRecruitService.create(host, { ...input(), place: { ...good, kakaoId: ' ' } }, NOW)).toThrow(ApiError)
+    expect(() => clubRecruitService.create(host, { ...input(), place: { ...good, name: '' } }, NOW)).toThrow(ApiError)
+    expect(() => clubRecruitService.create(host, { ...input(), place: { ...good, lat: NaN } }, NOW)).toThrow(ApiError)
+    expect(() => clubRecruitService.create(host, { ...input(), place: { ...good, lng: 181 } }, NOW)).toThrow(ApiError)
+    expect(clubRepo.hostingRecruitingCount(host)).toBe(0)
+  })
+
   it('모집 중인 사람 모임을 호스트로 하나 갖고 있으면 두 번째는 400', () => {
     const host = insertUser('개설자')
     clubRecruitService.create(host, input(), NOW)
