@@ -61,6 +61,7 @@ function sameKstDate(a: Date, b: Date): boolean {
  * 슬롯이 하나도 안 나오면 모임을 취소하고 관리자에게만 알린다(스펙 §12).
  */
 function enterScheduling(club: Club, now: Date): void {
+  clubRepo.replaceVotes(club.id, [])   // 시스템이 새로 낼 후보는 이전 표(사람 모임 사전 투표)와 인덱스가 맞지 않는다
   ensureAcceptedHost(club)
   const accepted = acceptedMembers(club)
   const ids = accepted.map((m) => m.userId)

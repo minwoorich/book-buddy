@@ -32,6 +32,7 @@ describe('clubMessageRepo', () => {
   it('markRead는 뒤로 가지 않고, unreadCounts는 chat만·내 메시지 제외', () => {
     const host = insertUser('개설자'); const a = insertUser('a')
     const c = club(host); const d = club(insertUser('h2'))
+    clubRepo.upsertMember(c.id, a, 'member', 'accepted')   // unreadCounts는 이제 수락자만 센다(I1)
     const m1 = clubMessageRepo.insert(c.id, host, 'chat', '1')
     clubMessageRepo.insert(c.id, null, 'system', 'sys')
     const m3 = clubMessageRepo.insert(c.id, host, 'chat', '3')
@@ -46,5 +47,15 @@ describe('clubMessageRepo', () => {
     clubMessageRepo.markRead(c.id, a, m3.id)
     expect(clubMessageRepo.unreadCounts(a, [c.id]).get(c.id) ?? 0).toBe(0)
     expect(clubMessageRepo.unreadCounts(a, []).size).toBe(0)
+  })
+
+  it('비멤버·초대만 받은 사람은 안 읽은 수를 세지 않는다(Map에 없음)', () => {
+    const host = insertUser('개설자'); const outsider = insertUser('밖사람'); const invited = insertUser('초대받음')
+    const c = club(host)
+    clubRepo.upsertMember(c.id, invited, 'member', 'invited')
+    clubMessageRepo.insert(c.id, host, 'chat', '안녕')
+
+    expect(clubMessageRepo.unreadCounts(outsider, [c.id]).has(c.id)).toBe(false)
+    expect(clubMessageRepo.unreadCounts(invited, [c.id]).has(c.id)).toBe(false)
   })
 })

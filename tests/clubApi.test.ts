@@ -117,6 +117,18 @@ describe('groupClubsForUser', () => {
       expect([...g.invites, ...g.needsResponse, ...g.active, ...g.past]).toHaveLength(0)
     }
   })
+
+  it('사람 모임이 확정된 뒤 초대(아직 응답 안 함)는 invites로 간다', () => {
+    const c = club({
+      id: 1, status: 'confirmed', origin: 'user',
+      members: [
+        { userId: 1, userName: '나', department: '개발본부', company: '바텍', role: 'member', inviteStatus: 'invited', respondedAt: null, completed: false, reading: false },
+      ],
+    })
+    const grouped = groupClubsForUser([c], 1)
+    expect(grouped.invites.map((x) => x.id)).toEqual([1])
+    expect(grouped.active).toHaveLength(0)
+  })
 })
 
 describe('canViewClub', () => {

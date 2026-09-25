@@ -8,7 +8,8 @@ export default defineEventHandler(
   handleApi((event) => {
     const me = requireUser(event)
     const now = new Date()
-    const clubs = clubRepo.listOpen(now.toISOString()).filter((c) => joinWindowOpen(c, now) && hasSeat(c))
+    // "정원 미만"은 confirmed에만 적용한다 — 모집 중인 꽉 찬 모임도 목록에 남아 "정원 마감"을 보인다(설계서 §3.5·§6.1).
+    const clubs = clubRepo.listOpen(now.toISOString()).filter((c) => joinWindowOpen(c, now) && (c.status !== 'confirmed' || hasSeat(c)))
     const unread = clubMessageRepo.unreadCounts(me.id, clubs.map((c) => c.id))
     return clubs.map((c) => ({ ...c, unreadMessages: unread.get(c.id) ?? 0 }))
   })

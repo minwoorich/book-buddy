@@ -36,7 +36,7 @@ const isFull = computed(() => !!club.value && !hasSeat(club.value))
 const windowOpen = computed(() => !!club.value && joinWindowOpen(club.value, now.value))
 const isRecruiting = computed(() => isUserClub.value && club.value?.status === 'inviting')
 
-const canRespond = computed(() => club.value?.status === 'inviting' && me.value?.inviteStatus === 'invited')
+const canRespond = computed(() => me.value?.inviteStatus === 'invited' && (club.value?.status === 'inviting' || windowOpen.value))
 const canJoin = computed(() => windowOpen.value && !isMember.value && !canRespond.value && !isFull.value)
 const canLeave = computed(() => windowOpen.value && isMember.value && !isHost.value)
 const canInvite = computed(() => windowOpen.value && isHost.value)
@@ -84,7 +84,7 @@ const wherePlaceholder = computed(() => {
 /** 왜 못 누르는지 — 액션 줄 옆 한 줄. */
 const actionHint = computed(() => {
   if (!club.value) return ''
-  if (isFull.value && !isMember.value && windowOpen.value) return '정원이 찼어요'
+  if (isFull.value && !isMember.value && windowOpen.value && me.value?.inviteStatus !== 'invited') return '정원이 찼어요'
   if (club.value.status === 'confirmed' && !windowOpen.value && !isMember.value) return '모임이 코앞이라 참여가 닫혔어요'
   if (canCloseLegacy.value) return acceptedCount.value < 3 ? `3명이 모여야 시스템이 후보 시간을 만들 수 있어요 (지금 ${acceptedCount.value}명)` : '후보 시간이 없어 마감하면 시스템이 후보 3개를 만들고 투표를 받아요'
   return ''
@@ -94,6 +94,7 @@ const actionHint = computed(() => {
 const picked = ref<number[]>([])
 watch(club, (c) => { picked.value = c ? c.votes.filter((v) => v.userId === user.value?.id).map((v) => v.slotIdx) : [] }, { immediate: true })
 function countFor(idx: number): number { return club.value?.votes.filter((v) => v.slotIdx === idx).length ?? 0 }
+function isPast(slot: string): boolean { return new Date(slot).getTime() <= now.value.getTime() }
 const maxCount = computed(() => Math.max(1, ...(club.value?.candidateSlots.map((_, i) => countFor(i)) ?? [0])))
 const sendingVote = ref(false)
 async function submitVotes() {
@@ -205,9 +206,9 @@ onMounted(() => { if (route.query.chat !== undefined) nextTick(() => document.ge
                 </div>
               </div>
               <template v-else>
-                <label v-for="(slot, i) in club.candidateSlots" :key="slot" class="slot">
-                  <input v-model="picked" type="checkbox" :value="i" :disabled="!canVote" />
-                  <span class="slot-time">{{ formatKst(slot) }}</span>
+                <label v-for="(slot, i) in club.candidateSlots" :key="slot" class="slot" :class="{ past: isPast(slot) }">
+                  <input v-model="picked" type="checkbox" :value="i" :disabled="!canVote || isPast(slot)" />
+                  <span class="slot-time">{{ formatKst(slot) }}<span v-if="isPast(slot)" class="pastTag">지남</span></span>
                   <span class="bar"><span class="fill" :class="{ top: countFor(i) === maxCount && countFor(i) > 0 }" :style="{ width: `${(countFor(i) / maxCount) * 100}%` }" /></span>
                   <span class="slot-count">{{ countFor(i) }}명</span>
                 </label>
@@ -304,6 +305,8 @@ onMounted(() => { if (route.query.chat !== undefined) nextTick(() => document.ge
 .map-link { margin-left: 8px; font-size: 13px; }
 .slot { display: grid; grid-template-columns: auto 1fr 140px 44px; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14.5px; cursor: pointer; }
 .slot:first-of-type { border-top: 0; }
+.slot.past { color: var(--muted); cursor: default; }
+.pastTag { margin-left: 6px; font-size: 11.5px; color: var(--muted); }
 .bar { height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
 .fill { display: block; height: 100%; background: var(--bar-fill); }
 .fill.top { background: var(--red); }

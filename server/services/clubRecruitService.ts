@@ -111,6 +111,7 @@ async function confirmAt(club: Club, slot: string, deps: { anthropicApiKey: stri
   await prepareAgenda(club, deps)
   const fresh = requireClub(club.id)
   if (fresh.status !== 'inviting') return fresh
+  if (!fresh.candidateSlots.includes(slot)) throw new ApiError(400, '그사이 후보가 바뀌었어요. 다시 확인해 주세요')
   clubService.confirmWith(fresh, slot)
   clubChatService.postSystem(club.id, `시간이 정해졌어요 · ${formatKst(slot)}`)
   return requireClub(club.id)
@@ -258,6 +259,7 @@ export const clubRecruitService = {
     const club = requireUserClub(clubId)
     requireHost(club, userId)
     requireRecruiting(club)
+    if (club.candidateSlots.length > 0) throw new ApiError(400, '후보 시간이 있어요. "시간 확정"을 써주세요')
     if (accepted(club).length < CLUB_RULES.minMembers) throw new ApiError(400, `${CLUB_RULES.minMembers}명이 모여야 시간을 잡을 수 있어요`)
     return moveToScheduling(club, deps, now)
   },

@@ -15,6 +15,7 @@ const connected = ref(false)
 const error = ref('')
 const bodyEl = ref<HTMLElement | null>(null)
 let es: EventSource | null = null
+let hadError = false   // error 뒤의 open(재접속)에서만 공백을 보충한다 — 첫 open은 loadInitial이 이미 채웠다
 
 function sameKstDay(a: string, b: string): boolean {
   const p = kstParts(toDate(a)), q = kstParts(toDate(b))
@@ -66,16 +67,26 @@ async function loadMore() {
 }
 function onScroll() { if (bodyEl.value && bodyEl.value.scrollTop < 40) void loadMore() }
 
+/** 재접속 뒤 끊긴 동안의 메시지를 최신 50개로 메워 넣는다(push가 id로 dedup). */
+async function fillGap() {
+  try {
+    const latest = await api<ClubMessage[]>(`/api/clubs/${props.clubId}/messages`)
+    for (const m of latest) push(m)
+  } catch { /* 실패해도 조용히 — 다음 메시지부터는 스트림으로 이어진다 */ }
+}
 function connect() {
   if (!props.canRead || !user.value || es) return
   const q = new URLSearchParams({ userId: String(user.value.id) })
   if (guestToken.value) q.set('guestToken', guestToken.value)
   es = new EventSource(`/api/clubs/${props.clubId}/stream?${q}`)
-  es.addEventListener('open', () => { connected.value = true })
+  es.addEventListener('open', () => {
+    connected.value = true
+    if (hadError) { hadError = false; void fillGap() }
+  })
   es.addEventListener('message', (e) => push(JSON.parse((e as MessageEvent).data) as ClubMessage))
-  es.addEventListener('error', () => { connected.value = false })   // EventSource가 스스로 재접속한다
+  es.addEventListener('error', () => { connected.value = false; hadError = true })   // EventSource가 스스로 재접속한다
 }
-function disconnect() { es?.close(); es = null; connected.value = false }
+function disconnect() { es?.close(); es = null; connected.value = false; hadError = false }
 
 async function send() {
   const text = draft.value.trim()

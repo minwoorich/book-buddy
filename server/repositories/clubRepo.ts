@@ -520,8 +520,14 @@ export const clubRepo = {
       .run(clubId, userId, role, inviteStatus, inviteStatus)
   },
 
+  /** 멤버가 나가면 그 사람의 표도 같이 지운다 — 나간 사람이 시간 확정을 좌우하면 안 된다. */
   removeMember(clubId: number, userId: number): void {
-    getDb().prepare(`DELETE FROM club_members WHERE club_id = ? AND user_id = ?`).run(clubId, userId)
+    const db = getDb()
+    const run = db.transaction(() => {
+      db.prepare(`DELETE FROM club_votes WHERE club_id = ? AND user_id = ?`).run(clubId, userId)
+      db.prepare(`DELETE FROM club_members WHERE club_id = ? AND user_id = ?`).run(clubId, userId)
+    })
+    run()
   },
 
   /** 모집을 닫을 때 아직 응답 없는 초대를 거절로 정리한다. 바뀐 행 수. */

@@ -264,6 +264,30 @@ describe('clubRecruitService.expireRecruiting', () => {
 
 const S1 = '2026-09-29T09:30:00.000Z', S2 = '2026-10-01T09:30:00.000Z', S3 = '2026-10-02T09:30:00.000Z'
 
+describe('clubRecruitService.closeRecruiting — 후보가 있으면', () => {
+  it('400 — "시간 확정"을 써야 한다', async () => {
+    const host = insertUser('개설자'); const a = insertUser('a'); const b = insertUser('b')
+    const club = clubRecruitService.create(host, { ...input(), candidateSlots: [S1, S2] }, NOW)
+    clubRecruitService.join(club.id, a, NOW); clubRecruitService.join(club.id, b, NOW)
+    await expect(clubRecruitService.closeRecruiting(club.id, host, NO_LLM, NOW)).rejects.toThrow(/시간 확정/)
+  })
+})
+
+describe('clubRecruitService.leave — 표 삭제', () => {
+  it('나간 사람의 표는 지워진다 — a의 S1 표가 사라지면 host의 S2 표만 남아 S2로 확정된다', async () => {
+    const host = insertUser('개설자'); const a = insertUser('a'); const b = insertUser('b')
+    const club = clubRecruitService.create(host, { ...input({ capacity: 3 }), candidateSlots: [S1, S2] }, NOW)
+    clubRecruitService.join(club.id, a, NOW); clubRecruitService.join(club.id, b, NOW)
+    clubService.vote(club.id, a, [0], NOW)      // S1
+    clubService.vote(club.id, host, [1], NOW)   // S2
+
+    clubRecruitService.leave(club.id, a, NOW)
+
+    const after = await clubRecruitService.confirm(club.id, host, NO_LLM, {}, NOW)
+    expect(after.meetAt).toBe(S2)
+  })
+})
+
 describe('clubRecruitService.create — 후보 시간', () => {
   it('후보를 내면 정렬돼 저장되고, 잘못된 후보는 400', () => {
     const host = insertUser('개설자')

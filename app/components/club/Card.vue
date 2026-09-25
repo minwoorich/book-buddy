@@ -19,7 +19,7 @@ const host = computed(() => props.club.members.find((m) => m.role === 'host'))
 const daysLeft = computed(() => {
   const until =
     props.club.status === 'scheduling' ? props.club.voteExpiresAt
-    : props.club.origin === 'user' ? props.club.recruitUntil
+    : props.club.origin === 'user' ? (props.club.status === 'inviting' ? props.club.recruitUntil : null)
     : props.club.inviteExpiresAt
   if (!until) return null
   const diff = new Date(until).getTime() - Date.now()

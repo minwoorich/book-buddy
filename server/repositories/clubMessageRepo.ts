@@ -39,7 +39,7 @@ export const clubMessageRepo = {
       .run(clubId, userId, lastReadId)
   },
 
-  /** 모임별 안 읽은 chat 메시지 수(내가 쓴 것·시스템 메시지 제외). 없는 모임은 Map에 없다. */
+  /** 모임별 안 읽은 chat 메시지 수(내가 쓴 것·시스템 메시지 제외). 수락한 멤버가 아니면 Map에 없다. */
   unreadCounts(userId: number, clubIds: number[]): Map<number, number> {
     const out = new Map<number, number>()
     if (clubIds.length === 0) return out
@@ -47,12 +47,14 @@ export const clubMessageRepo = {
     const rows = getDb()
       .prepare(
         `SELECT m.club_id AS clubId, COUNT(*) AS n
-         FROM club_messages m LEFT JOIN club_message_reads r ON r.club_id = m.club_id AND r.user_id = ?
+         FROM club_messages m
+         JOIN club_members cm ON cm.club_id = m.club_id AND cm.user_id = ? AND cm.invite_status = 'accepted'
+         LEFT JOIN club_message_reads r ON r.club_id = m.club_id AND r.user_id = ?
          WHERE m.club_id IN (${placeholders}) AND m.kind = 'chat' AND (m.user_id IS NULL OR m.user_id != ?)
            AND m.id > COALESCE(r.last_read_id, 0)
          GROUP BY m.club_id`
       )
-      .all(userId, ...clubIds, userId) as { clubId: number; n: number }[]
+      .all(userId, userId, ...clubIds, userId) as { clubId: number; n: number }[]
     for (const r of rows) out.set(r.clubId, r.n)
     return out
   },

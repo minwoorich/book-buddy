@@ -36,6 +36,12 @@ export function groupClubsForUser(clubs: Club[], userId: number): GroupedClubs {
       continue
     }
 
+    // 사람 모임은 확정 뒤에도 초대할 수 있다(joinWindowOpen) — 그 초대도 "나의 초대"에 보여야 응답할 수 있다.
+    if (club.origin === 'user' && club.status === 'confirmed' && me.inviteStatus === 'invited') {
+      grouped.invites.push(club)
+      continue
+    }
+
     if (me.inviteStatus !== 'accepted') continue
 
     if (club.status === 'done' || club.status === 'canceled') {
