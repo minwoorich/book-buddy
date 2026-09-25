@@ -43,7 +43,6 @@ const canInvite = computed(() => windowOpen.value && isHost.value)
 const canWithdraw = computed(() => isRecruiting.value && isHost.value)
 const hasCandidates = computed(() => (club.value?.candidateSlots.length ?? 0) > 0)
 const canConfirm = computed(() => isRecruiting.value && isHost.value && hasCandidates.value)
-const canCloseLegacy = computed(() => isRecruiting.value && isHost.value && !hasCandidates.value)
 const canEditCandidates = computed(() => isRecruiting.value && isHost.value)
 const canVote = computed(() => isMember.value && ((club.value?.status === 'scheduling') || isRecruiting.value) && hasCandidates.value)
 
@@ -86,7 +85,6 @@ const actionHint = computed(() => {
   if (!club.value) return ''
   if (isFull.value && !isMember.value && windowOpen.value) return '정원이 찼어요'
   if (club.value.status === 'confirmed' && !windowOpen.value && !isMember.value) return '모임이 코앞이라 참여가 닫혔어요'
-  if (canCloseLegacy.value) return acceptedCount.value < 3 ? `3명이 모여야 시스템이 후보 시간을 만들 수 있어요 (지금 ${acceptedCount.value}명)` : '후보 시간이 없어 마감하면 시스템이 후보 3개를 만들고 투표를 받아요'
   return ''
 })
 
@@ -178,7 +176,6 @@ onMounted(() => { if (route.query.chat !== undefined) nextTick(() => document.ge
         </template>
         <button v-if="canJoin" class="btn primary" :disabled="sending" @click="act('join', 'POST', '참여했어요')">참여하기</button>
         <button v-if="canConfirm" class="btn primary" :disabled="sending" @click="showConfirm = true">시간 확정</button>
-        <button v-if="canCloseLegacy" class="btn primary" :disabled="sending || acceptedCount < 3" @click="act('close-recruiting', 'POST', '모집을 닫고 시간 투표를 시작했어요', '모집을 닫고 시간 투표를 시작할까요?')">모집 마감 → 시간 잡기</button>
         <button v-if="canInvite" class="btn" :disabled="sending" @click="showInvite = true">초대하기</button>
         <NuxtLink v-if="canPickPlace" class="btn" :to="`/places?forClub=${club.id}`">{{ club.place ? '장소 바꾸기' : '장소 고르기' }}</NuxtLink>
         <button v-if="club.meetAt && isMember" type="button" class="btn" @click="downloadIcs">내 캘린더에 추가</button>

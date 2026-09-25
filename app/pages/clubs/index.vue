@@ -7,9 +7,9 @@ const { data, pending } = await useAsyncData<GroupedClubs>(
   () => api<GroupedClubs>('/api/clubs'),
   { default: () => ({ invites: [], needsResponse: [], active: [], past: [] }) }
 )
-const { data: recruiting } = await useAsyncData<Club[]>(
-  'recruiting-clubs',
-  () => api<Club[]>('/api/clubs/recruiting'),
+const { data: open } = await useAsyncData<Club[]>(
+  'open-clubs',
+  () => api<Club[]>('/api/clubs/open'),
   { default: () => [] }
 )
 
@@ -34,18 +34,18 @@ const empty = computed(
         <NuxtLink class="new-btn" to="/clubs/new">모임 만들기</NuxtLink>
       </div>
 
-      <section v-if="recruiting.length > 0">
-        <h2>모집 중 ({{ recruiting.length }})</h2>
+      <section v-if="open.length > 0">
+        <h2>열려 있는 모임 ({{ open.length }})</h2>
         <div class="list">
-          <ClubCard v-for="c in recruiting" :key="c.id" :club="c" recruit />
+          <ClubCard v-for="c in open" :key="c.id" :club="c" open />
         </div>
       </section>
 
       <p v-if="pending" class="empty">불러오는 중…</p>
-      <p v-else-if="empty && recruiting.length === 0" class="empty">
+      <p v-else-if="empty && open.length === 0" class="empty">
         아직 모임이 없어요. 책을 완독하면 같은 책을 읽은 동료와 묶어 제안드리고, 직접 열 수도 있어요.
       </p>
-      <p v-else-if="empty" class="empty">내가 참여한 모임은 아직 없어요. 위에서 모집 중인 모임에 참여해 보세요.</p>
+      <p v-else-if="empty" class="empty">내가 참여한 모임은 아직 없어요. 위에서 열려 있는 모임에 참여해 보세요.</p>
 
       <section v-if="data.invites.length > 0">
         <h2>나의 초대 ({{ data.invites.length }})</h2>
