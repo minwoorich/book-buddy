@@ -228,6 +228,24 @@ export function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_club_posts_club ON club_posts(club_id, created_at);
   `)
 
+  // 모임 채팅(게시판 대체). user_id NULL = 시스템 메시지(참여·후보 변경·확정 안내).
+  // 읽음은 사람·모임당 마지막으로 본 메시지 id 하나 — 안 읽은 수는 그 뒤의 chat 메시지 수.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS club_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      club_id INTEGER NOT NULL REFERENCES clubs(id),
+      user_id INTEGER REFERENCES users(id),
+      kind TEXT NOT NULL DEFAULT 'chat' CHECK (kind IN ('chat','system')),
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE INDEX IF NOT EXISTS idx_club_messages_club ON club_messages(club_id, id);
+    CREATE TABLE IF NOT EXISTS club_message_reads (
+      club_id INTEGER NOT NULL REFERENCES clubs(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      last_read_id INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (club_id, user_id));
+  `)
+
   // 홈 화면 기본 섹션 8종 시딩 — 관리자가 노출/순서를 편집한 뒤에도 재시딩 때마다
   // 값을 덮어쓰지 않도록 INSERT OR IGNORE(UNIQUE section_key)로 최초 1회만 채운다.
   const seedSection = db.prepare(

@@ -494,6 +494,8 @@ export interface Club {
   canceledReason: string | null
   /** 모임 종료 시각(ISO). 사람 쿨다운의 기준. */
   doneAt: string | null
+  /** 요청자 기준 안 읽은 채팅 수 — 목록·상세 핸들러가 채운다(없으면 0으로 본다). */
+  unreadMessages?: number
   /** 시간 투표. slotIdx는 candidateSlots의 인덱스. */
   votes: ClubVote[]
   members: ClubMember[]
@@ -510,17 +512,16 @@ export interface Club {
   recruitUntil: string | null
 }
 
-/** 모임 안 게시판 글. 댓글은 parentId가 있고 replies는 항상 빈 배열. */
-export interface ClubPost {
+/** 모임 채팅 메시지. userId가 null이면 시스템 메시지(참여·후보 변경·확정 안내). */
+export interface ClubMessage {
   id: number
   clubId: number
-  userId: number
-  userName: string
-  department: string
-  parentId: number | null
+  userId: number | null
+  userName: string | null
+  department: string | null
+  kind: 'chat' | 'system'
   body: string
   createdAt: string
-  replies: ClubPost[]
 }
 
 /** 장소 페이지 배지용 — 곧 열리는 모임이 확정한 장소. `GET /api/clubs/upcoming-places`. */

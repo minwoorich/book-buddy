@@ -63,4 +63,14 @@ describe('책모임 스키마', () => {
     expect(row).toEqual({ origin: 'agent', description: '', capacity: 5 })
     expect(() => db.prepare(`UPDATE clubs SET origin = 'bogus' WHERE id = ?`).run(clubId)).toThrow()
   })
+
+  it('club_messages·club_message_reads가 생기고 kind는 chat/system만', () => {
+    const db = getDb()
+    const names = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as { name: string }[]).map((r) => r.name)
+    expect(names).toEqual(expect.arrayContaining(['club_messages', 'club_message_reads']))
+    const bookId = Number(db.prepare(`INSERT INTO books (title, author, category) VALUES ('하드씽','저자','경제경영')`).run().lastInsertRowid)
+    const clubId = Number(db.prepare(`INSERT INTO clubs (book_id) VALUES (?)`).run(bookId).lastInsertRowid)
+    expect(() => db.prepare(`INSERT INTO club_messages (club_id, user_id, kind, body) VALUES (?, NULL, 'bogus', 'x')`).run(clubId)).toThrow()
+    expect(() => db.prepare(`INSERT INTO club_messages (club_id, user_id, kind, body) VALUES (?, NULL, 'system', 'x')`).run(clubId)).not.toThrow()
+  })
 })

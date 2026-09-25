@@ -375,6 +375,37 @@ export const clubRepo = {
     run()
   },
 
+  /** 사람 모임 후보만 갱신 — 정렬 저장, vote_expires_at은 건드리지 않는다(사람 모임은 쓰지 않는다). */
+  setCandidateSlotsOnly(id: number, slots: string[]): void {
+    getDb().prepare(`UPDATE clubs SET candidate_slots = ? WHERE id = ?`).run(JSON.stringify([...slots].sort()), id)
+  },
+
+  /** 모임의 표를 통째로 바꾼다(후보 편집 후 재매핑 결과 저장). */
+  replaceVotes(clubId: number, rows: ClubVote[]): void {
+    const db = getDb()
+    const run = db.transaction(() => {
+      db.prepare(`DELETE FROM club_votes WHERE club_id = ?`).run(clubId)
+      const ins = db.prepare(`INSERT INTO club_votes (club_id, user_id, slot_idx) VALUES (?, ?, ?)`)
+      for (const v of rows) ins.run(clubId, v.userId, v.slotIdx)
+    })
+    run()
+  },
+
+  /**
+   * 열린 사람 모임 — 모집 중(기한 전) 또는 확정(모임 전). "전날까지·정원 미만"은 서비스/화면이
+   * joinWindowOpen·hasSeat로 다시 거른다. recruit_until·meet_at은 ISO라 ISO끼리 비교.
+   */
+  listOpen(nowIso: string): Club[] {
+    const rows = getDb()
+      .prepare(
+        `${SELECT_CLUB} WHERE c.origin = 'user' AND (
+           (c.status = 'inviting' AND c.recruit_until > ?) OR (c.status = 'confirmed' AND c.meet_at > ?))
+         ORDER BY COALESCE(c.meet_at, c.recruit_until) ASC, c.id ASC`
+      )
+      .all(nowIso, nowIso) as ClubRow[]
+    return hydrate(rows)
+  },
+
   /** 참가자들이 수락한 다른 confirmed 모임의 시간 구간 — 슬롯 생성 시 충돌 회피용. */
   busyIntervalsFor(userIds: number[], excludeClubId: number): { start: string; end: string }[] {
     if (userIds.length === 0) return []

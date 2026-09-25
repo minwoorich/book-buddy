@@ -586,3 +586,33 @@ describe('clubRepo 직접 개설 메서드', () => {
     expect(clubRepo.quotaState(NOW).busyUserIds.has(host)).toBe(false)
   })
 })
+
+describe('clubRepo 후보·표·열린 모임', () => {
+  function userClub(hostId: number, bookId: number, over: Partial<{ recruitUntilIso: string }> = {}) {
+    return clubRepo.createUserClub({ bookId, createdBy: hostId, title: '같이', description: '', capacity: 4, recruitUntilIso: over.recruitUntilIso ?? '2026-10-01T23:59:59.000Z' })
+  }
+  it('setCandidateSlotsOnly는 정렬 저장하고 vote_expires_at을 건드리지 않는다; replaceVotes는 통째로 바꾼다', () => {
+    const bookId = insertBook('하드씽'); const host = insertUser('h'); const a = insertUser('a')
+    const c = userClub(host, bookId)
+    clubRepo.setCandidateSlotsOnly(c.id, ['2026-10-01T09:30:00.000Z', '2026-09-29T09:30:00.000Z'])
+    let got = clubRepo.findById(c.id)!
+    expect(got.candidateSlots).toEqual(['2026-09-29T09:30:00.000Z', '2026-10-01T09:30:00.000Z'])
+    expect(got.voteExpiresAt).toBeNull()
+    clubRepo.castVotes(c.id, host, [0, 1]); clubRepo.castVotes(c.id, a, [1])
+    clubRepo.replaceVotes(c.id, [{ userId: a, slotIdx: 0 }])
+    got = clubRepo.findById(c.id)!
+    expect(got.votes).toEqual([{ userId: a, slotIdx: 0 }])
+  })
+  it('listOpen — 모집 중(기한 전) + 확정(모임 전)인 사람 모임만', () => {
+    const bookId = insertBook('하드씽')
+    const h1 = insertUser('h1'), h2 = insertUser('h2'), h3 = insertUser('h3'), h4 = insertUser('h4')
+    const recruiting = userClub(h1, bookId)
+    const expired = userClub(h2, bookId, { recruitUntilIso: '2026-09-01T23:59:59.000Z' })
+    const confirmedFuture = userClub(h3, bookId); clubRepo.confirm(confirmedFuture.id, '2026-09-29T09:30:00.000Z')
+    const confirmedPast = userClub(h4, bookId); clubRepo.confirm(confirmedPast.id, '2026-09-10T09:30:00.000Z')
+    clubRepo.insertProposal({ bookId, matchScore: 0, matchReason: '', agenda: [], members: [{ userId: h1, role: 'host' }], inviteExpiresAt: '2026-09-30T23:59:59.000Z' })
+    const ids = clubRepo.listOpen(NOW.toISOString()).map((c) => c.id)
+    expect(ids).toContain(recruiting.id); expect(ids).toContain(confirmedFuture.id)
+    expect(ids).not.toContain(expired.id); expect(ids).not.toContain(confirmedPast.id)
+  })
+})
