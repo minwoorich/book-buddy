@@ -268,7 +268,7 @@ onMounted(() => { if (route.query.chat !== undefined) nextTick(() => document.ge
         </div>
 
         <aside id="chat" class="side">
-          <ClubClubChat :key="club.id" :club-id="club.id" :can-read="chatCanRead" :can-write="chatCanWrite" />
+          <ClubChat :key="club.id" :club-id="club.id" :can-read="chatCanRead" :can-write="chatCanWrite" />
         </aside>
       </div>
 
