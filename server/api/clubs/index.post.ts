@@ -6,7 +6,7 @@ import { ApiError } from '../../utils/errors'
 export default defineEventHandler(
   handleApi(async (event) => {
     const me = requireUser(event)
-    const body = await readBody<{ bookId?: unknown; title?: unknown; description?: unknown; capacity?: unknown; recruitDays?: unknown }>(event)
+    const body = await readBody<{ bookId?: unknown; title?: unknown; description?: unknown; capacity?: unknown; recruitDays?: unknown; candidateSlots?: unknown }>(event)
     const bookId = Number(body?.bookId)
     if (!Number.isInteger(bookId) || bookId <= 0) throw new ApiError(400, '책을 골라주세요')
     return clubRecruitService.create(me.id, {
@@ -15,6 +15,7 @@ export default defineEventHandler(
       description: typeof body?.description === 'string' ? body.description : '',
       capacity: Number(body?.capacity),
       recruitDays: Number(body?.recruitDays),
+      candidateSlots: body?.candidateSlots,
     })
   })
 )

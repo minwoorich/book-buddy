@@ -537,19 +537,6 @@ describe('clubRepo 직접 개설 메서드', () => {
     expect(clubRepo.findById(club.id)!.members.find((m) => m.userId === b)!.inviteStatus).toBe('declined')
   })
 
-  it('listRecruiting — 사람 모임·inviting·마감 전만, 마감 임박순', () => {
-    const bookId = insertBook('하드씽')
-    const h1 = insertUser('h1'); const h2 = insertUser('h2'); const h3 = insertUser('h3')
-    const late = userClub(h1, bookId, '2026-10-05T23:59:59.000Z')
-    const soon = userClub(h2, bookId, '2026-09-26T23:59:59.000Z')
-    const past = userClub(h3, bookId, '2026-09-19T23:59:59.000Z')
-    clubRepo.insertProposal({ bookId, matchScore: 0.5, matchReason: '', agenda: [], members: [{ userId: h1, role: 'host' }], inviteExpiresAt: '2026-09-23T23:59:59.000Z' })
-    clubRepo.updateStatus(past.id, 'inviting')
-
-    const ids = clubRepo.listRecruiting(NOW.toISOString()).map((c) => c.id)
-    expect(ids).toEqual([soon.id, late.id])
-  })
-
   it('hostingRecruitingCount — 호스트로 모집 중인 사람 모임 수', () => {
     const bookId = insertBook('하드씽')
     const host = insertUser('개설자')

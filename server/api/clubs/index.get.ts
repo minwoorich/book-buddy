@@ -1,4 +1,5 @@
 import { clubRepo } from '../../repositories/clubRepo'
+import { clubMessageRepo } from '../../repositories/clubMessageRepo'
 import { groupClubsForUser } from '../../utils/clubView'
 import { handleApi, requireUser } from '../../utils/api'
 
@@ -6,6 +7,8 @@ import { handleApi, requireUser } from '../../utils/api'
 export default defineEventHandler(
   handleApi((event) => {
     const me = requireUser(event)
-    return groupClubsForUser(clubRepo.listForUser(me.id), me.id)
+    const mine = clubRepo.listForUser(me.id)
+    const unread = clubMessageRepo.unreadCounts(me.id, mine.map((c) => c.id))
+    return groupClubsForUser(mine.map((c) => ({ ...c, unreadMessages: unread.get(c.id) ?? 0 })), me.id)
   })
 )

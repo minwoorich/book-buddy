@@ -1,4 +1,5 @@
 import { clubRepo } from '../../../repositories/clubRepo'
+import { clubMessageRepo } from '../../../repositories/clubMessageRepo'
 import { handleApi, requireUser, requireIdParam } from '../../../utils/api'
 import { ApiError } from '../../../utils/errors'
 import { canViewClub } from '../../../utils/clubView'
@@ -19,6 +20,6 @@ export default defineEventHandler(
 
     if (!canViewClub(club, me)) throw new ApiError(403, '참여 중인 모임만 볼 수 있어요')
 
-    return club
+    return { ...club, unreadMessages: clubMessageRepo.unreadCounts(me.id, [club.id]).get(club.id) ?? 0 }
   })
 )

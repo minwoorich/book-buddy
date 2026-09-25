@@ -531,14 +531,6 @@ export const clubRepo = {
       .run(clubId).changes
   },
 
-  /** 모집 중인 사람 모임 — 목록의 "모집 중" 구획. recruit_until은 ISO라 ISO끼리 비교. */
-  listRecruiting(nowIso: string): Club[] {
-    const rows = getDb()
-      .prepare(`${SELECT_CLUB} WHERE c.origin = 'user' AND c.status = 'inviting' AND c.recruit_until > ? ORDER BY c.recruit_until ASC, c.id ASC`)
-      .all(nowIso) as ClubRow[]
-    return hydrate(rows)
-  },
-
   /** 개설 상한 판정 — 이 사람이 호스트로 모집 중인 사람 모임 수. */
   hostingRecruitingCount(userId: number): number {
     const row = getDb()
