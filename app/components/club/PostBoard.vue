@@ -73,7 +73,7 @@ function when(iso: string): string {
     <p v-if="!canRead" class="note">참여하면 이야기를 볼 수 있어요.</p>
     <template v-else>
       <form v-if="canWrite" class="write" @submit.prevent="submit(null)">
-        <textarea v-model="body" rows="3" maxlength="2000" placeholder="모임 전에 미리 이야기해요" aria-label="새 글" />
+        <textarea v-model="body" class="input" rows="3" maxlength="2000" placeholder="모임 전에 미리 이야기해요" aria-label="새 글" />
         <button type="submit" :disabled="sending || body.trim().length === 0">올리기</button>
       </form>
       <p v-else class="note">끝난 모임이에요. 읽을 수만 있어요.</p>
@@ -94,7 +94,7 @@ function when(iso: string): string {
         </div>
         <template v-if="canWrite">
           <form v-if="replyTo === p.id" class="write reply-form" @submit.prevent="submit(p.id)">
-            <input v-model="replyBody" type="text" maxlength="2000" placeholder="댓글" aria-label="댓글" />
+            <input v-model="replyBody" type="text" class="input" maxlength="2000" placeholder="댓글" aria-label="댓글" />
             <button type="submit" :disabled="sending || replyBody.trim().length === 0">달기</button>
             <button type="button" class="ghost" @click="replyTo = null; replyBody = ''">취소</button>
           </form>
@@ -111,8 +111,9 @@ function when(iso: string): string {
 .note { color: var(--muted, #888); font-size: 13px; }
 .msg { color: var(--red); font-size: 13px; }
 .write { display: flex; gap: 8px; align-items: flex-start; }
-.write textarea, .write input { flex: 1; padding: 9px 12px; border: 1px solid var(--line, #ddd); border-radius: 8px; font-size: 14px; background: var(--bg, #fff); color: inherit; resize: vertical; }
-.write button { padding: 9px 14px; border: none; border-radius: 8px; background: var(--red); color: #fff; font-size: 14px; cursor: pointer; }
+.write .input { flex: 1; width: auto; min-width: 0; box-sizing: border-box; resize: vertical; line-height: 1.5; }
+.write button { padding: 9px 14px; border: 1px solid var(--red); border-radius: 3px; background: var(--red); color: #fff; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.write button:hover:not(:disabled) { background: var(--red-dark); }
 .write button:disabled { opacity: 0.5; cursor: default; }
 .post { border-top: 1px solid var(--line, #eee); padding: 12px 0; }
 .post header, .reply header { display: flex; align-items: baseline; gap: 6px; font-size: 13px; }
