@@ -106,6 +106,19 @@ function pickSlot(club: Club, now: Date): string | null {
   return pickByVotes(club.candidateSlots, club.votes, now)
 }
 
+/** 확정 공통 — 시각 저장 + 수락자 알림. 사람 모임의 개설자 확정(clubRecruitService)도 이걸 쓴다. */
+function confirmWith(club: Club, meetAt: string): void {
+  clubRepo.confirm(club.id, meetAt)
+  const where = placeSuffix(club)
+  notificationRepo.insertMany(
+    acceptedMembers(club).map((m) => m.userId),
+    'club_confirmed',
+    `${clubTitle(club)} 시간이 정해졌어요`,
+    `${formatKst(meetAt)}${where}`,
+    `/clubs/${club.id}`
+  )
+}
+
 function confirmClub(club: Club, now: Date): void {
   const meetAt = pickSlot(club, now)
   if (meetAt === null) {
@@ -120,15 +133,7 @@ function confirmClub(club: Club, now: Date): void {
     )
     return
   }
-  clubRepo.confirm(club.id, meetAt)
-  const where = placeSuffix(club)
-  notificationRepo.insertMany(
-    acceptedMembers(club).map((m) => m.userId),
-    'club_confirmed',
-    `${clubTitle(club)} 시간이 정해졌어요`,
-    `${formatKst(meetAt)}${where}`,
-    `/clubs/${club.id}`
-  )
+  confirmWith(club, meetAt)
 }
 
 /**
@@ -165,6 +170,11 @@ export const clubService = {
   /** 조율중 진입 — 모집을 닫는 사람 모임(clubRecruitService)이 같은 절차를 타도록 노출한다. */
   enterScheduling(club: Club, now: Date): void {
     enterScheduling(club, now)
+  },
+
+  /** 확정 — 사람 모임의 개설자 확정(clubRecruitService)이 같은 절차를 타도록 노출한다. */
+  confirmWith(club: Club, meetAt: string): void {
+    confirmWith(club, meetAt)
   },
 
   /** 관리자 승인 — 여기서 처음으로 사람에게 초대가 나간다. */
@@ -289,11 +299,16 @@ export const clubService = {
     return sent
   },
 
-  /** 시간 투표 — 수락자만, scheduling에서만. 전원이 투표했으면 즉시 확정한다. */
+  /**
+   * 시간 투표 — 수락자만. 에이전트 모임은 조율중(scheduling)에서만, 사람 모임은 개설자가
+   * 후보를 미리 내므로 모집 중(inviting)에도 투표할 수 있다(전원 투표 즉시 확정은 조율 단계에서만).
+   */
   vote(clubId: number, userId: number, slotIdxs: number[], now: Date = new Date()): Club {
     const club = requireClub(clubId)
-    if (club.status !== 'scheduling') throw new ApiError(400, '지금은 투표할 수 있는 상태가 아니에요')
-    if (club.voteExpiresAt && club.voteExpiresAt <= now.toISOString()) throw new ApiError(400, '투표가 마감됐어요')
+    // 사람 모임은 모집 중에 투표한다(개설자가 후보를 미리 낸다). 에이전트 모임은 조율 단계에서만.
+    const openVote = club.status === 'scheduling' || (club.origin === 'user' && club.status === 'inviting')
+    if (!openVote) throw new ApiError(400, '지금은 투표할 수 있는 상태가 아니에요')
+    if (club.status === 'scheduling' && club.voteExpiresAt && club.voteExpiresAt <= now.toISOString()) throw new ApiError(400, '투표가 마감됐어요')
     const me = club.members.find((m) => m.userId === userId)
     if (!me || me.inviteStatus !== 'accepted') throw new ApiError(403, '참여를 수락한 사람만 투표할 수 있어요')
     if (slotIdxs.length === 0) throw new ApiError(400, '가능한 시간을 하나 이상 골라주세요')
@@ -303,9 +318,11 @@ export const clubService = {
     clubRepo.castVotes(club.id, userId, valid)
     const updated = requireClub(clubId)
 
-    const voters = new Set(updated.votes.map((v) => v.userId))
-    const everyoneVoted = acceptedMembers(updated).every((m) => voters.has(m.userId))
-    if (everyoneVoted) confirmClub(updated, now)
+    // 전원 투표 즉시 확정은 조율 단계(에이전트 흐름)에서만 — 사람 모임 모집 중엔 개설자가 닫는다.
+    if (updated.status === 'scheduling') {
+      const voters = new Set(updated.votes.map((v) => v.userId))
+      if (acceptedMembers(updated).every((m) => voters.has(m.userId))) confirmClub(updated, now)
+    }
     return requireClub(clubId)
   },
 

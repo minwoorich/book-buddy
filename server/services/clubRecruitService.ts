@@ -3,9 +3,13 @@ import { clubRepo } from '../repositories/clubRepo'
 import { notificationRepo } from '../repositories/notificationRepo'
 import { userRepo } from '../repositories/userRepo'
 import { clubService } from './clubService'
+import { clubChatService } from './clubChatService'
 import { generateAgenda } from '../ai/clubAgenda'
 import { CLUB_RULES } from '../utils/clubRules'
 import { ApiError } from '../utils/errors'
+import { normalizeSlots, remapVotes, pickByVotes } from '../utils/clubCandidates'
+import { joinWindowOpen, hasSeat } from '../../shared/utils/clubOpen'
+import { formatKst } from '../../shared/utils/clubTime'
 import { clubTitle, josa } from '../../shared/utils/clubTitle'
 import type { Club, ClubMember } from '../../shared/types'
 
@@ -24,6 +28,7 @@ export interface CreateClubInput {
   description: string
   capacity: number
   recruitDays: number
+  candidateSlots?: unknown
 }
 
 function requireClub(clubId: number): Club {
@@ -45,6 +50,15 @@ function requireHost(club: Club, userId: number): void {
 
 function requireRecruiting(club: Club): void {
   if (club.status !== 'inviting') throw new ApiError(400, '모집 중인 모임이 아니에요')
+}
+
+/** 들어오고·나가고·초대할 수 있는 창 — 모집 중이거나 확정 뒤 모임 전날까지(설계서 §3.5). */
+function requireOpen(club: Club, now: Date): void {
+  if (!joinWindowOpen(club, now)) throw new ApiError(400, club.status === 'confirmed' ? '모임이 코앞이라 참여가 닫혔어요' : '모집 중인 모임이 아니에요')
+}
+
+function displayName(userId: number): string {
+  return userRepo.findById(userId)?.name ?? '누군가'
 }
 
 function accepted(club: Club): ClubMember[] {
@@ -95,6 +109,17 @@ async function moveToScheduling(club: Club, deps: { anthropicApiKey: string }, n
   return requireClub(club.id)
 }
 
+/** 확정 절차 — 미응답 초대 정리 → 아젠다 → (await 뒤 상태 재확인) → 확정·알림·시스템 메시지. */
+async function confirmAt(club: Club, slot: string, deps: { anthropicApiKey: string }): Promise<Club> {
+  clubRepo.declinePending(club.id)
+  await prepareAgenda(club, deps)
+  const fresh = requireClub(club.id)
+  if (fresh.status !== 'inviting') return fresh
+  clubService.confirmWith(fresh, slot)
+  clubChatService.postSystem(club.id, `시간이 정해졌어요 · ${formatKst(slot)}`)
+  return requireClub(club.id)
+}
+
 export const clubRecruitService = {
   /** 개설 — 검증, 개설 상한(모집 중 1개), 즉시 모집 중. 알림은 없다(개설자뿐이라). */
   create(userId: number, input: CreateClubInput, now: Date = new Date()): Club {
@@ -109,20 +134,24 @@ export const clubRecruitService = {
     if (!bookRepo.findById(input.bookId)) throw new ApiError(400, '책을 찾을 수 없어요')
     if (clubRepo.hostingRecruitingCount(userId) > 0) throw new ApiError(400, '모집 중인 모임은 하나만 열 수 있어요')
 
+    const slots = normalizeSlots(input.candidateSlots ?? [], now)
     const recruitUntilIso = endOfDayUtc(new Date(now.getTime() + input.recruitDays * 24 * 60 * 60 * 1000)).toISOString()
-    return clubRepo.createUserClub({ bookId: input.bookId, createdBy: userId, title, description, capacity: input.capacity, recruitUntilIso })
+    const club = clubRepo.createUserClub({ bookId: input.bookId, createdBy: userId, title, description, capacity: input.capacity, recruitUntilIso })
+    if (slots.length > 0) clubRepo.setCandidateSlotsOnly(club.id, slots)
+    return clubRepo.findById(club.id)!
   },
 
-  /** 공개 참여(선착순). 초대받은 사람이 누르면 수락, 거절했던 사람은 다시 들어온다. */
+  /**
+   * 공개 참여(선착순). 초대받은 사람이 누르면 수락, 거절했던 사람은 다시 들어온다.
+   * 모집 중이거나, 확정 뒤에도 모임 전날까지 자리가 있으면 참여할 수 있다(설계서 §3.5).
+   */
   join(clubId: number, userId: number, now: Date = new Date()): Club {
     const club = requireUserClub(clubId)
-    requireRecruiting(club)
+    requireOpen(club, now)
     const me = club.members.find((m) => m.userId === userId)
     if (me?.inviteStatus === 'accepted') throw new ApiError(400, '이미 참여 중이에요')
     if (me?.inviteStatus === 'invited') return clubService.respond(clubId, userId, true, now)
-    if (accepted(club).length + club.members.filter((m) => m.inviteStatus === 'invited').length >= club.capacity) {
-      throw new ApiError(400, '정원이 찼어요')
-    }
+    if (!hasSeat(club)) throw new ApiError(400, '정원이 찼어요')
 
     clubRepo.upsertMember(club.id, userId, 'member', 'accepted')
     const updated = requireClub(clubId)
@@ -137,13 +166,23 @@ export const clubRecruitService = {
         `/clubs/${updated.id}`
       )
     }
+    clubChatService.postSystem(club.id, `${who?.name ?? displayName(userId)} 님이 참여했어요`)
+    if (updated.status === 'confirmed' && updated.meetAt) {
+      notificationRepo.insertMany(
+        [userId],
+        'club_confirmed',
+        `${clubTitle(updated)} 시간이 정해졌어요`,
+        `${formatKst(updated.meetAt)}${updated.place ? ` · ${updated.place.name}` : ''}`,
+        `/clubs/${updated.id}`
+      )
+    }
     return updated
   },
 
-  /** 참여 취소 — 모집 중에만, 개설자는 접기를 써야 한다. 행을 지우므로 다시 참여할 수 있다. */
-  leave(clubId: number, userId: number): Club {
+  /** 참여 취소 — 모집 중이거나 확정 뒤 모임 전날까지, 개설자는 접기를 써야 한다. 행을 지우므로 다시 참여할 수 있다. */
+  leave(clubId: number, userId: number, now: Date = new Date()): Club {
     const club = requireUserClub(clubId)
-    requireRecruiting(club)
+    requireOpen(club, now)
     const me = club.members.find((m) => m.userId === userId)
     if (!me || me.inviteStatus !== 'accepted') throw new ApiError(400, '참여 중인 모임이 아니에요')
     if (me.role === 'host') throw new ApiError(400, '개설자는 참여를 취소할 수 없어요. 모임을 접어주세요.')
@@ -160,14 +199,15 @@ export const clubRecruitService = {
         `/clubs/${updated.id}`
       )
     }
+    clubChatService.postSystem(club.id, `${me.userName} 님이 나갔어요`)
     return updated
   },
 
   /** 초대 — 호스트만. 이미 멤버인 사람은 건너뛰고, 초대 수 + 수락 수가 정원을 넘으면 400. */
-  invite(clubId: number, userId: number, userIds: number[]): Club {
+  invite(clubId: number, userId: number, userIds: number[], now: Date = new Date()): Club {
     const club = requireUserClub(clubId)
     requireHost(club, userId)
-    requireRecruiting(club)
+    requireOpen(club, now)
     const existing = new Set(club.members.filter((m) => m.inviteStatus !== 'declined').map((m) => m.userId))
     const targets = [...new Set(userIds)].filter((id) => !existing.has(id))
     if (targets.length === 0) throw new ApiError(400, '초대할 사람이 없어요')
@@ -189,6 +229,18 @@ export const clubRecruitService = {
       club.description.length > 0 ? club.description.slice(0, 80) : '참여 여부를 알려주세요.',
       `/clubs/${club.id}`
     )
+    return requireClub(clubId)
+  },
+
+  /** 후보 시간 편집 — 개설자·모집 중. 표는 ISO로 다시 맞추고 사라진 후보의 표는 버린다. */
+  setCandidates(clubId: number, userId: number, slots: unknown, now: Date = new Date()): Club {
+    const club = requireUserClub(clubId)
+    requireHost(club, userId)
+    requireRecruiting(club)
+    const next = normalizeSlots(slots, now)
+    clubRepo.replaceVotes(club.id, remapVotes(club.candidateSlots, next, club.votes))
+    clubRepo.setCandidateSlotsOnly(club.id, next)
+    clubChatService.postSystem(club.id, next.length > 0 ? `후보 시간을 고쳤어요 · ${next.map(formatKst).join(' · ')}` : '후보 시간을 비웠어요')
     return requireClub(clubId)
   },
 
@@ -223,8 +275,30 @@ export const clubRecruitService = {
   },
 
   /**
-   * 모집 기간이 지난 사람 모임 정리(club:deadlines). 3명 이상이면 조율로, 미만이면 취소.
-   * recruit_until은 ISO라 ISO끼리 비교. 처리한 모임 수를 돌려준다.
+   * 시간 확정(= 사전 마감) — 개설자만, 모집 중만, 인원 제한 없음. 기본은 최다 득표, 지정 슬롯은 후보 중
+   * 미래 것이어야 한다. 조율 단계 없이 confirmed로 간다. 후보가 없는 모임은 closeRecruiting을 쓴다.
+   */
+  async confirm(clubId: number, userId: number, deps: { anthropicApiKey: string }, opts: { slot?: string }, now: Date = new Date()): Promise<Club> {
+    const club = requireUserClub(clubId)
+    requireHost(club, userId)
+    requireRecruiting(club)
+    if (club.candidateSlots.length === 0) throw new ApiError(400, '후보 시간이 없어요. "모집 마감 → 시간 잡기"로 후보를 받아보세요')
+    let slot: string
+    if (opts.slot !== undefined) {
+      if (!club.candidateSlots.includes(opts.slot)) throw new ApiError(400, '없는 시간 후보예요')
+      if (new Date(opts.slot) <= now) throw new ApiError(400, '지난 시간이에요. 후보를 고쳐주세요')
+      slot = opts.slot
+    } else {
+      const picked = pickByVotes(club.candidateSlots, club.votes, now)
+      if (picked === null) throw new ApiError(400, '지난 시간이에요. 후보를 고쳐주세요')
+      slot = picked
+    }
+    return confirmAt(club, slot, deps)
+  },
+
+  /**
+   * 모집 기간이 지난 사람 모임 정리(club:deadlines). 후보 시간이 있으면 수락 2명 이상은 자동 확정,
+   * 미만이면 취소. 후보가 없으면 기존 3명 규칙. recruit_until은 ISO라 ISO끼리 비교. 처리한 모임 수를 돌려준다.
    */
   async expireRecruiting(now: Date, deps: { anthropicApiKey: string }): Promise<number> {
     const nowIso = now.toISOString()
@@ -232,6 +306,16 @@ export const clubRecruitService = {
     for (const club of clubRepo.listByStatus('inviting')) {
       if (club.origin !== 'user' || !club.recruitUntil || club.recruitUntil > nowIso) continue
       handled += 1
+      if (club.candidateSlots.length > 0) {
+        if (accepted(club).length >= 2) {
+          const slot = pickByVotes(club.candidateSlots, club.votes, now)
+          if (slot) await confirmAt(club, slot, deps)
+          else cancelAndNotify(club, '후보 시간이 모두 지났어요', '후보 시간이 모두 지나 시간을 정하지 못했어요.', null)
+        } else {
+          cancelAndNotify(club, '모집 기간에 아무도 오지 않았어요', '이번에는 아무도 오지 않았어요. 다시 열어볼 수 있어요.', null)
+        }
+        continue
+      }
       if (accepted(club).length >= CLUB_RULES.minMembers) {
         await moveToScheduling(club, deps, now)
       } else {

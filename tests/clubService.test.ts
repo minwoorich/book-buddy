@@ -287,6 +287,26 @@ describe('scheduling 진입', () => {
   })
 })
 
+describe('clubService.vote — 사람 모임은 모집 중에도 투표', () => {
+  it('inviting 사람 모임에서 수락자가 투표하면 표만 저장되고 전원 투표해도 확정되지 않는다', () => {
+    const bookId = insertBook()
+    const host = insertUser('개설자'); const a = insertUser('a')
+    const club = clubRepo.createUserClub({ bookId, createdBy: host, title: '같이', description: '', capacity: 5, recruitUntilIso: '2026-10-01T23:59:59.000Z' })
+    clubRepo.setCandidateSlotsOnly(club.id, ['2026-09-29T09:30:00.000Z', '2026-10-01T09:30:00.000Z'])
+    clubRepo.upsertMember(club.id, a, 'member', 'accepted')
+    const now = new Date('2026-09-25T00:00:00Z')
+    clubService.vote(club.id, host, [1], now)
+    const after = clubService.vote(club.id, a, [1], now)
+    expect(after.status).toBe('inviting')
+    expect(after.votes).toEqual([{ userId: host, slotIdx: 1 }, { userId: a, slotIdx: 1 }])
+  })
+  it('에이전트 모임은 여전히 inviting에서 400', () => {
+    const { club, userIds } = makeProposal(3)
+    clubService.approveProposal(club.id)
+    expect(() => clubService.vote(club.id, userIds[0]!, [0])).toThrow(ApiError)
+  })
+})
+
 describe('clubService.vote', () => {
   it('수락자만, scheduling에서만, 유효한 인덱스만', () => {
     const { club, userIds } = scheduled()

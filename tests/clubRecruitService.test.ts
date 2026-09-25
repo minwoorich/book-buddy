@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { initDb, getDb } from '../server/db/connection'
 import { clubRepo } from '../server/repositories/clubRepo'
 import { notificationRepo } from '../server/repositories/notificationRepo'
+import { clubMessageRepo } from '../server/repositories/clubMessageRepo'
 import { clubRecruitService } from '../server/services/clubRecruitService'
 import { clubService } from '../server/services/clubService'
 import { ApiError } from '../server/utils/errors'
@@ -258,5 +259,122 @@ describe('clubRecruitService.expireRecruiting', () => {
 
     expect(await clubRecruitService.expireRecruiting(new Date(nowIso), NO_LLM)).toBe(1)
     expect(status(club.id)).toBe('canceled')
+  })
+})
+
+const S1 = '2026-09-29T09:30:00.000Z', S2 = '2026-10-01T09:30:00.000Z', S3 = '2026-10-02T09:30:00.000Z'
+
+describe('clubRecruitService.create — 후보 시간', () => {
+  it('후보를 내면 정렬돼 저장되고, 잘못된 후보는 400', () => {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, { ...input(), candidateSlots: [S2, S1] }, NOW)
+    expect(club.candidateSlots).toEqual([S1, S2])
+    expect(() => clubRecruitService.create(insertUser('h2'), { ...input(), candidateSlots: ['2026-09-01T09:30:00.000Z'] }, NOW)).toThrow(/지난/)
+  })
+})
+
+describe('clubRecruitService.setCandidates', () => {
+  it('개설자만·모집 중만; 남은 후보의 표는 유지되고 사라진 후보의 표는 삭제; 시스템 메시지', () => {
+    const host = insertUser('개설자'); const a = insertUser('a')
+    const club = clubRecruitService.create(host, { ...input(), candidateSlots: [S1, S2] }, NOW)
+    clubRecruitService.join(club.id, a, NOW)
+    clubService.vote(club.id, a, [0, 1], NOW)
+    expect(() => clubRecruitService.setCandidates(club.id, a, [S1], NOW)).toThrow(ApiError)
+
+    const after = clubRecruitService.setCandidates(club.id, host, [S2, S3], NOW)
+    expect(after.candidateSlots).toEqual([S2, S3])
+    expect(after.votes).toEqual([{ userId: a, slotIdx: 0 }])
+    const sys = clubMessageRepo.listBefore(club.id, null, 10).filter((m) => m.kind === 'system')
+    expect(sys.at(-1)!.body).toContain('후보 시간을 고쳤어요')
+    clubRepo.updateStatus(club.id, 'confirmed')
+    expect(() => clubRecruitService.setCandidates(club.id, host, [S3], NOW)).toThrow(/모집 중/)
+  })
+})
+
+describe('clubRecruitService.confirm', () => {
+  it('개설자만·후보 없으면 400 안내·기본은 최다 득표·1명이어도 확정·알림·시스템 메시지·조율 단계 없음', async () => {
+    const host = insertUser('개설자'); const a = insertUser('a'); const b = insertUser('b')
+    const noSlots = clubRecruitService.create(host, input(), NOW)
+    await expect(clubRecruitService.confirm(noSlots.id, host, NO_LLM, {}, NOW)).rejects.toThrow(/후보 시간이 없어요/)
+    clubRepo.updateStatus(noSlots.id, 'canceled')
+
+    const club = clubRecruitService.create(host, { ...input(), candidateSlots: [S1, S2] }, NOW)
+    clubRecruitService.join(club.id, a, NOW); clubRecruitService.join(club.id, b, NOW)
+    clubRecruitService.invite(club.id, host, [insertUser('c')], NOW)
+    clubService.vote(club.id, a, [1], NOW); clubService.vote(club.id, b, [1], NOW); clubService.vote(club.id, host, [0], NOW)
+    await expect(clubRecruitService.confirm(club.id, a, NO_LLM, {}, NOW)).rejects.toThrow(ApiError)
+
+    const after = await clubRecruitService.confirm(club.id, host, NO_LLM, {}, NOW)
+    expect(after.status).toBe('confirmed')
+    expect(after.meetAt).toBe(S2)
+    expect(after.members.find((m) => m.userName === 'c')!.inviteStatus).toBe('declined')
+    expect(after.agenda.length).toBeGreaterThan(0)
+    expect(notificationRepo.listForUser(a)[0]).toMatchObject({ type: 'club_confirmed', link: `/clubs/${club.id}` })
+    expect(clubMessageRepo.listBefore(club.id, null, 10).some((m) => m.kind === 'system' && m.body.includes('시간이 정해졌어요'))).toBe(true)
+    await expect(clubRecruitService.confirm(club.id, host, NO_LLM, {}, NOW)).rejects.toThrow(/모집 중/)
+  })
+
+  it('지정 슬롯으로 확정; 후보 밖·지난 슬롯은 400; 혼자여도 된다', async () => {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, { ...input(), candidateSlots: [S1, S2] }, NOW)
+    await expect(clubRecruitService.confirm(club.id, host, NO_LLM, { slot: S3 }, NOW)).rejects.toThrow(/없는 시간/)
+    await expect(clubRecruitService.confirm(club.id, host, NO_LLM, { slot: S1 }, new Date('2026-09-30T00:00:00Z'))).rejects.toThrow(/지난/)
+    const after = await clubRecruitService.confirm(club.id, host, NO_LLM, { slot: S1 }, NOW)
+    expect(after).toMatchObject({ status: 'confirmed', meetAt: S1 })
+  })
+
+  it('미래 후보가 하나도 없으면 400', async () => {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, { ...input(), candidateSlots: [S1] }, NOW)
+    await expect(clubRecruitService.confirm(club.id, host, NO_LLM, {}, new Date('2026-10-05T00:00:00Z'))).rejects.toThrow(/지난 시간/)
+  })
+})
+
+describe('clubRecruitService — 확정 후 참여 창', () => {
+  async function confirmedClub() {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, { ...input({ capacity: 3 }), candidateSlots: [S1] }, NOW)
+    await clubRecruitService.confirm(club.id, host, NO_LLM, {}, NOW)
+    return { club, host }
+  }
+  it('확정 뒤 모임 전날까지·정원 미만이면 참여·취소·초대가 되고 새 참가자에게 확정 알림이 간다', async () => {
+    const { club, host } = await confirmedClub()
+    const a = insertUser('a'); const b = insertUser('b'); const c = insertUser('c')
+    const joined = clubRecruitService.join(club.id, a, NOW)
+    expect(member(joined.id, a)!.inviteStatus).toBe('accepted')
+    expect(notificationRepo.listForUser(a)[0]).toMatchObject({ type: 'club_confirmed' })
+    expect(notificationRepo.listForUser(host).some((n) => n.type === 'club_joined')).toBe(true)
+    clubRecruitService.invite(club.id, host, [b], NOW)
+    expect(() => clubRecruitService.join(club.id, c, NOW)).toThrow(/정원/)
+    clubRecruitService.leave(club.id, a, NOW)
+    expect(member(club.id, a)).toBeUndefined()
+    expect(() => clubRecruitService.leave(club.id, host, NOW)).toThrow(/개설자/)
+  })
+  it('모임 KST 당일부터는 닫힌다', async () => {
+    const { club } = await confirmedClub()
+    const a = insertUser('a')
+    expect(() => clubRecruitService.join(club.id, a, new Date('2026-09-29T00:30:00Z'))).toThrow(/모집 중|닫혔/)
+  })
+  it('scheduling·done에서는 여전히 안 된다', async () => {
+    const host = insertUser('개설자')
+    const club = clubRecruitService.create(host, input(), NOW)
+    clubRepo.updateStatus(club.id, 'done')
+    expect(() => clubRecruitService.join(club.id, insertUser('a'), NOW)).toThrow(ApiError)
+  })
+})
+
+describe('clubRecruitService.expireRecruiting — 후보 있음', () => {
+  it('2명 이상이면 자동 확정, 개설자뿐이면 취소, 후보 없음은 기존 규칙', async () => {
+    const h1 = insertUser('h1'); const h2 = insertUser('h2'); const h3 = insertUser('h3')
+    const two = clubRecruitService.create(h1, { ...input({ recruitDays: 3 }), candidateSlots: [S2] }, NOW)   // 마감 9/27
+    clubRecruitService.join(two.id, insertUser('a'), NOW)
+    const alone = clubRecruitService.create(h2, { ...input({ recruitDays: 3 }), candidateSlots: [S2] }, NOW)
+    const legacy = clubRecruitService.create(h3, input({ recruitDays: 3 }), NOW)
+    clubRecruitService.join(legacy.id, insertUser('x'), NOW); clubRecruitService.join(legacy.id, insertUser('y'), NOW)
+
+    expect(await clubRecruitService.expireRecruiting(new Date('2026-09-28T00:00:00Z'), NO_LLM)).toBe(3)
+    expect(status(two.id)).toBe('confirmed'); expect(clubRepo.findById(two.id)!.meetAt).toBe(S2)
+    expect(status(alone.id)).toBe('canceled'); expect(clubRepo.findById(alone.id)!.canceledReason).toContain('아무도')
+    expect(status(legacy.id)).toBe('scheduling')
   })
 })

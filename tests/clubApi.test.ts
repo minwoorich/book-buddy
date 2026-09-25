@@ -144,4 +144,9 @@ describe('canViewClub', () => {
     const c = club({ id: 1, status: 'confirmed', origin: 'agent' })
     expect(canViewClub(c, { id: 99, role: 'admin' })).toBe(true)
   })
+
+  it('사람 모임이 확정돼도 멤버가 아닌 사람이 볼 수 있다(자리가 있으면 들어오게)', () => {
+    const c = club({ id: 7, status: 'confirmed', origin: 'user' })
+    expect(canViewClub(c, { id: 99, role: 'member' })).toBe(true)
+  })
 })
