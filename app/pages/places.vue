@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Club, GroupedClubs, Place, PlaceCandidatesResult, PlaceReviewSummary, UpcomingClubPlace } from '#shared/types'
+import type { Club, Place, PlaceCandidatesResult, PlaceReviewSummary, UpcomingClubPlace } from '#shared/types'
 import { VATECH_OFFICES, findOffice } from '#shared/constants/company'
 import type { VatechOffice } from '#shared/constants/company'
 import { formatKstDate, placeLocked } from '#shared/utils/clubTime'
@@ -140,25 +140,16 @@ function exitForClub() {
   void fetchPlaces()
 }
 
-// ── 내가 진행 중인 모임(호스트·장소를 고를 수 있는 상태) — 일반 목록의 카드에 "모임 장소로" 버튼을 붙인다.
-// 쿼터(동시 1개 참여) 덕에 그런 모임은 최대 하나다.
-const myClubs = ref<GroupedClubs>({ invites: [], needsResponse: [], active: [], past: [] })
+// ── 모임 장소 고르기 — 모임 모드(?forClub=)에서, 내가 그 모임의 개설자이고 장소를 고를 수 있는 상태일 때만.
+// 일반 장소 페이지에는 버튼을 붙이지 않는다(2026-09-25 결정: 모임 개설·조율 맥락에서만 보이게).
 const hostableClub = computed<Club | null>(() => {
-  const isHostable = (c: Club) =>
-    c.members.some((m) => m.userId === user.value?.id && m.role === 'host') &&
-    (c.status === 'scheduling' || c.status === 'confirmed') &&
-    !placeLocked(c, new Date())
-  if (forClub.value) return isHostable(forClub.value) ? forClub.value : null
-  const mine = [...myClubs.value.needsResponse, ...myClubs.value.active]
-  return mine.find(isHostable) ?? null
-})
-const amHostOfForClub = computed(() => !!forClub.value && forClub.value.members.some((m) => m.userId === user.value?.id && m.role === 'host'))
-const clubActionLabel = computed(() => {
-  const c = hostableClub.value
+  const c = forClub.value
   if (!c) return null
-  if (forClub.value && !amHostOfForClub.value) return null
-  return `『${c.bookTitle}』 모임 장소로`
+  const isHost = c.members.some((m) => m.userId === user.value?.id && m.role === 'host')
+  const pickable = (c.status === 'scheduling' || c.status === 'confirmed') && !placeLocked(c, new Date())
+  return isHost && pickable ? c : null
 })
+const clubActionLabel = computed(() => (hostableClub.value && forClubMode.value ? '이곳으로 정하기' : null))
 const settingPlace = ref(false)
 async function setClubPlace(place: Place) {
   const c = hostableClub.value
@@ -234,7 +225,6 @@ async function fetchPlaces(opts: { silent?: boolean } = {}) {
 
 onMounted(() => {
   if (user.value) {
-    void api<GroupedClubs>('/api/clubs').then((g) => { myClubs.value = g }).catch(() => {})
     void api<UpcomingClubPlace[]>('/api/clubs/upcoming-places').then((list) => { upcoming.value = new Map(list.map((u) => [u.kakaoId, u])) }).catch(() => {})
   }
   openReviewFromQuery()
@@ -605,7 +595,9 @@ watch(displayList, () => {
 .pick-exit:hover { background: var(--red); color: #fff; }
 .club-banner { border-color: var(--red); }
 .upcoming { margin: 4px 0 0; font-size: 12.5px; color: var(--red-text, #b3000e); }
-.club-pick { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; margin-right: 8px; }
+.club-pick { font: inherit; font-size: 12.5px; font-weight: 700; color: var(--red); background: transparent; border: 1px solid var(--red); border-radius: 3px; padding: 4px 10px; cursor: pointer; line-height: 1.2; }
+.club-pick:hover:not(:disabled) { background: var(--red); color: #fff; }
+.club-pick:disabled { opacity: .5; cursor: default; }
 
 /* 지도와 목록을 한 화면 높이(560px)에 맞추고, 목록은 그 안에서 스크롤(QA #58) —
    예전엔 지도 620px + 목록이 끝없이 아래로 늘어나 페이지가 길어졌다. */
@@ -669,7 +661,7 @@ watch(displayList, () => {
 .place .meta { font-size: 12.5px; color: var(--sub); margin-bottom: 8px; }
 .place .why { background: var(--red-tint); border-radius: 3px; padding: 8px 11px; font-size: 12.5px; line-height: 1.55; color: var(--red-text); display: flex; gap: 8px; }
 .place .why svg { flex-shrink: 0; margin-top: 2px; }
-.place .acts { display: flex; gap: 14px; margin-top: 8px; }
+.place .acts { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .place .acts a { font-size: 12.5px; font-weight: 700; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 1px; }
 .place .acts a:hover { color: var(--red); border-color: var(--red); }
 
