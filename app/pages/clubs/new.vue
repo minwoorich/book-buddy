@@ -13,6 +13,7 @@ const title = ref('')
 const description = ref('')
 const capacity = ref(5)
 const recruitDays = ref(7)
+const candidateSlots = ref<string[]>([])
 const sending = ref(false)
 const message = ref('')
 
@@ -64,7 +65,7 @@ async function submit() {
   try {
     const club = await api<{ id: number }>('/api/clubs', {
       method: 'POST',
-      body: { bookId: book.value.id, title: title.value, description: description.value, capacity: capacity.value, recruitDays: recruitDays.value },
+      body: { bookId: book.value.id, title: title.value, description: description.value, capacity: capacity.value, recruitDays: recruitDays.value, candidateSlots: candidateSlots.value },
     })
     await router.push(`/clubs/${club.id}`)
   } catch (e) {
@@ -155,6 +156,13 @@ async function submit() {
             />
             <span class="count">{{ description.length }}/{{ DESCRIPTION_MAX }}</span>
           </div>
+        </div>
+
+        <!-- 후보 시간 -->
+        <div class="group">
+          <div class="label">후보 시간 <span class="opt">선택 · 참가자가 모집 중에 투표해요</span></div>
+          <ClubCandidateEditor v-model="candidateSlots" />
+          <p class="hint">비워 두면 모집을 닫을 때 시스템이 후보 3개를 만들어 투표를 받아요.</p>
         </div>
 
         <!-- 정원 · 기간 -->
